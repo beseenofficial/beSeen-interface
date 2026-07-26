@@ -46,11 +46,11 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_USE_MOCK_AUTH=false
 ```
 
-| Variable | Description |
-| --- | --- |
-| `NEXT_PUBLIC_BLUX_APP_ID` | Application ID from the Blux dashboard. If it is empty, the local demo authentication flow is used. |
-| `NEXT_PUBLIC_APP_URL` | Base URL used when creating public profile links. |
-| `NEXT_PUBLIC_USE_MOCK_AUTH` | Set to `true` to use demo authentication even when a Blux application ID is configured. |
+| Variable                    | Description                                                                                         |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_BLUX_APP_ID`   | Application ID from the Blux dashboard. If it is empty, the local demo authentication flow is used. |
+| `NEXT_PUBLIC_APP_URL`       | Base URL used when creating public profile links.                                                   |
+| `NEXT_PUBLIC_USE_MOCK_AUTH` | Set to `true` to use demo authentication even when a Blux application ID is configured.             |
 
 ## Authentication and networks
 
@@ -62,15 +62,15 @@ When real authentication is not configured, the application stores the demo sess
 
 ## Available routes
 
-| Route | Purpose |
-| --- | --- |
-| `/login` | Sign in with Blux or the local demo flow. |
-| `/onboarding/security` | Create or recover the device messaging key. |
-| `/onboarding/profile` | Choose a username and optional avatar. |
-| `/dashboard` | Creator overview, statistics, and recent activity. |
-| `/dashboard/broadcasts` | Create and review broadcasts. |
-| `/dashboard/messenger` | Messenger placeholder page. |
-| `/dashboard/profile` | Public profile details, Aura status, and creator activity. |
+| Route                   | Purpose                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| `/login`                | Sign in with Blux or the local demo flow.                  |
+| `/onboarding/security`  | Create or recover the device messaging key.                |
+| `/onboarding/profile`   | Choose a username and optional avatar.                     |
+| `/dashboard`            | Creator overview, statistics, and recent activity.         |
+| `/dashboard/broadcasts` | Create and review broadcasts.                              |
+| `/dashboard/messenger`  | Messenger placeholder page.                                |
+| `/dashboard/profile`    | Public profile details, Aura status, and creator activity. |
 
 Authentication, profile completion, and the local messaging key are checked before protected pages are displayed.
 

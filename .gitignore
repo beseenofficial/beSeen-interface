@@ -12,6 +12,7 @@ coverage/
 .next/
 .open-next/
 .wrangler/
+cloudflare-env.d.ts
 out/
 build/
 dist/
