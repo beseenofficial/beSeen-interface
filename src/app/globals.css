@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ice: #eef7fa;
+  --color-navy: #0b0b3f;
+  --color-brand: #1045f5;
+  --color-border: #d7e5ea;
+  --color-lime: #ecf653;
+  --color-aqua: #64ddea;
+  --color-peach: #ffb7a5;
+  --color-lilac: #c8beff;
+  --color-secondary: #505775;
+  --color-muted: #7c849e;
+  --color-disabled: #e8eef1;
+  --color-subtle: #f7fafb;
+  --color-success: #137e58;
+  --color-success-bg: #e8f8f1;
+  --color-warning: #a86800;
+  --color-warning-bg: #fff5d9;
+  --color-error: #c93e50;
+  --color-error-bg: #fdecef;
+  --color-info-bg: #e9eeff;
+  --font-sans: Outfit, "Avenir Next", "Segoe UI", sans-serif;
+  --shadow-elevated: 0 12px 32px rgb(11 11 63 / 8%);
+}
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html,
+  body {
+    @apply bg-ice;
+  }
+
+  body {
+    @apply m-0 min-w-80 font-sans text-base leading-6 text-navy antialiased;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  button {
+    @apply text-inherit;
+  }
+
+  img {
+    @apply max-w-full;
+  }
+
+  p,
+  h1,
+  h2,
+  h3 {
+    @apply m-0;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply leading-[1.08] tracking-[-0.03em];
+  }
+
+  :focus-visible {
+    @apply outline-3 outline-offset-3 outline-brand/30;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
