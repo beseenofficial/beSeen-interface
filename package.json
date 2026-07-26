@@ -1,0 +1,38 @@
+{
+  "name": "beseen-interface",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@bluxcc/react": "^0.2.15",
+    "libsodium-wrappers": "^0.7.15",
+    "lucide-react": "^0.468.0",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/libsodium-wrappers": "^0.7.14",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@tailwindcss/postcss": "^4.0.0",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^16.0.0",
+    "jsdom": "^25.0.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
