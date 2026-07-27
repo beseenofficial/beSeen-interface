@@ -73,7 +73,6 @@ function LoginContent() {
           <LoginButton
             onLogin={() => void login()}
             loading={opening}
-            isDemo={auth.isDemo}
           />
           {error && (
             <p className="mt-2 text-xs text-error" role="alert">
@@ -94,11 +93,6 @@ function LoginContent() {
             Secure sign-in is handled by Blux. Wallet login is temporarily
             unavailable while the application is restricted to Testnet.
           </p>
-          {auth.isDemo && (
-            <p className="mt-3 rounded-[10px] bg-warning-bg p-3 text-[11px] text-warning">
-              Local demo mode is active because no Blux App ID is configured.
-            </p>
-          )}
         </section>
       </section>
     </main>

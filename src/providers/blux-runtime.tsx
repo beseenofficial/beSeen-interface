@@ -17,10 +17,14 @@ import {
   STELLAR_NETWORK,
   SUPPORTED_STELLAR_NETWORKS,
 } from '@/lib/stellar-network';
+import { signMessageWithBluxApi, usesBluxApiSigner } from '@/lib/blux-signing';
 import { ProfileProvider } from './profile-provider';
 import { ToastProvider } from './toast-provider';
 
-const appId = process.env.NEXT_PUBLIC_BLUX_APP_ID!;
+const appId = process.env.NEXT_PUBLIC_BLUX_APP_ID;
+if (!appId) {
+  throw new Error('NEXT_PUBLIC_BLUX_APP_ID is required.');
+}
 const network = networks[STELLAR_NETWORK];
 const supportedNetworks = SUPPORTED_STELLAR_NETWORKS.map(
   (networkName) => networks[networkName],
@@ -57,9 +61,13 @@ function BluxAuthState({ children }: { children: ReactNode }) {
   );
   const logout = useCallback(() => bluxLogout(), [bluxLogout]);
   const signMessage = useCallback(
-    async (message: string) =>
-      withAuthTimeout(bluxSignMessage(message), 'Message signing'),
-    [bluxSignMessage],
+    async (message: string) => {
+      const operation = usesBluxApiSigner(blux.user?.authMethod)
+        ? signMessageWithBluxApi(message)
+        : bluxSignMessage(message);
+      return withAuthTimeout(operation, 'Message signing');
+    },
+    [blux.user?.authMethod, bluxSignMessage],
   );
 
   const value = useMemo<AuthContextValue>(
@@ -67,7 +75,6 @@ function BluxAuthState({ children }: { children: ReactNode }) {
       isReady: blux.isReady,
       isAuthenticated: blux.isAuthenticated,
       address: blux.user?.address || null,
-      isDemo: false,
       login,
       logout,
       signMessage,

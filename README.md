@@ -125,7 +125,7 @@ Private keys and derived seed material are not written to `localStorage` or sent
 
 ```bash
 npm run dev        # Start the development server
-npm run build      # Create a production build
+npm run build      # Create a standard Next.js production build
 npm run start      # Run the production server
 npm run lint       # Run ESLint
 npm run typecheck  # Check TypeScript types

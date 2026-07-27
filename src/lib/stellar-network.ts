@@ -8,6 +8,4 @@ export const BLUX_LOGIN_METHODS = [
   'email',
   'passkey',
   'google',
-  'github',
-  'discord',
 ] as const;

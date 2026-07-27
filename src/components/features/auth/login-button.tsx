@@ -1,16 +1,14 @@
-"use client";
+'use client';
 
-import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export function LoginButton({
   onLogin,
   loading,
-  isDemo,
 }: {
   onLogin: () => void;
   loading: boolean;
-  isDemo: boolean;
 }) {
   return (
     <Button
@@ -19,11 +17,7 @@ export function LoginButton({
       loading={loading}
       icon={<ArrowRight size={19} />}
     >
-      {loading
-        ? "Opening Blux…"
-        : isDemo
-          ? "Continue to demo"
-          : "Continue with Blux"}
+      {loading ? 'Opening Blux…' : 'Continue with Blux'}
     </Button>
   );
 }
