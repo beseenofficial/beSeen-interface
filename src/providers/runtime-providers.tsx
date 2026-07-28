@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import dynamic from 'next/dynamic';
-import type { ReactNode } from 'react';
-import { LoadingState } from '@/components/ui/states';
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+import { LoadingState } from "@/components/ui/states";
 
-const BluxRuntime = dynamic(() => import('./blux-runtime'), {
+const BeSeenBluxProvider = dynamic(() => import("./blux-provider"), {
   ssr: false,
   loading: () => <LoadingState label="Preparing secure sign-in…" />,
 });
@@ -14,5 +14,5 @@ export default function RuntimeProviders({
 }: {
   children: ReactNode;
 }) {
-  return <BluxRuntime>{children}</BluxRuntime>;
+  return <BeSeenBluxProvider>{children}</BeSeenBluxProvider>;
 }

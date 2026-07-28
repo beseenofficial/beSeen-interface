@@ -13,7 +13,12 @@ export default defineConfig([
   },
   globalIgnores([
     ".next/**",
+    ".open-next/**",
+    ".wrangler/**",
     "node_modules/**",
+    "out/**",
+    "build/**",
+    "dist/**",
     ".next-swc-cache/**",
     ".npm-cache/**",
   ]),

@@ -73,7 +73,7 @@ export function Navigation({ close, onLogout }: NavigationProps) {
               @{profile?.username || "creator"}
             </strong>
             <span className="text-[10px] text-muted">
-              {shortenAddress(profile?.stellarAddress || "")}
+              {shortenAddress(profile?.walletAddress || "")}
             </span>
           </div>
         </div>

@@ -16,7 +16,7 @@ vi.mock("@/providers/profile-provider", () => ({
     profile: {
       username: "mohammad_m",
       avatarUrl: null,
-      stellarAddress: "GCJ7XZIWQBPLFMK6FFWB6V5BWX46GD2KPYOJ6LZ7MRYG2LQFM4BSEEN",
+      walletAddress: "GCJ7XZIWQBPLFMK6FFWB6V5BWX46GD2KPYOJ6LZ7MRYG2LQFM4BSEEN",
     },
   }),
 }));

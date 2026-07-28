@@ -80,7 +80,7 @@ function LoginContent() {
             </p>
           )}
           <div className="mt-5 grid grid-cols-3 gap-2">
-            {['Email', 'Passkey', 'Google'].map((method) => (
+            {["Wallet", "Email", "Google"].map((method) => (
               <span
                 className="rounded-lg bg-subtle px-1.5 py-2 text-center text-[10px] font-semibold text-muted"
                 key={method}
@@ -90,8 +90,8 @@ function LoginContent() {
             ))}
           </div>
           <p className="mt-6 border-t border-border pt-5 text-[11px] leading-[1.55] text-muted">
-            Secure sign-in is handled by Blux. Wallet login is temporarily
-            unavailable while the application is restricted to Testnet.
+            Secure sign-in is handled by Blux on Stellar Testnet. BeSeen never
+            receives your wallet seed or private signing keys.
           </p>
         </section>
       </section>

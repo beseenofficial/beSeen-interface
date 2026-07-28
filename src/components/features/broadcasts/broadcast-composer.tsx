@@ -1,33 +1,43 @@
-'use client';
+"use client";
 
-import { Radio, Send } from 'lucide-react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Radio, Send } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+
+const MAX_BYTES = 65_536;
 
 export function BroadcastComposer({
   publish,
 }: {
   publish: (content: string) => Promise<void>;
 }) {
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const byteLength = useMemo(
+    () => new TextEncoder().encode(content).length,
+    [content],
+  );
 
   async function submit() {
     setError(null);
     if (!content.trim()) {
-      setError('Write an update before publishing.');
+      setError("Write an update before publishing.");
+      return;
+    }
+    if (byteLength > MAX_BYTES) {
+      setError("This broadcast is too large. Shorten it before publishing.");
       return;
     }
     setSubmitting(true);
     try {
-      await publish(content);
-      setContent('');
+      await publish(content.trim());
+      setContent("");
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : 'Your broadcast could not be published.',
+          : "Your broadcast could not be published.",
       );
     } finally {
       setSubmitting(false);
@@ -41,9 +51,10 @@ export function BroadcastComposer({
           <Radio size={19} />
         </span>
         <div>
-          <h2 className="text-xl">New broadcast</h2>
+          <h2 className="text-xl">New encrypted broadcast</h2>
           <p className="mt-1 text-xs text-muted">
-            Everyone who holds your Aura will receive this update.
+            BeSeen freezes the audience; this browser encrypts once and wraps
+            the content key separately for every recipient.
           </p>
         </div>
       </div>
@@ -57,14 +68,14 @@ export function BroadcastComposer({
         className="min-h-33 w-full resize-y rounded-xl border border-border bg-white p-4 leading-[1.55] text-navy outline-none transition-[border,box-shadow] duration-150 placeholder:text-[#969db0] focus:border-brand focus:shadow-[0_0_0_3px_rgb(16_69_245/10%)]"
         id="broadcast-message"
         value={content}
-        onChange={(event) => setContent(event.target.value.slice(0, 500))}
+        onChange={(event) => setContent(event.target.value)}
         onKeyDown={(event) => {
-          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
             event.preventDefault();
             void submit();
           }
         }}
-        placeholder="Share an update with your Aura holders…"
+        placeholder="Share a private update…"
         rows={5}
         aria-describedby="broadcast-help broadcast-error"
         aria-invalid={Boolean(error)}
@@ -73,18 +84,18 @@ export function BroadcastComposer({
         <div className="flex gap-4 text-[11px] text-muted">
           <span id="broadcast-help">Ctrl/Cmd + Enter to publish</span>
           <span
-            className={content.length > 450 ? 'font-bold text-warning' : ''}
+            className={byteLength > MAX_BYTES ? "font-bold text-error" : ""}
           >
-            {content.length}/500
+            {byteLength.toLocaleString()}/{MAX_BYTES.toLocaleString()} bytes
           </span>
         </div>
         <Button
           onClick={() => void submit()}
           loading={submitting}
           icon={<Send size={17} />}
-          disabled={!content.trim()}
+          disabled={!content.trim() || byteLength > MAX_BYTES}
         >
-          Publish broadcast
+          Encrypt & publish
         </Button>
       </div>
       {error && (

@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!profile) return <LoadingState />;
 
   const onLogout = () => {
-    auth.logout();
+    void auth.logout();
     setOpen(false);
     router.replace("/login");
   };

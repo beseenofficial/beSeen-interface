@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function LoginButton({
   onLogin,
@@ -17,7 +17,7 @@ export function LoginButton({
       loading={loading}
       icon={<ArrowRight size={19} />}
     >
-      {loading ? 'Opening Blux…' : 'Continue with Blux'}
+      {loading ? "Connecting to Testnet…" : "Continue with Blux"}
     </Button>
   );
 }

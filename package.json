@@ -12,12 +12,14 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "contract:check": "node scripts/check-openapi.mjs"
   },
   "dependencies": {
-    "@bluxcc/react": "^0.2.15",
+    "@bluxcc/react": "^0.2.16",
     "@opennextjs/cloudflare": "^1.20.2",
-    "libsodium-wrappers": "^0.7.15",
+    "@stellar/stellar-sdk": "16.1.0",
+    "libsodium-wrappers-sumo": "^0.8.4",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
@@ -28,7 +30,6 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
-    "@types/libsodium-wrappers": "^0.7.14",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",

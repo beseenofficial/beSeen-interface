@@ -2,15 +2,11 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { hasEncryptedPrivateKey } from "@/lib/crypto/key-storage";
-import { requiredRoute } from "@/lib/onboarding";
+import { hasLocalBeSeenKeys } from "@/lib/crypto/messaging-keys";
 import { useAuth } from "@/providers/auth-provider";
-import { useProfile } from "@/providers/profile-provider";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 
 type Mode = "login" | "onboarding" | "app";
-
-const SESSION_RESOLUTION_TIMEOUT_MS = 8_000;
 
 export function RouteGuard({
   mode,
@@ -22,46 +18,23 @@ export function RouteGuard({
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
-  const { profile, loading, error, refresh } = useProfile();
-  const [checkingDeviceKey, setCheckingDeviceKey] = useState(false);
   const [allowed, setAllowed] = useState(mode === "login");
+  const [checkingKeys, setCheckingKeys] = useState(false);
   const [guardError, setGuardError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unresolvedSession =
-      auth.isReady &&
-      auth.isAuthenticated &&
-      (!auth.address || (!loading && !profile));
-    if (!unresolvedSession) {
-      setGuardError(null);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setGuardError(
-        !auth.address
-          ? "Your sign-in session is missing an account address. Please sign out and try again."
-          : "We could not load your creator profile. Please try again.",
-      );
-    }, SESSION_RESOLUTION_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [
-    auth.address,
-    auth.isAuthenticated,
-    auth.isReady,
-    loading,
-    profile,
-  ]);
-
-  useEffect(() => {
     let active = true;
-
     async function resolve() {
-      if (!auth.isReady) {
-        if (mode === "login") setAllowed(true);
+      setGuardError(null);
+      if (!auth.isReady || auth.accountState === "loading") {
+        if (active) setAllowed(mode === "login");
         return;
       }
 
-      if (!auth.isAuthenticated) {
+      if (
+        auth.accountState === "signed-out" ||
+        auth.accountState === "provider-ready"
+      ) {
         if (mode === "login") {
           setAllowed(true);
         } else {
@@ -71,46 +44,64 @@ export function RouteGuard({
         return;
       }
 
-      if (!auth.address || loading || !profile) return;
+      if (!auth.address) {
+        setAllowed(false);
+        setGuardError("Blux did not provide a Stellar account address.");
+        return;
+      }
 
-      setCheckingDeviceKey(true);
-      let hasDeviceKey = false;
+      setCheckingKeys(true);
+      let hasKeys = false;
       try {
-        hasDeviceKey =
-          profile.messagingKeyConfigured &&
-          (await hasEncryptedPrivateKey(profile.id));
+        hasKeys = await hasLocalBeSeenKeys(auth.address);
       } catch (cause) {
         if (!active) return;
+        setCheckingKeys(false);
+        setAllowed(false);
         setGuardError(
           cause instanceof Error
             ? cause.message
-            : "Secure storage could not be checked.",
+            : "Secure key storage could not be checked.",
         );
-        setAllowed(false);
-        setCheckingDeviceKey(false);
         return;
       }
       if (!active) return;
-      setCheckingDeviceKey(false);
+      setCheckingKeys(false);
 
-      const destination = requiredRoute({
-        authenticated: true,
-        profile,
-        hasDeviceKey,
-      })!;
+      if (auth.accountState === "unregistered") {
+        const destination = hasKeys
+          ? "/onboarding/profile"
+          : "/onboarding/security";
+        const correct =
+          (pathname === "/onboarding/security" &&
+            destination === "/onboarding/security") ||
+          (pathname === "/onboarding/profile" &&
+            destination === "/onboarding/profile");
+        if (mode === "onboarding" && correct) {
+          setAllowed(true);
+        } else {
+          setAllowed(false);
+          router.replace(destination);
+        }
+        return;
+      }
 
-      const correct =
-        (pathname === "/onboarding/security" &&
-          destination === "/onboarding/security") ||
-        (pathname === "/onboarding/profile" &&
-          destination === "/onboarding/profile") ||
-        (mode === "app" && destination === "/dashboard");
-
-      if (correct) {
-        setAllowed(true);
-      } else {
-        setAllowed(false);
-        router.replace(destination);
+      if (auth.accountState === "registered") {
+        if (!hasKeys) {
+          if (pathname === "/onboarding/security") {
+            setAllowed(true);
+          } else {
+            setAllowed(false);
+            router.replace("/onboarding/security");
+          }
+          return;
+        }
+        if (mode === "app") {
+          setAllowed(true);
+        } else {
+          setAllowed(false);
+          router.replace("/dashboard");
+        }
       }
     }
 
@@ -119,35 +110,26 @@ export function RouteGuard({
       active = false;
     };
   }, [
+    auth.accountState,
     auth.address,
-    auth.isAuthenticated,
     auth.isReady,
-    loading,
     mode,
     pathname,
-    profile,
     router,
   ]);
 
-  const displayedError = error ?? guardError;
-  if (displayedError) {
+  if (guardError) {
     return (
       <ErrorState
-        message={displayedError}
+        message={guardError}
         retry={() => {
           setGuardError(null);
-          void refresh();
+          router.refresh();
         }}
       />
     );
   }
-
-  // Keep an already-authorized page visible during background profile refreshes.
-  if (
-    !allowed ||
-    (mode !== "login" && !auth.isReady) ||
-    (!allowed && (loading || checkingDeviceKey))
-  ) {
+  if (!allowed || checkingKeys || !auth.isReady) {
     return <LoadingState label="Preparing your BeSeen experience…" />;
   }
   return children;
