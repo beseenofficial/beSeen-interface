@@ -1,274 +1,70 @@
-export type AccountType = "regular" | "creator";
-
-export type CreatorProfile = {
-  headline: string;
-  categories: string[];
-  skills: string[];
-  websiteUrl: string | null;
-  isAvailableForWork: boolean;
-};
-
+/** A BeSeen account as the API stores it. */
 export type User = {
   id: string;
+  /** The Stellar account the user signed in with through Blux (G…). */
   walletAddress: string;
+  /**
+   * The public half of the keypair deterministically derived from the user's
+   * SEP-10 challenge signature (see `src/lib/blux.tsx`). The secret half never
+   * leaves the user's browser.
+   */
+  derivedPublicKey: string;
   username: string;
-  displayName: string;
-  bio: string;
+  /** The user's logo — a data URL or https URL, or null for the default. */
   avatarUrl: string | null;
-  accountType: AccountType;
-  creatorProfile: CreatorProfile | null;
   createdAt: string;
 };
 
-export type PublicUser = Omit<User, "walletAddress">;
-
-export type AuthTokens = {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: "Bearer";
-  expiresIn: number;
-  refreshTokenExpiresAt: string;
-};
-
-export type AuthenticatedResult = {
-  user: User;
-  auth: AuthTokens;
-};
-
-export type ApiSuccess<T> = {
-  status: "success";
-  message: string;
-  result: T;
-};
-
-export type ApiValidationIssue = {
-  path: string;
-  message: string;
-};
-
-export type ApiErrorBody = {
-  status: "error";
-  message: string;
-  result: {
-    code?: string;
-    issues?: ApiValidationIssue[];
-    attemptsRemaining?: number;
-    remainingCount?: number;
-    [key: string]: unknown;
-  };
-};
-
-export type AuthClientConfig = {
-  protocol: {
-    authenticationStandard: "SEP-10";
-    challengeFormat: "stellar-transaction-xdr";
-    walletMethod: "signTransaction";
-    stellarNetwork: "public" | "testnet";
-    networkPassphrase: string;
-    authDomain: string;
-    serverSigningPublicKey: string;
-    transactionSubmissionRequired: false;
-    challengeTtlSeconds: number;
-    accessTokenTtlSeconds: number;
-  };
-  keyDerivation: {
-    version: 1;
-    source: "CLIENT_GENERATED";
-    kdf: {
-      name: "HKDF-SHA-256";
-      input: "CLIENT-RANDOM-32-BYTE-MASTER-SECRET";
-      inputEncoding: "raw-bytes";
-      salt: string;
-      seedLengthBytes: 32;
-      signingInfo: string;
-      encryptionInfo: string;
-    };
-    signingAlgorithm: "Ed25519";
-    encryptionAlgorithm: "X25519";
-  };
-};
-
-export type RegistrationProfileInput = {
-  username: string;
-  displayName: string;
-  bio?: string;
-  avatarUrl?: string | null;
-  accountType: AccountType;
-  creatorProfile?: {
-    headline: string;
-    categories: string[];
-    skills?: string[];
-    websiteUrl?: string | null;
-    isAvailableForWork?: boolean;
-  };
-};
-
-export type ProfileUpdate = Partial<
-  Pick<User, "username" | "displayName" | "bio" | "avatarUrl" | "accountType">
-> & {
-  creatorProfile?: Partial<CreatorProfile>;
-};
+/** What anyone may see about an account — no key material. */
+export type PublicUser = Omit<User, 'walletAddress' | 'derivedPublicKey'>;
 
 export type UsernameAvailability = {
   username: string;
   available: boolean;
-  reason: "invalid" | "reserved" | "taken" | null;
+  reason: 'invalid' | 'reserved' | 'taken' | null;
 };
 
-export type PublicUserKeys = {
-  derivationVersion: number;
-  signing: { algorithm: "Ed25519"; publicKey: string };
-  encryption: { algorithm: "X25519"; publicKey: string };
-};
-
-export type ChallengeResult = {
-  challengeId: string;
-  authenticationStandard: "SEP-10";
-  transactionXdr: string;
-  stellarNetwork: "public" | "testnet";
-  networkPassphrase: string;
-  serverSigningPublicKey: string;
-  homeDomain: string;
-  expiresAt: string;
-};
-
-export type BroadcastRecipient = {
+/** A follower, reduced to what encryption needs: their derived public key. */
+export type Follower = {
   userId: string;
   username: string;
-  keyVersion: number;
-  encryptionPublicKey: string;
-  keyUploaded: boolean;
-  encryptedBroadcastKey: string | null;
+  derivedPublicKey: string;
 };
 
-export type BroadcastRecipientPage = {
-  items: BroadcastRecipient[];
-  nextCursor: string | null;
-  hasMore: boolean;
+/**
+ * One encrypted copy of a broadcast. The same message is encrypted separately
+ * for every recipient (sender included) — the server stores only ciphertext.
+ */
+export type BroadcastCopy = {
+  /** The derived public key this copy is encrypted for (G…). */
+  recipientPublicKey: string;
+  /** ECIES payload, base64: ephemeralPub(32) ‖ iv(12) ‖ ciphertext. */
+  ciphertext: string;
 };
 
-export type BroadcastDraftProgress = {
-  uploadedCount: number;
-  remainingCount: number;
-  complete: boolean;
-};
-
-export type BroadcastDraft = {
+/** A broadcast as the API/DB stores it — no plaintext anywhere. */
+export type StoredBroadcast = {
+  /** UUID, assigned by the server. */
   id: string;
-  clientBroadcastId: string;
-  status: "draft";
-  audience: {
-    type: "all_active_users" | "token_holders";
-    count: number;
-  };
-  encryption: {
-    version: number;
-    contentSuite: string;
-    keyWrapSuite: string;
-  };
-  creatorKey: {
-    keyVersion: number;
-    encryptionPublicKey: string;
-  };
-  progress: BroadcastDraftProgress;
-  recipients: BroadcastRecipientPage;
+  /** The sender's User.id. */
+  senderId: string;
   createdAt: string;
-  expiresAt: string;
+  copies: BroadcastCopy[];
 };
 
-export type BroadcastDraftListItem = Omit<BroadcastDraft, "recipients">;
-
-export type BroadcastDraftListPage = {
-  items: BroadcastDraftListItem[];
-  nextCursor: string | null;
-  hasMore: boolean;
-};
-
-export type BroadcastFeedItem = {
+/** What the inbox endpoint returns: only the copy meant for the caller. */
+export type InboxBroadcast = {
   id: string;
-  clientBroadcastId: string;
-  creator: {
-    id: string;
-    username: string;
-    displayName: string;
-    avatarUrl: string | null;
-  };
-  manifest: {
-    signatureVersion: 1;
-    encryptionVersion: 1;
-    contentSuite: "XCHACHA20-POLY1305-IETF";
-    keyWrapSuite: "X25519-XSALSA20-POLY1305-SEALEDBOX";
-    creatorId: string;
-    creatorKeyVersion: number;
-    contentCiphertext: string;
-    contentNonce: string;
-    creatorEncryptedBroadcastKey: string;
-    audienceType: "all_active_users" | "token_holders";
-    audienceCount: number;
-    recipientKeysDigest: string;
-  };
-  viewerKey: {
-    source: "recipient" | "creator";
-    keyVersion: number;
-    encryptedBroadcastKey: string;
-  };
-  integrity: {
-    algorithm: "Ed25519";
-    signingPublicKey: string;
-    signature: string;
-  };
-  publishedAt: string;
+  sender: { id: string; username: string; avatarUrl: string | null };
+  createdAt: string;
+  ciphertext: string;
 };
 
-export type BroadcastFeedPage = {
-  view: "received" | "sent";
-  items: BroadcastFeedItem[];
-  nextCursor: string | null;
-  hasMore: boolean;
-};
-
-export type PublishedBroadcast = {
-  id: string;
-  clientBroadcastId: string;
-  creatorId: string;
-  status: "published";
-  audience: {
-    type: "all_active_users" | "token_holders";
-    count: number;
-  };
-  encryptionVersion: number;
-  contentCiphertext: string;
-  contentNonce: string;
-  creatorEncryptedBroadcastKey: string;
-  recipientKeysDigest: string;
-  signature: string;
-  publishedAt: string;
-};
-
+/** An inbox item after local decryption with the derived secret key. */
 export type DecryptedBroadcast = {
   id: string;
-  clientBroadcastId: string;
-  creator: BroadcastFeedItem["creator"];
-  content: string | null;
-  audienceCount: number;
-  publishedAt: string;
-  source: "recipient" | "creator";
-  integrity: "verified" | "failed";
-};
-
-export type CreatorActivity = {
-  id: string;
-  type: "account_created" | "broadcast_published" | "broadcast_received";
-  title: string;
-  description?: string;
+  sender: InboxBroadcast['sender'];
   createdAt: string;
-};
-
-export type DashboardOverview = {
-  profile: User;
-  sent: DecryptedBroadcast[];
-  received: DecryptedBroadcast[];
-  sentHasMore: boolean;
-  receivedHasMore: boolean;
-  activity: CreatorActivity[];
+  /** null when this device could not decrypt the payload. */
+  content: string | null;
 };

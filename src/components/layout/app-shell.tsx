@@ -1,15 +1,13 @@
 "use client";
 
 import { Menu, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import {
   useEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { useAuth } from "@/providers/auth-provider";
-import { useProfile } from "@/providers/profile-provider";
+import { useAuth } from "@/lib/blux";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { LoadingState } from "@/components/ui/states";
 import { Navigation } from "./navigation";
@@ -18,8 +16,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
   const auth = useAuth();
-  const router = useRouter();
-  const { profile } = useProfile();
 
   useEffect(() => {
     if (!open) return;
@@ -31,12 +27,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", escape);
   }, [open]);
 
-  if (!profile) return <LoadingState />;
+  if (!auth.user) return <LoadingState />;
 
   const onLogout = () => {
-    void auth.logout();
     setOpen(false);
-    router.replace("/login");
+    // RouteGuard notices the signed-out status and returns us to /login.
+    auth.logout();
   };
 
   return (

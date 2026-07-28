@@ -16,20 +16,26 @@ export function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export function relativeTime(value: string) {
-  const delta = Date.now() - new Date(value).getTime();
-  const minutes = Math.max(1, Math.round(delta / 60_000));
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-}
-
 export function initials(username: string | null) {
   return (username?.slice(0, 2) || "BS").toUpperCase();
 }
 
-export function sanitizeBroadcast(content: string) {
-  return content.replace(/\u0000/g, "").trim();
+// Logos are stored as data URLs (the mock API lives in localStorage), so the
+// file has to stay small.
+const MAX_LOGO_BYTES = 512 * 1024;
+
+export function readLogoFile(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    return Promise.reject(new Error("Choose an image file for your logo."));
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    return Promise.reject(new Error("Logos must be smaller than 512 KB."));
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () =>
+      reject(new Error("The logo file could not be read. Try another file."));
+    reader.readAsDataURL(file);
+  });
 }

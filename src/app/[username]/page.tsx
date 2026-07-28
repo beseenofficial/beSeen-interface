@@ -1,21 +1,14 @@
-"use client";
+'use client';
 
-import {
-  BadgeCheck,
-  BriefcaseBusiness,
-  CalendarDays,
-  ExternalLink,
-  Sparkles,
-} from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { Avatar } from "@/components/ui/avatar";
-import { BrandLogo } from "@/components/ui/brand-logo";
-import { ErrorState, LoadingState } from "@/components/ui/states";
-import { ApiError } from "@/lib/api-client";
-import { beseenApi } from "@/lib/beseen-api";
-import type { PublicUser } from "@/types";
+import { BadgeCheck, CalendarDays, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { Avatar } from '@/components/ui/avatar';
+import { BrandLogo } from '@/components/ui/brand-logo';
+import { ErrorState, LoadingState } from '@/components/ui/states';
+import { api } from '@/lib/api';
+import type { PublicUser } from '@/types';
 
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
@@ -27,16 +20,17 @@ export default function PublicProfilePage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await beseenApi.getPublicProfile(username);
-      setProfile(result.user);
+      const result = await api.getPublicProfile(username);
+      setProfile(result);
+      if (!result) {
+        setError('This BeSeen profile does not exist or is no longer available.');
+      }
     } catch (cause) {
       setProfile(null);
       setError(
-        cause instanceof ApiError && cause.statusCode === 404
-          ? "This BeSeen profile does not exist or is no longer available."
-          : cause instanceof Error
-            ? cause.message
-            : "This BeSeen profile could not be loaded.",
+        cause instanceof Error
+          ? cause.message
+          : 'This BeSeen profile could not be loaded.',
       );
     } finally {
       setLoading(false);
@@ -56,7 +50,7 @@ export default function PublicProfilePage() {
             <BrandLogo />
           </Link>
           <ErrorState
-            message={error ?? "This profile is unavailable."}
+            message={error ?? 'This profile is unavailable.'}
             retry={() => void loadProfile()}
           />
         </div>
@@ -64,10 +58,9 @@ export default function PublicProfilePage() {
     );
   }
 
-  const creator = profile.creatorProfile;
-  const joined = new Intl.DateTimeFormat("en", {
-    month: "long",
-    year: "numeric",
+  const joined = new Intl.DateTimeFormat('en', {
+    month: 'long',
+    year: 'numeric',
   }).format(new Date(profile.createdAt));
 
   return (
@@ -97,56 +90,22 @@ export default function PublicProfilePage() {
                     size="xl"
                   />
                 </span>
-                <span className="mb-2 rounded-full bg-navy px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-white">
-                  {profile.accountType}
-                </span>
               </div>
 
               <div className="mt-5 flex flex-wrap items-center gap-2">
                 <h1 className="text-[clamp(34px,5vw,52px)] font-semibold">
-                  {profile.displayName}
+                  @{profile.username}
                 </h1>
-                <BadgeCheck className="text-brand" size={25} aria-label="Active BeSeen profile" />
+                <BadgeCheck
+                  className="text-brand"
+                  size={25}
+                  aria-label="Active BeSeen profile"
+                />
               </div>
-              <p className="mt-1 text-sm text-muted">@{profile.username}</p>
-
-              {creator?.headline && (
-                <p className="mt-5 text-xl font-semibold text-navy">
-                  {creator.headline}
-                </p>
-              )}
-              {profile.bio && (
-                <p className="mt-4 max-w-165 whitespace-pre-wrap leading-7 text-secondary">
-                  {profile.bio}
-                </p>
-              )}
-
-              {creator && (
-                <>
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    {creator.categories.map((category) => (
-                      <span
-                        className="rounded-full bg-info-bg px-3 py-2 text-xs font-semibold text-brand"
-                        key={category}
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                  {creator.skills.length > 0 && (
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {creator.skills.map((skill) => (
-                        <span
-                          className="rounded-lg border border-border px-3 py-2 text-xs text-secondary"
-                          key={skill}
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
+              <p className="mt-4 max-w-165 leading-7 text-secondary">
+                This creator is on BeSeen. Join to reach them with
+                outcome-based attention — a reply, guaranteed or refunded.
+              </p>
             </div>
 
             <aside className="mt-10 h-fit rounded-2xl border border-border bg-subtle p-6 max-[850px]:mt-0">
@@ -159,38 +118,10 @@ export default function PublicProfilePage() {
                   <small className="text-muted">BeSeen public identity</small>
                 </div>
               </div>
-
-              {creator && (
-                <div
-                  className={`mt-5 flex items-center gap-2 rounded-xl p-3 text-xs font-semibold ${
-                    creator.isAvailableForWork
-                      ? "bg-success-bg text-success"
-                      : "bg-white text-muted"
-                  }`}
-                >
-                  <BriefcaseBusiness size={17} />
-                  {creator.isAvailableForWork
-                    ? "Available for work"
-                    : "Not currently available"}
-                </div>
-              )}
-
               <p className="mt-5 flex items-center gap-2 text-xs text-muted">
                 <CalendarDays size={16} />
                 Joined {joined}
               </p>
-
-              {creator?.websiteUrl && (
-                <a
-                  className="mt-5 flex items-center justify-between rounded-xl border border-border bg-white p-3 text-xs font-semibold text-navy transition hover:border-brand hover:text-brand"
-                  href={creator.websiteUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Creator website
-                  <ExternalLink size={15} />
-                </a>
-              )}
             </aside>
           </div>
         </section>

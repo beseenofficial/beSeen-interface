@@ -1,13 +1,32 @@
-"use client";
+'use client';
 
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
-import { hasLocalBeSeenKeys } from "@/lib/crypto/messaging-keys";
-import { useAuth } from "@/providers/auth-provider";
-import { ErrorState, LoadingState } from "@/components/ui/states";
+import { useRouter } from 'next/navigation';
+import { useEffect, type ReactNode } from 'react';
+import { LoadingState } from '@/components/ui/states';
+import { useAuth, type AuthStatus } from '@/lib/blux';
 
-type Mode = "login" | "onboarding" | "app";
+type Mode = 'login' | 'onboarding' | 'app';
 
+/** Where each auth status belongs. `null` = wait, don't navigate. */
+const HOME: Record<AuthStatus, string | null> = {
+  loading: null,
+  'signed-out': '/login',
+  'sign-required': '/login',
+  'needs-username': '/onboarding',
+  ready: '/dashboard',
+};
+
+const ALLOWED: Record<Mode, AuthStatus[]> = {
+  login: ['signed-out', 'sign-required'],
+  onboarding: ['needs-username'],
+  app: ['ready'],
+};
+
+/**
+ * Keeps every page on the right side of the auth flow: waits while auth is
+ * loading, lets matching statuses through, and moves everyone else to where
+ * they belong (this is what auto-advances users off /login once signed in).
+ */
 export function RouteGuard({
   mode,
   children,
@@ -16,121 +35,21 @@ export function RouteGuard({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const auth = useAuth();
-  const [allowed, setAllowed] = useState(mode === "login");
-  const [checkingKeys, setCheckingKeys] = useState(false);
-  const [guardError, setGuardError] = useState<string | null>(null);
+  const { status, busyLabel } = useAuth();
+  const allowed = ALLOWED[mode].includes(status);
+  const destination = allowed ? null : HOME[status];
 
   useEffect(() => {
-    let active = true;
-    async function resolve() {
-      setGuardError(null);
-      if (!auth.isReady || auth.accountState === "loading") {
-        if (active) setAllowed(mode === "login");
-        return;
-      }
+    if (destination) router.replace(destination);
+  }, [destination, router]);
 
-      if (
-        auth.accountState === "signed-out" ||
-        auth.accountState === "provider-ready"
-      ) {
-        if (mode === "login") {
-          setAllowed(true);
-        } else {
-          setAllowed(false);
-          router.replace("/login");
-        }
-        return;
-      }
-
-      if (!auth.address) {
-        setAllowed(false);
-        setGuardError("Blux did not provide a Stellar account address.");
-        return;
-      }
-
-      setCheckingKeys(true);
-      let hasKeys = false;
-      try {
-        hasKeys = await hasLocalBeSeenKeys(auth.address);
-      } catch (cause) {
-        if (!active) return;
-        setCheckingKeys(false);
-        setAllowed(false);
-        setGuardError(
-          cause instanceof Error
-            ? cause.message
-            : "Secure key storage could not be checked.",
-        );
-        return;
-      }
-      if (!active) return;
-      setCheckingKeys(false);
-
-      if (auth.accountState === "unregistered") {
-        const destination = hasKeys
-          ? "/onboarding/profile"
-          : "/onboarding/security";
-        const correct =
-          (pathname === "/onboarding/security" &&
-            destination === "/onboarding/security") ||
-          (pathname === "/onboarding/profile" &&
-            destination === "/onboarding/profile");
-        if (mode === "onboarding" && correct) {
-          setAllowed(true);
-        } else {
-          setAllowed(false);
-          router.replace(destination);
-        }
-        return;
-      }
-
-      if (auth.accountState === "registered") {
-        if (!hasKeys) {
-          if (pathname === "/onboarding/security") {
-            setAllowed(true);
-          } else {
-            setAllowed(false);
-            router.replace("/onboarding/security");
-          }
-          return;
-        }
-        if (mode === "app") {
-          setAllowed(true);
-        } else {
-          setAllowed(false);
-          router.replace("/dashboard");
-        }
-      }
-    }
-
-    void resolve();
-    return () => {
-      active = false;
-    };
-  }, [
-    auth.accountState,
-    auth.address,
-    auth.isReady,
-    mode,
-    pathname,
-    router,
-  ]);
-
-  if (guardError) {
+  if (!allowed) {
+    // While signing in, tell the user what is actually happening (e.g.
+    // "Creating your keypair — approve the signature request in your wallet")
+    // instead of a silent generic spinner.
     return (
-      <ErrorState
-        message={guardError}
-        retry={() => {
-          setGuardError(null);
-          router.refresh();
-        }}
-      />
+      <LoadingState label={busyLabel ?? 'Preparing your BeSeen experience…'} />
     );
-  }
-  if (!allowed || checkingKeys || !auth.isReady) {
-    return <LoadingState label="Preparing your BeSeen experience…" />;
   }
   return children;
 }

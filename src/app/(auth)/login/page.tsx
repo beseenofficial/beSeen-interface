@@ -1,31 +1,31 @@
 'use client';
 
-import { CheckCircle2, LockKeyhole } from 'lucide-react';
+import { ArrowRight, CheckCircle2, LockKeyhole, PenLine } from 'lucide-react';
 import { useState } from 'react';
-import { LoginButton } from '@/components/features/auth/login-button';
 import { RouteGuard } from '@/components/layout/route-guard';
 import { AuraRipple } from '@/components/ui/aura-ripple';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { useAuth } from '@/providers/auth-provider';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/blux';
+import { shortenAddress } from '@/lib/utils';
 
 function LoginContent() {
   const auth = useAuth();
-  const [opening, setOpening] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
 
-  async function login() {
-    setOpening(true);
-    setError(null);
+  // `sign-required` means Blux is connected but the deterministic ownership
+  // signature is still missing (it failed or was dismissed) — offer a retry.
+  const needsSignature = auth.status === 'sign-required';
+
+  async function continueWithBlux() {
+    setWorking(true);
     try {
-      await auth.login();
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'The sign-in window could not be opened. Please try again.',
-      );
+      // Both calls end with the RouteGuard auto-advancing this page.
+      await (needsSignature ? auth.completeSignIn() : auth.login());
+    } catch {
+      // The provider already turned the failure into auth.error.
     } finally {
-      setOpening(false);
+      setWorking(false);
     }
   }
 
@@ -62,33 +62,42 @@ function LoginContent() {
           aria-labelledby="welcome-title"
         >
           <span className="mb-6 grid size-12 place-items-center rounded-[14px] bg-info-bg text-brand">
-            <LockKeyhole size={22} />
+            {needsSignature ? <PenLine size={22} /> : <LockKeyhole size={22} />}
           </span>
           <h2 className="text-[30px] font-semibold" id="welcome-title">
-            Welcome to BeSeen
+            {needsSignature ? 'One signature to go' : 'Welcome to BeSeen'}
           </h2>
           <p className="mt-3 text-sm text-secondary">
-            Sign in to create your Aura and manage your creator presence.
+            {needsSignature
+              ? `You're connected as ${shortenAddress(auth.address ?? '')}. Approve one small signature in your wallet to unlock your BeSeen keys — it changes nothing on the Stellar network.`
+              : 'Sign in to create your Aura and manage your creator presence.'}
           </p>
-          <LoginButton
-            onLogin={() => void login()}
-            loading={opening}
-          />
-          {error && (
+          <Button
+            className="mt-7 w-full"
+            onClick={() => void continueWithBlux()}
+            loading={working}
+            icon={<ArrowRight size={19} />}
+          >
+            {working
+              ? 'Waiting for Blux…'
+              : needsSignature
+                ? 'Sign to continue'
+                : 'Login'}
+          </Button>
+          {auth.error && (
             <p className="mt-2 text-xs text-error" role="alert">
-              {error}
+              {auth.error}
             </p>
           )}
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            {["Wallet", "Email", "Google"].map((method) => (
-              <span
-                className="rounded-lg bg-subtle px-1.5 py-2 text-center text-[10px] font-semibold text-muted"
-                key={method}
-              >
-                {method}
-              </span>
-            ))}
-          </div>
+          {needsSignature && (
+            <button
+              className="mt-4 cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-muted underline-offset-2 hover:underline"
+              onClick={() => auth.logout()}
+              type="button"
+            >
+              Use a different account
+            </button>
+          )}
           <p className="mt-6 border-t border-border pt-5 text-[11px] leading-[1.55] text-muted">
             Secure sign-in is handled by Blux on Stellar Testnet. BeSeen never
             receives your wallet seed or private signing keys.

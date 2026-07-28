@@ -1,84 +1,106 @@
 # BeSeen Interface
 
-BeSeen's Next.js client, connected directly to the BeSeen v1 API. The current implementation covers Blux authentication, registration and profile management, local signing/encryption key derivation, encrypted broadcasts, feed verification, and session rotation.
+BeSeen's Next.js client. Sign-in is fully client-side: Blux authenticates the
+user's Stellar account, a deterministic SEP-10 challenge signature is turned
+into a local keypair, and the (currently mocked) API only ever learns two
+identity facts — the wallet address and the derived public key.
+
+## How sign-in works
+
+1. **Blux login** — the user authenticates with a wallet, email, or Google
+   (`blux.login()`). Blux hands us their Stellar address.
+2. **Deterministic challenge** — the app builds a SEP-10 style transaction,
+   sourced by the user's own account (wallets refuse to sign for any other
+   source), that is byte-for-byte identical on every visit for that account
+   and can never be submitted (sequence 0), and asks the wallet to sign it.
+3. **Key derivation** — Ed25519 signatures are deterministic, so the signature
+   is stable per account. It is fed through HKDF-SHA256 to derive a Stellar
+   keypair. Same account → same keypair, on every visit and every device.
+4. **Storage** — the derived secret key never leaves the browser and is
+   encrypted at rest: a non-extractable AES-GCM key lives in IndexedDB and
+   the ciphertext in `localStorage`, so copying the storage to another
+   machine yields nothing. It can always be re-derived by signing again, so
+   there is nothing to back up. The derived public key is sent to the API
+   together with the wallet address.
+5. **Profile** — one onboarding step asks for a username and an optional logo.
+
+Blux sessions are deliberately **not persistent**: every page load starts at
+the login screen, but returning users skip the signature step because the
+encrypted keypair cache is per wallet address. Testnet is the only network
+the app is configured for.
+
+All of steps 1–4 live in a single commented file: `src/lib/blux.tsx`.
+
+## The API is mocked
+
+The real backend is disabled for now. `src/lib/api.ts` implements the whole
+API surface against `localStorage` and documents the route contract to
+implement later (register, get-by-wallet, update, username availability,
+public profile, followers, broadcasts). Swap each function body for a `fetch`
+call when the backend exists — call sites won't change.
+
+## End-to-end encrypted broadcasts
+
+Broadcasts are encrypted in the browser before anything is sent: one copy for
+the sender (so they can reread their own messages) and one per follower
+public key returned by the API. The scheme is ECIES over the derived keypair
+(ed25519 → X25519, ephemeral ECDH, HKDF-SHA256, AES-256-GCM) — see
+`src/lib/broadcast-crypto.ts`. The server stores `{ id (uuid), senderId,
+createdAt, copies[{recipientPublicKey, ciphertext}] }` and can never read a
+message. On load, the broadcasts page fetches everything addressed to your
+derived public key — your own messages and other people's — and decrypts it
+locally with the derived secret key.
 
 ## Requirements
 
 - Node.js 20.9 or newer
-- npm
-- BeSeen API running at `http://localhost:5000/v1`
-- A Blux application ID configured for Stellar Testnet
-
-The client deliberately supports **Stellar Testnet only**. It rejects a backend authentication configuration for any other network.
+- A Blux application ID (Stellar Testnet)
 
 ## Local setup
 
-```powershell
+```sh
 npm install
-Copy-Item .env.example .env.local
-npm run contract:check
+cp .env.example .env.local   # fill in NEXT_PUBLIC_BLUX_APP_ID
 npm run dev
 ```
 
-The app is available at [http://localhost:3000](http://localhost:3000), the API at [http://localhost:5000/v1](http://localhost:5000/v1), and the local OpenAPI UI at [http://localhost:5000/v1/docs/](http://localhost:5000/v1/docs/).
-
-Public profiles are available at `http://localhost:3000/{username}` and are populated from the API's public-user endpoint.
+The app runs at [http://localhost:3000](http://localhost:3000). Public
+profiles are served at `http://localhost:3000/{username}`.
 
 ## Environment
-
-```env
-NEXT_PUBLIC_BLUX_APP_ID=
-NEXT_PUBLIC_BESEEN_API_URL=http://localhost:5000/v1
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
 
 | Variable | Description |
 | --- | --- |
 | `NEXT_PUBLIC_BLUX_APP_ID` | Blux application used for wallet, email, and Google login. |
-| `NEXT_PUBLIC_BESEEN_API_URL` | Base URL for the BeSeen v1 API. |
-| `NEXT_PUBLIC_APP_URL` | Public frontend URL used for profile links. |
+| `NEXT_PUBLIC_APP_URL` | Public frontend URL used for profile links. Falls back to the serving origin. |
 
-There is no mock-auth or local mock-API fallback. Missing Blux configuration is surfaced as a configuration error.
+## Docker
 
-## Authentication and registration
+```sh
+docker compose up --build
+```
 
-Blux is configured with the `wallet`, `email`, and `google` login methods and a single `testnet` network. The backend remains the protocol authority:
-
-1. Fetch the public protocol and key-derivation configuration without a wallet query parameter.
-2. Ask Blux to sign the exact backend SEP-10 transaction XDR with `signTransaction` on Testnet.
-3. Never submit that zero-fee authentication transaction to Stellar and never rebuild or modify its XDR.
-4. For a new account, generate a random 32-byte master secret and derive independent Ed25519 and X25519 seeds with HKDF-SHA-256.
-5. Encrypt the master secret and private keys in device storage, and download a password-encrypted identity backup for cross-device restore.
-6. Persist access and rotating refresh tokens in encrypted IndexedDB storage.
-7. Refresh once, with a single in-flight request, only after a backend `401 UNAUTHORIZED`.
-
-The client never reads Blux's internal token storage, submits SEP-10 transactions, sends master secrets or private keys to the API, or changes a backend-provided XDR.
-
-## Broadcast security
-
-Broadcast content is encrypted locally with XChaCha20-Poly1305. A random content key is sealed independently for every frozen recipient and for the creator. Draft state and exact ciphertext are encrypted locally before upload so interrupted drafts can resume without producing different recipient ciphertexts.
-
-Before finalization, the client refetches the frozen manifest, computes the backend-specified SHA-256 digest, signs the exact canonical message with the derived Ed25519 key, and submits the signature. Received content is shown only after signature verification and successful decryption.
+`compose.yaml` reads both `NEXT_PUBLIC_*` values from `.env` and passes them
+as build args (Next.js inlines them into the client bundle at build time, so
+changing them requires a rebuild). The image is a multi-stage standalone
+build served by `node server.js` on port 3000.
 
 ## Important modules
 
-- `src/lib/api-client.ts` — API envelope handling, encrypted sessions, refresh rotation
-- `src/lib/beseen-api.ts` — typed v1 API boundary
-- `src/providers/blux-provider.tsx` — official Blux integration and Testnet configuration
-- `src/providers/auth-provider.tsx` — provider/backend authentication state machine
-- `src/lib/crypto/messaging-keys.ts` — HKDF, Ed25519, and X25519 derivation
-- `src/lib/crypto/identity-backup.ts` — password-encrypted cross-device master-secret backup
-- `src/lib/secure-storage.ts` — non-exportable AES-GCM device storage
-- `src/lib/broadcasts.ts` — encrypted draft, upload, finalize, resume, and decrypt flows
+- `src/lib/blux.tsx` — **all** Blux code: provider config, deterministic
+  SEP-10 challenge, signature verification, key derivation, auth state
+- `src/lib/api.ts` — mocked API + the route contract for the future backend
+- `src/lib/broadcast-crypto.ts` — per-recipient E2E encryption of broadcasts
+- `src/components/layout/route-guard.tsx` — waits while auth loads and
+  auto-advances users to login → onboarding → dashboard
+- `src/app/(onboarding)/onboarding/page.tsx` — username + logo, the only
+  onboarding step
 
 ## Validation
 
-```powershell
-npm run contract:check
+```sh
 npm run typecheck
 npm run lint
 npm test
 npm run build
 ```
-
-`contract:check` validates the local OpenAPI version and required endpoints, then confirms the running backend is configured for Testnet, SEP-10 transaction signing, and client-generated HKDF-SHA-256 keys.

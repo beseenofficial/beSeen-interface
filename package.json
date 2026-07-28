@@ -12,14 +12,13 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "contract:check": "node scripts/check-openapi.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "@bluxcc/react": "^0.2.16",
+    "@noble/curves": "^1.8.1",
     "@opennextjs/cloudflare": "^1.20.2",
     "@stellar/stellar-sdk": "16.1.0",
-    "libsodium-wrappers-sumo": "^0.8.4",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "react": "^19.0.0",

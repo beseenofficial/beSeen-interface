@@ -1,0 +1,12 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        # Compose resolves these from ./.env (or the host environment).
+        # They are baked into the client bundle at build time.
+        NEXT_PUBLIC_BLUX_APP_ID: ${NEXT_PUBLIC_BLUX_APP_ID}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

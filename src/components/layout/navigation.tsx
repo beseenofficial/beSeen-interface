@@ -11,14 +11,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { BrandLogo } from "@/components/ui/brand-logo";
+import { useAuth } from "@/lib/blux";
 import { cn, shortenAddress } from "@/lib/utils";
-import { useProfile } from "@/providers/profile-provider";
 
 const navigationItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/broadcasts", label: "Broadcasts", icon: Radio },
   { href: "/dashboard/messenger", label: "Messenger", icon: MessageCircleMore },
-  { href: "/dashboard/profile", label: "Creator Profile", icon: UserRound },
+  { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ];
 
 type NavigationProps = {
@@ -28,7 +28,7 @@ type NavigationProps = {
 
 export function Navigation({ close, onLogout }: NavigationProps) {
   const pathname = usePathname();
-  const { profile } = useProfile();
+  const { user } = useAuth();
 
   return (
     <>
@@ -64,16 +64,16 @@ export function Navigation({ close, onLogout }: NavigationProps) {
       <div className="mt-auto border-t border-border pt-5">
         <div className="flex items-center gap-2.5 px-1.5 pb-3.5">
           <Avatar
-            username={profile?.username || null}
-            src={profile?.avatarUrl}
+            username={user?.username || null}
+            src={user?.avatarUrl}
             size="sm"
           />
           <div className="flex min-w-0 flex-col">
             <strong className="overflow-hidden text-ellipsis text-[13px]">
-              @{profile?.username || "creator"}
+              @{user?.username || "creator"}
             </strong>
             <span className="text-[10px] text-muted">
-              {shortenAddress(profile?.walletAddress || "")}
+              {shortenAddress(user?.walletAddress || "")}
             </span>
           </div>
         </div>

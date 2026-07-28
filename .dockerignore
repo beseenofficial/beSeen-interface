@@ -1,0 +1,11 @@
+node_modules
+.next
+.open-next
+.wrangler
+.git
+.env*
+!.env.example
+*.log
+Dockerfile
+compose.yaml
+README.md
