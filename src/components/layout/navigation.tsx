@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/blux";
-import { cn, shortenAddress } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const navigationItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -65,16 +65,14 @@ export function Navigation({ close, onLogout }: NavigationProps) {
         <div className="flex items-center gap-2.5 px-1.5 pb-3.5">
           <Avatar
             username={user?.username || null}
-            src={user?.avatarUrl}
+            src={user?.avatar}
             size="sm"
           />
           <div className="flex min-w-0 flex-col">
             <strong className="overflow-hidden text-ellipsis text-[13px]">
               @{user?.username || "creator"}
             </strong>
-            <span className="text-[10px] text-muted">
-              {shortenAddress(user?.walletAddress || "")}
-            </span>
+            <span className="text-[10px] text-muted">Secure API session</span>
           </div>
         </div>
         <button

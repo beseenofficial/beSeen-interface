@@ -1,6 +1,6 @@
 'use client';
 
-import { ImageUp, KeyRound, Save, X } from 'lucide-react';
+import { KeyRound, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Avatar } from '@/components/ui/avatar';
@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { CopyButton } from '@/components/ui/copy-button';
 import { LoadingState } from '@/components/ui/states';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { api } from '@/lib/api';
+import { profileApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
-import { readLogoFile } from '@/lib/utils';
+import { bytesToBase64 } from '@/lib/encoding';
 import { useToast } from '@/providers/toast-provider';
 
 export default function ProfilePage() {
@@ -27,22 +27,10 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     setUsername(user.username);
-    setAvatarUrl(user.avatarUrl);
+    setAvatarUrl(user.avatar);
   }, [user]);
 
   if (!user) return <LoadingState label="Loading your profile…" />;
-
-  async function chooseLogo(file: File | undefined) {
-    setError(null);
-    if (!file) return;
-    try {
-      setAvatarUrl(await readLogoFile(file));
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'The logo could not be read.',
-      );
-    }
-  }
 
   async function save() {
     if (!user) return;
@@ -51,13 +39,13 @@ export default function ProfilePage() {
     try {
       const changes = {
         ...(username !== user.username ? { username } : {}),
-        ...(avatarUrl !== user.avatarUrl ? { avatarUrl } : {}),
+        ...(avatarUrl !== user.avatar ? { avatar: avatarUrl } : {}),
       };
       if (Object.keys(changes).length === 0) {
         toast('Nothing to update', 'Your profile already matches these values.');
         return;
       }
-      const updated = await api.updateUser(user.walletAddress, changes);
+      const updated = await profileApi.update(changes);
       auth.setUser(updated);
       toast('Profile updated', 'Your latest changes are now live.');
     } catch (cause) {
@@ -98,35 +86,19 @@ export default function ProfilePage() {
             </div>
           </label>
 
-          <div className="mt-5 grid gap-2 text-[13px] font-semibold">
-            Logo
+          <label className="mt-5 grid gap-2 text-[13px] font-semibold">
+            Logo URL
             <div className="flex items-center gap-4">
               <Avatar username={username || null} src={avatarUrl} size="lg" />
-              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold transition hover:border-[#a9c2ca] hover:bg-subtle">
-                <ImageUp size={17} />
-                {avatarUrl ? 'Change logo' : 'Upload logo'}
-                <input
-                  className="sr-only"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    void chooseLogo(event.target.files?.[0]);
-                    event.target.value = '';
-                  }}
-                />
-              </label>
-              {avatarUrl && (
-                <button
-                  className="inline-flex size-10 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent text-muted hover:bg-subtle hover:text-error"
-                  type="button"
-                  aria-label="Remove logo"
-                  onClick={() => setAvatarUrl(null)}
-                >
-                  <X size={17} />
-                </button>
-              )}
+              <input
+                className="min-h-12 min-w-0 flex-1 rounded-xl border border-border px-3.5 outline-none focus:border-brand"
+                type="url"
+                value={avatarUrl ?? ''}
+                placeholder="https://…"
+                onChange={(event) => setAvatarUrl(event.target.value || null)}
+              />
             </div>
-          </div>
+          </label>
 
           {error && (
             <p className="mt-5 rounded-xl bg-error-bg p-3 text-xs text-error" role="alert">
@@ -165,11 +137,11 @@ export default function ProfilePage() {
               <KeyRound size={13} /> Sign-in key active
             </StatusBadge>
             <p className="mt-3 break-all text-[11px] leading-5 text-muted">
-              {user.derivedPublicKey}
+              {auth.keys ? bytesToBase64(auth.keys.signingPublicKey) : 'Reconnect your wallet to unlock local keys.'}
             </p>
             <p className="mt-2 text-[11px] leading-5 text-muted">
-              This public key was derived from your wallet signature and is the
-              only key the server knows. The secret half stays on your devices.
+              The API stores only the signing and encryption public keys. Both
+              private keys remain encrypted on this device.
             </p>
           </div>
         </aside>

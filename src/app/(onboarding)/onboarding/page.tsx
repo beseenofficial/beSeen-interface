@@ -1,15 +1,14 @@
 'use client';
 
-import { ImageUp, Sparkles, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { OnboardingShell } from '@/components/layout/onboarding-shell';
 import { AuraRipple } from '@/components/ui/aura-ripple';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { api, validateUsername } from '@/lib/api';
+import { ApiError, authApi, profileApi, validateUsername } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
-import { readLogoFile } from '@/lib/utils';
 import { useToast } from '@/providers/toast-provider';
 
 type Availability = 'idle' | 'checking' | 'available' | 'unavailable';
@@ -33,7 +32,7 @@ export default function OnboardingPage() {
     }
     setAvailability('checking');
     const timer = window.setTimeout(async () => {
-      const result = await api.checkUsername(username);
+      const result = await profileApi.availability(username);
       if (!active) return;
       setAvailability(result.available ? 'available' : 'unavailable');
       setAvailabilityReason(result.reason);
@@ -43,18 +42,6 @@ export default function OnboardingPage() {
       window.clearTimeout(timer);
     };
   }, [username]);
-
-  async function chooseLogo(file: File | undefined) {
-    setError(null);
-    if (!file) return;
-    try {
-      setAvatarUrl(await readLogoFile(file));
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'The logo could not be read.',
-      );
-    }
-  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -71,20 +58,18 @@ export default function OnboardingPage() {
       );
       return;
     }
-    if (!auth.address || !auth.keypair) {
+    if (!auth.address || !auth.keys) {
       setError('Your session expired. Sign in again to continue.');
       return;
     }
 
     setSubmitting(true);
     try {
-      // The only things the server learns about this account: the wallet
-      // address, the derived public key, and the profile below.
-      const user = await api.register({
+      const user = await authApi.register({
         walletAddress: auth.address,
-        derivedPublicKey: auth.keypair.publicKey(),
         username,
-        avatarUrl,
+        avatar: avatarUrl,
+        keys: auth.keys,
       });
       auth.setUser(user);
       toast(
@@ -93,6 +78,10 @@ export default function OnboardingPage() {
       );
       // RouteGuard sees status "ready" and moves us to /dashboard.
     } catch (cause) {
+      if (cause instanceof ApiError && cause.code === 'WALLET_ALREADY_REGISTERED') {
+        await auth.completeSignIn();
+        return;
+      }
       setError(
         cause instanceof Error
           ? cause.message
@@ -148,35 +137,19 @@ export default function OnboardingPage() {
             </small>
           </label>
 
-          <div className="mt-6 grid max-w-120 gap-2 text-[13px] font-semibold">
-            Logo <span className="-mt-1 font-normal text-muted">Optional</span>
+          <label className="mt-6 grid max-w-120 gap-2 text-[13px] font-semibold">
+            Logo URL <span className="-mt-1 font-normal text-muted">Optional · http/https</span>
             <div className="flex items-center gap-4">
               <Avatar username={username || null} src={avatarUrl} size="lg" />
-              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold transition hover:border-[#a9c2ca] hover:bg-subtle">
-                <ImageUp size={17} />
-                {avatarUrl ? 'Change logo' : 'Upload logo'}
-                <input
-                  className="sr-only"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    void chooseLogo(event.target.files?.[0]);
-                    event.target.value = '';
-                  }}
-                />
-              </label>
-              {avatarUrl && (
-                <button
-                  className="inline-flex size-10 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent text-muted hover:bg-subtle hover:text-error"
-                  type="button"
-                  aria-label="Remove logo"
-                  onClick={() => setAvatarUrl(null)}
-                >
-                  <X size={17} />
-                </button>
-              )}
+              <input
+                className="min-h-12 min-w-0 flex-1 rounded-xl border border-border px-3.5 outline-none focus:border-brand"
+                type="url"
+                value={avatarUrl ?? ''}
+                placeholder="https://…"
+                onChange={(event) => setAvatarUrl(event.target.value || null)}
+              />
             </div>
-          </div>
+          </label>
 
           {error && (
             <p

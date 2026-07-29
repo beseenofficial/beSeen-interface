@@ -8,7 +8,6 @@ import {
   Radio,
   Share2,
   ShieldCheck,
-  Wallet,
   WalletCards,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -21,6 +20,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
+import { bytesToBase64 } from '@/lib/encoding';
 import { formatDate, shortenAddress } from '@/lib/utils';
 import { useToast } from '@/providers/toast-provider';
 
@@ -42,7 +42,7 @@ const features = [
 ];
 
 export default function OverviewPage() {
-  const { user, openWalletProfile, fundWallet } = useAuth();
+  const { user, keys, config, openWalletProfile, fundWallet, completeSignIn } = useAuth();
   const { toast } = useToast();
 
   if (!user) return <LoadingState label="Loading your profile…" />;
@@ -50,18 +50,13 @@ export default function OverviewPage() {
   const profileUrl = `${APP_URL}/${user.username}`;
   const identityFacts = [
     {
-      icon: Wallet,
-      label: 'Stellar wallet',
-      value: shortenAddress(user.walletAddress),
-      copy: user.walletAddress,
-      hint: 'The account you sign in with through Blux.',
-    },
-    {
       icon: KeyRound,
       label: 'Sign-in key',
-      value: shortenAddress(user.derivedPublicKey),
-      copy: user.derivedPublicKey,
-      hint: 'Derived from your wallet signature. The secret half never leaves this browser.',
+      value: keys ? shortenAddress(bytesToBase64(keys.signingPublicKey)) : 'Locked',
+      copy: keys ? bytesToBase64(keys.signingPublicKey) : null,
+      hint: keys
+        ? 'Derived locally; the private half never leaves this browser.'
+        : 'Reconnect the registered wallet to decrypt messages.',
     },
     {
       icon: CalendarDays,
@@ -87,12 +82,12 @@ export default function OverviewPage() {
         />
         <div className="relative z-1 [&>h2]:mt-4.5 [&>h2]:text-[clamp(34px,4vw,46px)] [&>h2]:font-semibold [&>p]:mt-3 [&>p]:text-[17px] [&>p]:text-secondary max-sm:[&>h2]:text-4xl">
           <StatusBadge tone="success">
-            <ShieldCheck size={14} /> Testnet session active
+            <ShieldCheck size={14} /> {config.stellarNetwork} session active
           </StatusBadge>
           <h2>Your BeSeen identity is ready.</h2>
           <p>
-            Signed in with Blux, verified with a wallet signature, and secured
-            by keys that only exist on your devices.
+            Authenticated with a rotating API session and secured by keys that
+            only exist on your devices.
           </p>
           <div className="mt-6 flex max-w-162.5 items-center justify-between gap-3 rounded-[14px] border border-border bg-white py-2 pl-4 pr-2 max-sm:flex-col max-sm:items-stretch max-sm:p-3.5">
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold max-sm:break-all max-sm:whitespace-normal">
@@ -101,6 +96,11 @@ export default function OverviewPage() {
             <CopyButton value={profileUrl} />
           </div>
           <div className="mt-4.5 flex flex-wrap gap-2.5 max-sm:w-full max-sm:[&>*]:w-full">
+            {!keys && (
+              <Button icon={<KeyRound size={18} />} onClick={() => void completeSignIn()}>
+                Reconnect wallet to unlock
+              </Button>
+            )}
             <Button
               icon={<Share2 size={18} />}
               onClick={async () => {
@@ -135,14 +135,14 @@ export default function OverviewPage() {
           </div>
         </div>
         <div className="relative z-1 flex flex-col items-center rounded-[18px] border border-[#5949b5]/15 bg-white p-7 text-center shadow-[0_10px_24px_rgb(11_11_63/5%)]">
-          <Avatar username={user.username} src={user.avatarUrl} size="xl" />
+          <Avatar username={user.username} src={user.avatar} size="xl" />
           <strong className="mt-4 block text-[26px]">@{user.username}</strong>
-          <p className="mt-1.5 text-xs text-success">active · Testnet</p>
+          <p className="mt-1.5 text-xs text-success">active · {config.stellarNetwork}</p>
         </div>
       </section>
 
       <section
-        className="mt-5 grid grid-cols-3 gap-4 max-[1180px]:grid-cols-1"
+        className="mt-5 grid grid-cols-2 gap-4 max-[1180px]:grid-cols-1"
         aria-label="Identity details"
       >
         {identityFacts.map((fact) => {

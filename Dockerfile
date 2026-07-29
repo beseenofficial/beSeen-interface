@@ -12,8 +12,10 @@ COPY . .
 # NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time, so
 # they must arrive as build args (compose.yaml passes them from .env).
 ARG NEXT_PUBLIC_BLUX_APP_ID
+ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_BLUX_APP_ID=$NEXT_PUBLIC_BLUX_APP_ID \
+    NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
     NEXT_OUTPUT=standalone \
     NEXT_TELEMETRY_DISABLED=1

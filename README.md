@@ -1,100 +1,71 @@
 # BeSeen Interface
 
-BeSeen's Next.js client. Sign-in is fully client-side: Blux authenticates the
-user's Stellar account, a deterministic SEP-10 challenge signature is turned
-into a local keypair, and the (currently mocked) API only ever learns two
-identity facts — the wallet address and the derived public key.
+BeSeen’s Next.js client integrates directly with the BeSeen v1 API. It uses a
+Stellar wallet only for deterministic local key recovery, JWTs for ordinary API
+authentication, and client-side authenticated encryption for broadcasts.
 
-## How sign-in works
+## Security and authentication
 
-1. **Blux login** — the user authenticates with a wallet, email, or Google
-   (`blux.login()`). Blux hands us their Stellar address.
-2. **Deterministic challenge** — the app builds a SEP-10 style transaction,
-   sourced by the user's own account (wallets refuse to sign for any other
-   source), that is byte-for-byte identical on every visit for that account
-   and can never be submitted (sequence 0), and asks the wallet to sign it.
-3. **Key derivation** — Ed25519 signatures are deterministic, so the signature
-   is stable per account. It is fed through HKDF-SHA256 to derive a Stellar
-   keypair. Same account → same keypair, on every visit and every device.
-4. **Storage** — the derived secret key never leaves the browser and is
-   encrypted at rest: a non-extractable AES-GCM key lives in IndexedDB and
-   the ciphertext in `localStorage`, so copying the storage to another
-   machine yields nothing. It can always be re-derived by signing again, so
-   there is nothing to back up. The derived public key is sent to the API
-   together with the wallet address.
-5. **Profile** — one onboarding step asks for a username and an optional logo.
+At startup the client loads `GET /v1/auth/config`, restores a rotating refresh
+session from encrypted IndexedDB when possible, and keeps the access token in
+memory. Wallet sign-in builds the backend-configured fixed sequence-0 Stellar
+transaction locally and never submits or uploads it. Its one raw signature is
+domain-separated with HKDF-SHA-256 into Ed25519 signing and X25519 encryption
+keys. Private material is encrypted under a non-extractable device key in
+IndexedDB and can be reconstructed by signing the same fixed transaction again.
 
-Blux sessions are deliberately **not persistent**: every page load starts at
-the login screen, but returning users skip the signature step because the
-encrypted keypair cache is per wallet address. Testnet is the only network
-the app is configured for.
+Registration sends the Stellar public address and the two raw public keys only.
+Login signs the canonical timestamped UUID proof. Public profiles contain only
+`id`, `username`, and `avatar`.
 
-All of steps 1–4 live in a single commented file: `src/lib/blux.tsx`.
+## Encrypted broadcasts
 
-## The API is mocked
+Publishing uses the v1 draft workflow. The backend freezes the token-holder
+audience; the browser encrypts content once with XChaCha20-Poly1305, seals the
+same content key for every recipient and the creator, uploads retry-stable
+wrapped keys, signs the canonical encrypted manifest, and finalizes the draft.
+Unfinished local cryptographic state is encrypted in IndexedDB so interrupted
+uploads can resume without changing sealed ciphertext. Drafts whose local state
+cannot be recovered are canceled.
 
-The real backend is disabled for now. `src/lib/api.ts` implements the whole
-API surface against `localStorage` and documents the route contract to
-implement later (register, get-by-wallet, update, username availability,
-public profile, followers, broadcasts). Swap each function body for a `fetch`
-call when the backend exists — call sites won't change.
-
-## End-to-end encrypted broadcasts
-
-Broadcasts are encrypted in the browser before anything is sent: one copy for
-the sender (so they can reread their own messages) and one per follower
-public key returned by the API. The scheme is ECIES over the derived keypair
-(ed25519 → X25519, ephemeral ECDH, HKDF-SHA256, AES-256-GCM) — see
-`src/lib/broadcast-crypto.ts`. The server stores `{ id (uuid), senderId,
-createdAt, copies[{recipientPublicKey, ciphertext}] }` and can never read a
-message. On load, the broadcasts page fetches everything addressed to your
-derived public key — your own messages and other people's — and decrypts it
-locally with the derived secret key.
-
-## Requirements
-
-- Node.js 20.9 or newer
-- A Blux application ID (Stellar Testnet)
+Received and sent feed items are verified with the creator’s Ed25519 public key
+before any decryption or display. A restored API session without local private
+keys shows encrypted items as locked until the registered wallet reconnects.
 
 ## Local setup
 
+Requirements: Node.js 20.9+, the BeSeen API, and a Blux application ID.
+
 ```sh
-npm install
-cp .env.example .env.local   # fill in NEXT_PUBLIC_BLUX_APP_ID
+npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-The app runs at [http://localhost:3000](http://localhost:3000). Public
-profiles are served at `http://localhost:3000/{username}`.
+The frontend runs at [http://localhost:3000](http://localhost:3000). The local
+API default is `http://localhost:5000`.
 
 ## Environment
 
 | Variable | Description |
 | --- | --- |
-| `NEXT_PUBLIC_BLUX_APP_ID` | Blux application used for wallet, email, and Google login. |
-| `NEXT_PUBLIC_APP_URL` | Public frontend URL used for profile links. Falls back to the serving origin. |
+| `NEXT_PUBLIC_BLUX_APP_ID` | Blux application used to connect a Stellar wallet. |
+| `NEXT_PUBLIC_API_BASE_URL` | BeSeen API origin, without `/v1`; defaults to `http://localhost:5000`. |
+| `NEXT_PUBLIC_APP_URL` | Public frontend origin used for profile links. |
 
-## Docker
-
-```sh
-docker compose up --build
-```
-
-`compose.yaml` reads both `NEXT_PUBLIC_*` values from `.env` and passes them
-as build args (Next.js inlines them into the client bundle at build time, so
-changing them requires a rebuild). The image is a multi-stage standalone
-build served by `node server.js` on port 3000.
+`Dockerfile` and `compose.yaml` pass all three public values at build time.
 
 ## Important modules
 
-- `src/lib/blux.tsx` — **all** Blux code: provider config, deterministic
-  SEP-10 challenge, signature verification, key derivation, auth state
-- `src/lib/api.ts` — mocked API + the route contract for the future backend
-- `src/lib/broadcast-crypto.ts` — per-recipient E2E encryption of broadcasts
-- `src/components/layout/route-guard.tsx` — waits while auth loads and
-  auto-advances users to login → onboarding → dashboard
-- `src/app/(onboarding)/onboarding/page.tsx` — username + logo, the only
-  onboarding step
+- `src/lib/api/transport.ts` — envelope parsing, typed errors, bearer transport,
+  rotating refresh-token persistence, and the single-flight refresh mutex.
+- `src/lib/api/` — focused auth, profile, token, and broadcast route clients.
+- `src/lib/keys.ts` — fixed Stellar transaction validation, dual-key derivation,
+  canonical login proofs, and local key vault access.
+- `src/lib/broadcast-crypto.ts` — XChaCha encryption, sealed boxes, recipient
+  digests, manifest serialization/signing, verification, and feed decryption.
+- `src/lib/broadcast-workflow.ts` — draft creation, pagination, retry-safe upload,
+  finalization, recovery, and cancellation.
 
 ## Validation
 

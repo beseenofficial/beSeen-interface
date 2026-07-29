@@ -1,141 +1,194 @@
-/**
- * =============================================================================
- * End-to-end encryption for broadcasts
- * =============================================================================
- *
- * The message is encrypted in the browser, once per recipient, against each
- * recipient's DERIVED public key (the deterministic keypair from
- * `src/lib/blux.tsx`). The API/DB only ever sees ciphertext — it can never
- * read a broadcast, not even the sender's own copy.
- *
- * THE SCHEME (ECIES — the same construction as libsodium's "sealed boxes")
- *   1. Recipient keys are ed25519 (Stellar). ed25519 signs but cannot
- *      encrypt, so both sides are converted to X25519 (birational map).
- *   2. A fresh ephemeral X25519 keypair is generated per copy.
- *   3. shared  = X25519(ephemeral secret, recipient public)
- *   4. AES key = HKDF-SHA256(shared, salt = ephemeralPub ‖ recipientPub,
- *                info = "beseen|broadcast|v1")
- *   5. payload = base64( ephemeralPub(32) ‖ iv(12) ‖ AES-256-GCM ciphertext )
- *
- * Only someone holding the recipient's derived SECRET key can rebuild the
- * shared secret and decrypt — and that key never leaves the user's browser.
- * GCM authenticates the ciphertext, so tampering fails loudly.
- */
+import sodium from 'libsodium-wrappers-sumo';
+import { base64ToBytes, bytesToBase64, bytesToHex, utf8 } from '@/lib/encoding';
+import { signBytes, verifyBytes } from '@/lib/keys';
+import type {
+  BroadcastDraft,
+  BroadcastFeedItem,
+  BroadcastRecipient,
+  DecryptedBroadcast,
+  DerivedKeys,
+} from '@/types';
 
-import {
-  edwardsToMontgomeryPriv,
-  edwardsToMontgomeryPub,
-  x25519,
-} from '@noble/curves/ed25519';
-import { Keypair, StrKey } from '@stellar/stellar-sdk';
+export const MAX_BROADCAST_BYTES = 65_536;
 
-const HKDF_INFO = 'beseen|broadcast|v1';
-const EPHEMERAL_PUB_BYTES = 32;
-const IV_BYTES = 12;
+export type EncryptedContent = {
+  contentKey: Uint8Array;
+  contentCiphertext: string;
+  contentNonce: string;
+};
 
-const utf8 = (value: string) => new TextEncoder().encode(value);
-
-const toBase64 = (bytes: Uint8Array) =>
-  btoa(String.fromCharCode(...Array.from(bytes)));
-
-const fromBase64 = (value: string) =>
-  Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
-
-function concat(...parts: Uint8Array[]): Uint8Array {
-  const out = new Uint8Array(parts.reduce((sum, p) => sum + p.length, 0));
-  let offset = 0;
-  for (const part of parts) {
-    out.set(part, offset);
-    offset += part.length;
+export async function encryptBroadcastContent(plaintext: string): Promise<EncryptedContent> {
+  const message = utf8(plaintext);
+  if (message.length > MAX_BROADCAST_BYTES) {
+    throw new Error('Broadcasts must be 65,536 UTF-8 bytes or fewer.');
   }
-  return out;
+  await sodium.ready;
+  const contentKey = sodium.randombytes_buf(32);
+  const nonce = sodium.randombytes_buf(24);
+  const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+    message,
+    null,
+    null,
+    nonce,
+    contentKey,
+  );
+  return {
+    contentKey: new Uint8Array(contentKey),
+    contentCiphertext: bytesToBase64(ciphertext),
+    contentNonce: bytesToBase64(nonce),
+  };
 }
 
-/** shared secret + transcript → one 32-byte AES-GCM key. */
-async function messageKey(
-  shared: Uint8Array,
-  ephemeralPub: Uint8Array,
-  recipientPub: Uint8Array,
-): Promise<CryptoKey> {
-  const material = await crypto.subtle.importKey(
-    'raw',
-    Uint8Array.from(shared),
-    'HKDF',
-    false,
-    ['deriveBits'],
-  );
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: 'HKDF',
-      hash: 'SHA-256',
-      salt: Uint8Array.from(concat(ephemeralPub, recipientPub)),
-      info: utf8(HKDF_INFO),
-    },
-    material,
-    256,
-  );
-  return crypto.subtle.importKey('raw', bits, 'AES-GCM', false, [
-    'encrypt',
-    'decrypt',
-  ]);
+export async function wrapContentKey(contentKey: Uint8Array, publicKeyBase64: string): Promise<string> {
+  await sodium.ready;
+  if (contentKey.length !== 32) throw new Error('The broadcast content key is invalid.');
+  const wrapped = sodium.crypto_box_seal(contentKey, base64ToBytes(publicKeyBase64, 32));
+  if (wrapped.length !== 80) throw new Error('The wrapped broadcast key is invalid.');
+  return bytesToBase64(wrapped);
 }
 
-/**
- * Encrypts one copy of `plaintext` for the holder of `recipientPublicKey`
- * (a derived Stellar public key, G…). Every call uses a fresh ephemeral key
- * and IV, so encrypting the same message twice yields different payloads.
- */
-export async function encryptForRecipient(
-  recipientPublicKey: string,
-  plaintext: string,
+export async function unwrapContentKey(
+  wrappedBase64: string,
+  keys: DerivedKeys,
+): Promise<Uint8Array> {
+  await sodium.ready;
+  const opened = sodium.crypto_box_seal_open(
+    base64ToBytes(wrappedBase64, 80),
+    keys.encryptionPublicKey,
+    keys.encryptionPrivateKey,
+  );
+  if (!opened || opened.length !== 32) throw new Error('The broadcast key could not be opened.');
+  return new Uint8Array(opened);
+}
+
+export type ManifestFields = {
+  encryptionVersion: number;
+  broadcastId: string;
+  clientBroadcastId: string;
+  creatorId: string;
+  creatorKeyVersion: number;
+  contentNonce: string;
+  contentCiphertext: string;
+  creatorEncryptedBroadcastKey: string;
+  audienceType: string;
+  audienceCount: number;
+  recipientKeysDigest: string;
+};
+
+export function serializeBroadcastManifest(fields: ManifestFields): string {
+  return [
+    'BeSeen Encrypted Broadcast',
+    'Signature Version: 1',
+    `Encryption Version: ${fields.encryptionVersion}`,
+    'Content Suite: XCHACHA20-POLY1305-IETF',
+    'Key Wrap Suite: X25519-XSALSA20-POLY1305-SEALEDBOX',
+    `Broadcast ID: ${fields.broadcastId.toLowerCase()}`,
+    `Client Broadcast ID: ${fields.clientBroadcastId.toLowerCase()}`,
+    `Creator ID: ${fields.creatorId.toLowerCase()}`,
+    `Creator Key Version: ${fields.creatorKeyVersion}`,
+    `Content Nonce: ${fields.contentNonce}`,
+    `Content Ciphertext: ${fields.contentCiphertext}`,
+    `Creator Encrypted Broadcast Key: ${fields.creatorEncryptedBroadcastKey}`,
+    `Audience Type: ${fields.audienceType}`,
+    `Audience Count: ${fields.audienceCount}`,
+    `Recipient Keys Digest: ${fields.recipientKeysDigest.toLowerCase()}`,
+  ].join('\n');
+}
+
+export async function recipientKeysDigest(
+  recipients: Array<
+    Pick<BroadcastRecipient, 'userId' | 'keyVersion' | 'encryptionPublicKey'> & {
+      encryptedBroadcastKey: string;
+    }
+  >,
 ): Promise<string> {
-  if (!StrKey.isValidEd25519PublicKey(recipientPublicKey)) {
-    throw new Error(`Invalid recipient public key: ${recipientPublicKey}`);
-  }
-  const recipientX = edwardsToMontgomeryPub(
-    StrKey.decodeEd25519PublicKey(recipientPublicKey),
+  const manifest = recipients
+    .map((recipient) => [
+      recipient.userId.toLowerCase(),
+      recipient.keyVersion,
+      recipient.encryptionPublicKey,
+      recipient.encryptedBroadcastKey,
+    ])
+    .sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    Uint8Array.from(utf8(JSON.stringify(manifest))),
   );
-  const ephemeralSecret = x25519.utils.randomPrivateKey();
-  const ephemeralPub = x25519.getPublicKey(ephemeralSecret);
-  const shared = x25519.getSharedSecret(ephemeralSecret, recipientX);
-
-  const key = await messageKey(shared, ephemeralPub, recipientX);
-  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
-  const ciphertext = new Uint8Array(
-    await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, utf8(plaintext)),
-  );
-  return toBase64(concat(ephemeralPub, iv, ciphertext));
+  return bytesToHex(new Uint8Array(digest));
 }
 
-/**
- * Decrypts a payload addressed to `keypair` (the derived keypair from
- * `useAuth()`). Throws when the payload was encrypted for someone else or
- * was tampered with.
- */
-export async function decryptBroadcast(
-  keypair: Keypair,
-  payload: string,
-): Promise<string> {
-  const bytes = fromBase64(payload);
-  if (bytes.length <= EPHEMERAL_PUB_BYTES + IV_BYTES) {
-    throw new Error('Broadcast payload is too short.');
+export function draftManifestFields(
+  draft: BroadcastDraft,
+  creatorId: string,
+  content: Pick<EncryptedContent, 'contentCiphertext' | 'contentNonce'>,
+  creatorEncryptedBroadcastKey: string,
+  digest: string,
+): ManifestFields {
+  return {
+    encryptionVersion: draft.encryption.version,
+    broadcastId: draft.id,
+    clientBroadcastId: draft.clientBroadcastId,
+    creatorId,
+    creatorKeyVersion: draft.creatorKey.keyVersion,
+    contentNonce: content.contentNonce,
+    contentCiphertext: content.contentCiphertext,
+    creatorEncryptedBroadcastKey,
+    audienceType: draft.audience.type,
+    audienceCount: draft.audience.count,
+    recipientKeysDigest: digest,
+  };
+}
+
+export function feedManifestFields(item: BroadcastFeedItem): ManifestFields {
+  return {
+    encryptionVersion: item.manifest.encryptionVersion,
+    broadcastId: item.id,
+    clientBroadcastId: item.clientBroadcastId,
+    creatorId: item.manifest.creatorId,
+    creatorKeyVersion: item.manifest.creatorKeyVersion,
+    contentNonce: item.manifest.contentNonce,
+    contentCiphertext: item.manifest.contentCiphertext,
+    creatorEncryptedBroadcastKey: item.manifest.creatorEncryptedBroadcastKey,
+    audienceType: item.manifest.audienceType,
+    audienceCount: item.manifest.audienceCount,
+    recipientKeysDigest: item.manifest.recipientKeysDigest,
+  };
+}
+
+export async function signBroadcastManifest(fields: ManifestFields, keys: DerivedKeys): Promise<string> {
+  return signBytes(utf8(serializeBroadcastManifest(fields)), keys.signingPrivateKey);
+}
+
+export async function decryptFeedItem(
+  item: BroadcastFeedItem,
+  keys: DerivedKeys | null,
+): Promise<DecryptedBroadcast> {
+  const valid = await verifyBytes(
+    utf8(serializeBroadcastManifest(feedManifestFields(item))),
+    item.integrity.signature,
+    item.integrity.signingPublicKey,
+  );
+  if (!valid) return { ...item, content: null, state: 'invalid' };
+  if (!keys) return { ...item, content: null, state: 'locked' };
+  let contentKey: Uint8Array | null = null;
+  try {
+    contentKey = await unwrapContentKey(item.viewerKey.encryptedBroadcastKey, keys);
+    await sodium.ready;
+    const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+      null,
+      base64ToBytes(item.manifest.contentCiphertext),
+      null,
+      base64ToBytes(item.manifest.contentNonce, 24),
+      contentKey,
+    );
+    return {
+      ...item,
+      content: new TextDecoder('utf-8', { fatal: true }).decode(plaintext),
+      state: 'decrypted',
+    };
+  } catch {
+    return { ...item, content: null, state: 'invalid' };
+  } finally {
+    contentKey?.fill(0);
   }
-  const ephemeralPub = bytes.slice(0, EPHEMERAL_PUB_BYTES);
-  const iv = bytes.slice(EPHEMERAL_PUB_BYTES, EPHEMERAL_PUB_BYTES + IV_BYTES);
-  const ciphertext = bytes.slice(EPHEMERAL_PUB_BYTES + IV_BYTES);
-
-  // rawSecretKey() is the 32-byte ed25519 seed of the derived keypair.
-  const myXSecret = edwardsToMontgomeryPriv(
-    Uint8Array.from(keypair.rawSecretKey()),
-  );
-  const myXPub = x25519.getPublicKey(myXSecret);
-  const shared = x25519.getSharedSecret(myXSecret, ephemeralPub);
-
-  const key = await messageKey(shared, ephemeralPub, myXPub);
-  const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: Uint8Array.from(iv) },
-    key,
-    Uint8Array.from(ciphertext),
-  );
-  return new TextDecoder().decode(plaintext);
 }

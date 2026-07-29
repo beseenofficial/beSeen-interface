@@ -99,7 +99,7 @@ function LoginContent() {
             </button>
           )}
           <p className="mt-6 border-t border-border pt-5 text-[11px] leading-[1.55] text-muted">
-            Secure sign-in is handled by Blux on Stellar Testnet. BeSeen never
+            Secure sign-in is handled by Blux on Stellar {auth.config.stellarNetwork}. BeSeen never
             receives your wallet seed or private signing keys.
           </p>
         </section>

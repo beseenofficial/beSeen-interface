@@ -20,6 +20,7 @@
     "@opennextjs/cloudflare": "^1.20.2",
     "@stellar/stellar-sdk": "16.1.0",
     "lucide-react": "^0.468.0",
+    "libsodium-wrappers-sumo": "^0.8.4",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthContextValue } from '@/lib/blux';
+import type { AuthConfig } from '@/types';
 
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -11,12 +12,14 @@ const auth: AuthContextValue = {
   status: 'signed-out',
   busyLabel: null,
   address: null,
-  keypair: null,
+  keys: null,
   user: null,
+  config: {} as AuthConfig,
   error: null,
   login: vi.fn(async () => {}),
   completeSignIn: vi.fn(async () => {}),
-  logout: vi.fn(),
+  logout: vi.fn(async () => {}),
+  forgetPrivateKeys: vi.fn(async () => {}),
   setUser: vi.fn(),
   openWalletProfile: vi.fn(),
   fundWallet: vi.fn(),
