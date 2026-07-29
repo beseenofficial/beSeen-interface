@@ -1,13 +1,12 @@
 'use client';
 
-import { KeyRound, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
-import { Avatar } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { CopyButton } from '@/components/ui/copy-button';
+import { IdentitySecurity } from '@/components/profile/identity-security';
+import { ProfileLink } from '@/components/profile/profile-link';
+import { PublicPreview } from '@/components/profile/public-preview';
+import { PublicProfileEditor } from '@/components/profile/public-profile-editor';
 import { LoadingState } from '@/components/ui/states';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { profileApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
@@ -19,9 +18,9 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showAvatarInput, setShowAvatarInput] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const user = auth.user;
 
   useEffect(() => {
@@ -42,7 +41,10 @@ export default function ProfilePage() {
         ...(avatarUrl !== user.avatar ? { avatar: avatarUrl } : {}),
       };
       if (Object.keys(changes).length === 0) {
-        toast('Nothing to update', 'Your profile already matches these values.');
+        toast(
+          'Nothing to update',
+          'Your profile already matches these values.',
+        );
         return;
       }
       const updated = await profileApi.update(changes);
@@ -59,92 +61,46 @@ export default function ProfilePage() {
     }
   }
 
-  const profileUrl = `${APP_URL}/${username || user.username}`;
+  const visibleUsername = username || user.username;
+  const profileUrl = `${APP_URL}/${visibleUsername}`;
+  const publicKey = auth.keys
+    ? bytesToBase64(auth.keys.signingPublicKey)
+    : null;
 
   return (
-    <div className="mx-auto w-full max-w-300 px-12 pb-16 pt-12 max-[1180px]:px-8 max-[1180px]:pb-14 max-[1180px]:pt-10 max-sm:px-4 max-sm:pb-12 max-sm:pt-7.5">
+    <div className="mx-auto w-full max-w-[1180px] px-6 pb-12 pt-8 2xl:max-w-[1320px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       <PageHeader
         eyebrow="Your account"
         title="Profile"
-        description="Your public profile is just a username and a logo."
+        description="Manage how people appear on BeSeen."
       />
 
-      <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(300px,0.65fr)] gap-5 max-[900px]:grid-cols-1">
-        <section className="rounded-2xl border border-border bg-white p-7 max-sm:p-5">
-          <label className="grid max-w-100 gap-2 text-[13px] font-semibold">
-            Username
-            <div className="flex min-h-12 items-center rounded-xl border border-border bg-white px-3.5 focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgb(16_69_245/10%)]">
-              <span className="text-muted">@</span>
-              <input
-                className="min-w-0 flex-1 border-0 bg-transparent px-2 outline-none"
-                value={username}
-                maxLength={30}
-                onChange={(event) =>
-                  setUsername(event.target.value.toLowerCase())
-                }
-              />
-            </div>
-          </label>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(340px,.78fr)_minmax(0,1.22fr)]">
+        <div className="grid gap-5">
+          <PublicProfileEditor
+            username={username}
+            avatarUrl={avatarUrl}
+            showAvatarInput={showAvatarInput}
+            saving={saving}
+            error={error}
+            onUsernameChange={setUsername}
+            onAvatarUrlChange={setAvatarUrl}
+            onToggleAvatarInput={() => setShowAvatarInput((value) => !value)}
+            onSave={() => void save()}
+          />
 
-          <label className="mt-5 grid gap-2 text-[13px] font-semibold">
-            Logo URL
-            <div className="flex items-center gap-4">
-              <Avatar username={username || null} src={avatarUrl} size="lg" />
-              <input
-                className="min-h-12 min-w-0 flex-1 rounded-xl border border-border px-3.5 outline-none focus:border-brand"
-                type="url"
-                value={avatarUrl ?? ''}
-                placeholder="https://…"
-                onChange={(event) => setAvatarUrl(event.target.value || null)}
-              />
-            </div>
-          </label>
+          <ProfileLink profileUrl={profileUrl} />
+        </div>
 
-          {error && (
-            <p className="mt-5 rounded-xl bg-error-bg p-3 text-xs text-error" role="alert">
-              {error}
-            </p>
-          )}
-          <Button
-            className="mt-6"
-            loading={saving}
-            icon={<Save size={18} />}
-            onClick={() => void save()}
-          >
-            Save profile
-          </Button>
-        </section>
+        <div className="grid gap-5">
+          <PublicPreview
+            username={visibleUsername}
+            avatarUrl={avatarUrl}
+            profileUrl={profileUrl}
+          />
 
-        <aside className="h-fit rounded-2xl border border-border bg-white p-7 max-sm:p-5">
-          <span className="text-xs font-bold uppercase tracking-[0.09em] text-brand">
-            Public preview
-          </span>
-          <div className="mt-5 flex items-center gap-4">
-            <Avatar username={username || user.username} src={avatarUrl} size="lg" />
-            <div>
-              <strong className="text-lg">@{username || user.username}</strong>
-              <p className="text-xs text-muted">on BeSeen</p>
-            </div>
-          </div>
-          <div className="mt-6 flex items-center justify-between gap-2 rounded-xl bg-subtle p-3">
-            <span className="min-w-0 truncate text-xs font-semibold">
-              {profileUrl}
-            </span>
-            <CopyButton value={profileUrl} label="Copy profile link" />
-          </div>
-          <div className="mt-6 border-t border-border pt-5">
-            <StatusBadge tone="success">
-              <KeyRound size={13} /> Sign-in key active
-            </StatusBadge>
-            <p className="mt-3 break-all text-[11px] leading-5 text-muted">
-              {auth.keys ? bytesToBase64(auth.keys.signingPublicKey) : 'Reconnect your wallet to unlock local keys.'}
-            </p>
-            <p className="mt-2 text-[11px] leading-5 text-muted">
-              The API stores only the signing and encryption public keys. Both
-              private keys remain encrypted on this device.
-            </p>
-          </div>
-        </aside>
+          <IdentitySecurity publicKey={publicKey} />
+        </div>
       </div>
     </div>
   );
