@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 760" role="img" aria-labelledby="title desc">
+  <title id="title">BeSeen attention rings</title>
+  <desc id="desc">Three soft blue concentric rings around a blue center point.</desc>
+  <defs>
+    <radialGradient id="dot" cx="35%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#3E5CFF"/>
+      <stop offset="0.52" stop-color="#1849F5"/>
+      <stop offset="1" stop-color="#1234E8"/>
+    </radialGradient>
+    <filter id="ringGlow" x="-12%" y="-12%" width="124%" height="124%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="dotGlow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- Subtle atmospheric glow -->
+  <g fill="none" stroke="#8EA7FF" stroke-width="2" opacity="0.12" filter="url(#ringGlow)">
+    <circle cx="380" cy="380" r="350"/>
+    <circle cx="380" cy="380" r="250"/>
+    <circle cx="380" cy="380" r="155"/>
+  </g>
+
+  <!-- Crisp rings -->
+  <g fill="none" stroke="#AFC0FF" stroke-width="1.6">
+    <circle cx="380" cy="380" r="350" opacity="0.36"/>
+    <circle cx="380" cy="380" r="250" opacity="0.58"/>
+    <circle cx="380" cy="380" r="155" opacity="0.72"/>
+  </g>
+
+  <!-- Center point -->
+  <circle cx="380" cy="380" r="18" fill="#2450F8" opacity="0.18" filter="url(#dotGlow)"/>
+  <circle cx="380" cy="380" r="12" fill="url(#dot)"/>
+</svg>
