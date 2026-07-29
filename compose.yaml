@@ -1,13 +1,11 @@
 services:
-  web:
+  beseen-interface:
     build:
       context: .
       args:
-        # Compose resolves these from ./.env (or the host environment).
-        # They are baked into the client bundle at build time.
         NEXT_PUBLIC_BLUX_APP_ID: ${NEXT_PUBLIC_BLUX_APP_ID}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5000}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
     ports:
-      - "3000:3000"
+      - "http://127.0.0.1:3000:3000"
     restart: unless-stopped
