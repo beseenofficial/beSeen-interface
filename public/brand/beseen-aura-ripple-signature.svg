@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" fill="none">
+  <title>BeSeen Aura Ripple Signature</title>
+  <g opacity="0.95">
+    <circle cx="320" cy="320" r="84" stroke="#E8E3FF" stroke-width="2.5"/>
+    <circle cx="320" cy="320" r="176" stroke="#E8E3FF" stroke-width="2.5"/>
+    <circle cx="320" cy="320" r="268" stroke="#E8E3FF" stroke-width="2.5"/>
+  </g>
+  <circle cx="320" cy="320" r="10" fill="#9B8AFB"/>
+  <circle cx="454" cy="191" r="13" fill="#64DDEA"/>
+  <circle cx="405" cy="83" r="11" fill="#FFB7A5"/>
+</svg>

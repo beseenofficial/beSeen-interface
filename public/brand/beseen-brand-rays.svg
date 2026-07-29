@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 310" role="img" aria-labelledby="title desc">
+  <title id="title">BeSeen brand rays</title>
+  <desc id="desc">Four rounded diagonal brand strokes in lilac, aqua, peach, and blue.</desc>
+  <defs>
+    <linearGradient id="lilac" x1="36" y1="87" x2="122" y2="39" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B87F2"/>
+      <stop offset="1" stop-color="#A7A8FF"/>
+    </linearGradient>
+    <linearGradient id="aqua" x1="150" y1="170" x2="210" y2="87" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#31C3D5"/>
+      <stop offset="1" stop-color="#5ADFE4"/>
+    </linearGradient>
+    <linearGradient id="peach" x1="267" y1="232" x2="295" y2="134" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF8D7D"/>
+      <stop offset="1" stop-color="#FF9E91"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="419" y1="273" x2="378" y2="199" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1733E8"/>
+      <stop offset="0.58" stop-color="#2445FF"/>
+      <stop offset="1" stop-color="#1638F2"/>
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <!-- Soft glows -->
+  <g fill="none" stroke-width="44" stroke-linecap="round" opacity="0.2" filter="url(#softGlow)">
+    <path d="M38 86 L120 40" stroke="#8E8CF6"/>
+    <path d="M151 169 L209 89" stroke="#43D1DA"/>
+    <path d="M268 230 L294 137" stroke="#FF9485"/>
+    <path d="M417 271 L379 201" stroke="#2444F7"/>
+  </g>
+
+  <!-- Editable vector strokes -->
+  <g fill="none" stroke-width="40" stroke-linecap="round">
+    <path d="M38 86 L120 40" stroke="url(#lilac)"/>
+    <path d="M151 169 L209 89" stroke="url(#aqua)"/>
+    <path d="M268 230 L294 137" stroke="url(#peach)"/>
+    <path d="M417 271 L379 201" stroke="url(#blue)"/>
+  </g>
+</svg>

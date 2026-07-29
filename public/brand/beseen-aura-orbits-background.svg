@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1717" height="916" viewBox="0 0 1717 916" fill="none">
+  <defs>
+    <linearGradient id="peachDot" x1="1181" y1="158" x2="1208" y2="184" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB7A5"/>
+      <stop offset="1" stop-color="#FF816C"/>
+    </linearGradient>
+    <linearGradient id="aquaDot" x1="1256" y1="312" x2="1281" y2="338" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64DDEA"/>
+      <stop offset="1" stop-color="#45C8D5"/>
+    </linearGradient>
+    <linearGradient id="lilacDot" x1="1389" y1="522" x2="1414" y2="548" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C8BEFF"/>
+      <stop offset="1" stop-color="#8C78F1"/>
+    </linearGradient>
+    <filter id="dotShadow" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0B0B3F" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <g stroke="#C8BEFF" stroke-opacity="0.34" stroke-width="2">
+    <circle cx="1462" cy="532" r="447"/>
+    <circle cx="1462" cy="532" r="284"/>
+    <circle cx="1462" cy="532" r="121"/>
+  </g>
+
+  <g filter="url(#dotShadow)">
+    <circle cx="1194" cy="170" r="14" fill="url(#peachDot)"/>
+    <circle cx="1268" cy="324" r="14" fill="url(#aquaDot)"/>
+    <circle cx="1401" cy="535" r="14" fill="url(#lilacDot)"/>
+  </g>
+</svg>
