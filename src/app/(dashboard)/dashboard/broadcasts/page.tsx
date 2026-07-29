@@ -1,7 +1,28 @@
 'use client';
 
-import { KeyRound, LockKeyhole, Radio, ShieldAlert, ShieldCheck } from 'lucide-react';
+import {
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FilePenLine,
+  KeyRound,
+  Lightbulb,
+  LockKeyhole,
+  MoreHorizontal,
+  Paperclip,
+  Radio,
+  Save,
+  ShieldAlert,
+  ShieldCheck,
+  UsersRound,
+} from 'lucide-react';
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  BroadcastStats,
+  type StatCard,
+} from '@/components/broadcasts/broadcast-stats';
+import { DashboardActions } from '@/components/layout/dashboard-actions';
 import { PageHeader } from '@/components/layout/page-header';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,7 +30,10 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { broadcastApi } from '@/lib/api';
 import { decryptFeedItem, MAX_BROADCAST_BYTES } from '@/lib/broadcast-crypto';
-import { publishEncryptedBroadcast, resumeOrCancelDrafts } from '@/lib/broadcast-workflow';
+import {
+  publishEncryptedBroadcast,
+  resumeOrCancelDrafts,
+} from '@/lib/broadcast-workflow';
 import { useAuth } from '@/lib/blux';
 import { utf8 } from '@/lib/encoding';
 import { useToast } from '@/providers/toast-provider';
@@ -22,7 +46,9 @@ const timestamp = new Intl.DateTimeFormat('en', {
   minute: '2-digit',
 });
 
-async function loadCompleteFeed(view: 'received' | 'sent'): Promise<BroadcastFeedItem[]> {
+async function loadCompleteFeed(
+  view: 'received' | 'sent',
+): Promise<BroadcastFeedItem[]> {
   const items: BroadcastFeedItem[] = [];
   let cursor: string | undefined;
   do {
@@ -40,13 +66,47 @@ export default function BroadcastsPage() {
   const { toast } = useToast();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [view, setView] = useState<'received' | 'sent'>('received');
-  const [feeds, setFeeds] = useState<Record<'received' | 'sent', DecryptedBroadcast[] | null>>({
-    received: null,
-    sent: null,
-  });
+  const [view, setView] = useState<'received' | 'sent' | 'drafts'>('received');
+  const [feeds, setFeeds] = useState<
+    Record<'received' | 'sent', DecryptedBroadcast[] | null>
+  >({ received: null, sent: null });
   const [error, setError] = useState<string | null>(null);
   const draftBytes = useMemo(() => utf8(draft).length, [draft]);
+
+  const stats: StatCard[] = [
+    {
+      icon: Radio,
+      label: 'Total broadcasts',
+      value: '24',
+      detail: '+12%',
+      note: 'vs last 30 days',
+      tone: 'bg-lilac/55 text-[#5144bb]',
+    },
+    {
+      icon: UsersRound,
+      label: 'Followers reached',
+      value: '1,842',
+      detail: '+28%',
+      note: 'vs last 30 days',
+      tone: 'bg-aqua/70 text-[#087886]',
+    },
+    {
+      icon: FilePenLine,
+      label: 'Drafts',
+      value: '3',
+      detail: '',
+      note: 'Saved drafts',
+      tone: 'bg-lime/85 text-[#425c00]',
+    },
+    {
+      icon: Clock3,
+      label: 'Last sent',
+      value: 'Jul 29, 2:48 AM',
+      detail: '',
+      note: '2,014 delivered',
+      tone: 'bg-peach/65 text-[#9b3e2b]',
+    },
+  ];
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -63,7 +123,11 @@ export default function BroadcastsPage() {
       ]);
       setFeeds({ received: decryptedReceived, sent: decryptedSent });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Your encrypted broadcasts could not be loaded.');
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Your encrypted broadcasts could not be loaded.',
+      );
     }
   }, [keys, user]);
 
@@ -87,102 +151,302 @@ export default function BroadcastsPage() {
       setView('sent');
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Your broadcast could not be published.');
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Your broadcast could not be published.',
+      );
     } finally {
       setSending(false);
     }
   }
 
   if (!user) return <LoadingState label="Loading your broadcasts…" />;
-  const feed = feeds[view];
+  const feed = view === 'drafts' ? [] : feeds[view];
 
   return (
-    <div className="mx-auto w-full max-w-260 px-12 pb-16 pt-12 max-[1180px]:px-8 max-sm:px-4 max-sm:pt-7.5">
+    <div className="mx-auto w-full max-w-[1220px] px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       <PageHeader
         eyebrow="End-to-end encrypted"
         title="Broadcasts"
-        description="Content is encrypted and signed in this browser. BeSeen stores ciphertext and wrapped keys only."
+        description="Messages are encrypted in your browser for you and each follower. BeSeen only stores ciphertext."
       />
 
-      <form className="mb-5 rounded-2xl border border-border bg-white p-6 max-sm:p-4" onSubmit={publish}>
-        <label className="grid gap-2 text-[13px] font-semibold">
-          New broadcast
-          <textarea
-            className="min-h-28 w-full resize-y rounded-xl border border-border bg-white px-3.5 py-3 text-sm font-normal text-navy outline-none focus:border-brand"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Write an encrypted update for your followers…"
-          />
-        </label>
-        <div className="mt-3 flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
-          <span className={draftBytes > MAX_BROADCAST_BYTES ? 'text-xs text-error' : 'flex items-center gap-1.5 text-[11px] text-muted'}>
-            <LockKeyhole size={13} /> Encrypted before it leaves this device · {draftBytes.toLocaleString()}/{MAX_BROADCAST_BYTES.toLocaleString()} bytes
-          </span>
-          {keys ? (
-            <Button type="submit" loading={sending} disabled={!draft.trim() || draftBytes > MAX_BROADCAST_BYTES} icon={<Radio size={17} />}>
-              Publish encrypted
-            </Button>
-          ) : (
-            <Button type="button" icon={<KeyRound size={17} />} onClick={() => void completeSignIn()}>
-              Reconnect wallet to publish
-            </Button>
-          )}
-        </div>
-      </form>
+      <BroadcastStats stats={stats} />
 
-      {error && <ErrorState message={error} retry={() => void load()} />}
+      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1.85fr)_minmax(300px,1fr)]">
+        <div className="grid gap-5">
+          <form
+            className="rounded-2xl border border-border bg-white p-6 max-sm:p-4"
+            onSubmit={publish}
+          >
+            <h2 className="text-xl font-semibold">New broadcast</h2>
+            <div className="relative mt-4">
+              <textarea
+                className="min-h-32 w-full resize-y rounded-xl border border-border bg-white px-3.5 py-3 text-sm leading-6 text-navy outline-none focus:border-brand focus:ring-3 focus:ring-brand/10"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Share an update with your followers…"
+              />
+              <span
+                className={
+                  draftBytes > MAX_BROADCAST_BYTES
+                    ? 'absolute bottom-3 right-3 text-[11px] text-error'
+                    : 'absolute bottom-3 right-3 text-[11px] text-muted'
+                }
+              >
+                {draftBytes.toLocaleString()} /{' '}
+                {MAX_BROADCAST_BYTES.toLocaleString()}
+              </span>
+            </div>
+            <p className="mt-2 flex items-center gap-2 text-[11px] text-muted">
+              <LockKeyhole size={13} /> Encrypted before it leaves this device
+            </p>
 
-      <section className="rounded-2xl border border-border bg-white p-7 max-sm:p-5">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <span className="mb-1.25 inline-block text-xs font-bold uppercase tracking-[0.09em] text-brand">Verified locally</span>
-            <h2 className="text-[23px] font-semibold">Your feed</h2>
-          </div>
-          <div className="flex gap-2">
-            {(['received', 'sent'] as const).map((item) => (
-              <Button key={item} variant={view === item ? 'primary' : 'secondary'} onClick={() => setView(item)}>
-                {item === 'received' ? 'Received' : 'Sent'}
-              </Button>
-            ))}
-          </div>
-        </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5">
+              <button
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-white px-3 text-xs font-semibold hover:bg-subtle"
+                type="button"
+              >
+                <UsersRound size={17} />
+                <span className="text-left">
+                  <b className="block text-[10px]">Audience</b>
+                  <span className="text-[10px] text-secondary">
+                    All followers
+                  </span>
+                </span>
+              </button>
 
-        {!keys && (
-          <div className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-info-bg p-4 text-sm text-secondary">
-            <span><KeyRound className="mr-2 inline" size={17} />Reconnect your wallet to unlock encrypted content.</span>
-            <Button variant="secondary" onClick={() => void completeSignIn()}>Unlock</Button>
-          </div>
-        )}
+              {keys ? (
+                <Button
+                  type="submit"
+                  loading={sending}
+                  disabled={!draft.trim() || draftBytes > MAX_BROADCAST_BYTES}
+                  icon={<LockKeyhole size={17} />}
+                >
+                  Publish encrypted
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  icon={<KeyRound size={17} />}
+                  onClick={() => void completeSignIn()}
+                >
+                  Reconnect to publish
+                </Button>
+              )}
+            </div>
+          </form>
 
-        {!feed ? (
-          <LoadingState label="Verifying encrypted broadcasts…" />
-        ) : feed.length === 0 ? (
-          <EmptyState title={`No ${view} broadcasts yet`} message="Encrypted broadcasts will appear here after publication." />
-        ) : (
-          <ul className="grid gap-3">
-            {feed.map((item) => (
-              <li className="flex gap-3.5 rounded-xl border border-border bg-subtle/60 p-4" key={item.id}>
-                <Avatar username={item.creator.username} src={item.creator.avatar} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <strong className="text-sm">@{item.creator.username}</strong>
-                    {item.creator.id === user.id && <StatusBadge tone="lilac">You</StatusBadge>}
-                    <time className="text-[11px] text-muted" dateTime={item.publishedAt}>{timestamp.format(new Date(item.publishedAt))}</time>
+          {error && <ErrorState message={error} retry={() => void load()} />}
+
+          <section className="rounded-2xl border border-border bg-white p-5.5 max-sm:p-4">
+            <h2 className="text-lg font-semibold">Recent broadcasts</h2>
+            <div className="mt-2 flex gap-5 border-b border-border">
+              {(
+                [
+                  ['received', 'All'],
+                  ['sent', 'Sent'],
+                  ['drafts', 'Drafts'],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  className={
+                    view === key
+                      ? 'border-b-2 border-brand px-2 py-2 text-xs font-semibold text-brand'
+                      : 'border-b-2 border-transparent px-2 py-2 text-xs font-semibold text-secondary hover:text-navy'
+                  }
+                  key={key}
+                  onClick={() => setView(key)}
+                  type="button"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {!keys && (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-info-bg p-4 text-sm text-secondary max-sm:flex-col max-sm:items-stretch">
+                <span>
+                  <KeyRound className="mr-2 inline" size={17} />
+                  Reconnect your wallet to unlock encrypted content.
+                </span>
+                <Button
+                  variant="secondary"
+                  onClick={() => void completeSignIn()}
+                >
+                  Unlock
+                </Button>
+              </div>
+            )}
+
+            {!feed ? (
+              <LoadingState label="Verifying encrypted broadcasts…" />
+            ) : feed.length === 0 ? (
+              <EmptyState
+                title={
+                  view === 'drafts'
+                    ? 'No saved drafts yet'
+                    : `No ${view} broadcasts yet`
+                }
+                message="Encrypted broadcasts will appear here after publication."
+              />
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <div className="min-w-[680px]">
+                  <div className="grid grid-cols-[minmax(260px,1.7fr)_90px_90px_110px_28px] gap-3 border-b border-border px-2 pb-2 text-[10px] text-muted">
+                    <span>Broadcast</span>
+                    <span>Status</span>
+                    <span>Delivered</span>
+                    <span>Date</span>
+                    <span />
                   </div>
-                  {item.state === 'decrypted' ? (
-                    <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-6 text-secondary">{item.content}</p>
-                  ) : item.state === 'locked' ? (
-                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-warning"><ShieldAlert size={14} />Encrypted — reconnect the registered wallet to unlock.</p>
-                  ) : (
-                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-error"><ShieldAlert size={14} />Hidden because signature or ciphertext verification failed.</p>
-                  )}
+                  <ul className="divide-y divide-border">
+                    {feed.map((item) => (
+                      <li
+                        className="grid grid-cols-[minmax(260px,1.7fr)_90px_90px_110px_28px] items-center gap-3 px-2 py-3"
+                        key={item.id}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Avatar
+                            username={item.creator.username}
+                            src={item.creator.avatar}
+                            size="sm"
+                          />
+                          <span className="min-w-0">
+                            <strong className="block truncate text-xs">
+                              @{item.creator.username}
+                            </strong>
+                            {item.state === 'decrypted' ? (
+                              <span className="block truncate text-[11px] text-secondary">
+                                {item.content}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-[11px] text-warning">
+                                <ShieldAlert size={12} /> Encrypted content
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <StatusBadge
+                          tone={
+                            item.state === 'decrypted' ? 'success' : 'warning'
+                          }
+                        >
+                          {item.state === 'decrypted' ? 'Encrypted' : 'Locked'}
+                        </StatusBadge>
+                        <span className="text-xs font-semibold">—</span>
+                        <time
+                          className="text-[10px] text-muted"
+                          dateTime={item.publishedAt}
+                        >
+                          {timestamp.format(new Date(item.publishedAt))}
+                        </time>
+                        <button
+                          className="grid size-7 place-items-center rounded-lg hover:bg-subtle"
+                          type="button"
+                          aria-label="Broadcast actions"
+                        >
+                          <MoreHorizontal size={16} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                {item.state === 'decrypted' && <ShieldCheck className="text-success" size={17} aria-label="Signature verified" />}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <aside className="grid gap-5">
+          <section className="rounded-2xl border border-border bg-white p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold">Encryption status</h2>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-success-bg px-2.5 py-1.5 text-[10px] font-semibold text-success">
+                <ShieldCheck size={14} /> Secure &amp; private
+              </span>
+            </div>
+            <ul className="mt-4 grid gap-3 text-xs text-secondary">
+              <li className="flex gap-2">
+                <CheckCircle2 className="shrink-0 text-emerald-500" size={15} />
+                Messages are encrypted in your browser.
               </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              <li className="flex gap-2">
+                <CheckCircle2 className="shrink-0 text-emerald-500" size={15} />
+                Only each follower can decrypt.
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="shrink-0 text-emerald-500" size={15} />
+                BeSeen only stores ciphertext.
+              </li>
+            </ul>
+          </section>
+
+          <section className="relative overflow-hidden rounded-2xl border border-border bg-white p-5">
+            <Image
+              className="absolute inset-0 size-full object-cover object-right opacity-70"
+              src="/brand/dashboard-orbit-light.png"
+              width={1536}
+              height={1024}
+              alt=""
+            />
+            <div className="relative z-10">
+              <h2 className="text-base font-semibold">Audience preview</h2>
+              <div className="mt-5">
+                <span className="text-xs text-secondary">Followers</span>
+                <strong className="mt-1 block text-2xl">1,842</strong>
+                <p className="mt-1 text-[11px] text-muted">
+                  All followers will receive this broadcast.
+                </p>
+              </div>
+              <div className="my-5 h-px bg-border" />
+              <div>
+                <span className="text-xs text-secondary">Aura holders</span>
+                <strong className="mt-1 block text-xl">
+                  1,206{' '}
+                  <small className="ml-2 rounded-full bg-info-bg px-2 py-1 text-[10px] text-navy">
+                    65%
+                  </small>
+                </strong>
+                <p className="mt-1 text-[11px] text-muted">
+                  Aura holders can access premium content.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-white p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-lime/60 text-navy">
+                <Lightbulb size={20} />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold">Delivery tips</h2>
+                <ul className="mt-3 list-disc space-y-2 pl-4 text-xs leading-5 text-secondary">
+                  <li>Keep it short and clear.</li>
+                  <li>Include one key idea per broadcast.</li>
+                  <li>
+                    Schedule for your audience&apos;s peak time for higher
+                    reach.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section className="flex items-start gap-4 rounded-2xl border border-border bg-white p-5">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-info-bg text-brand">
+              <LockKeyhole size={21} />
+            </span>
+            <div>
+              <strong className="text-xs">Only you can read this</strong>
+              <p className="mt-1 text-[11px] leading-4 text-muted">
+                Your drafts, settings, and analytics are private and encrypted.
+              </p>
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }
