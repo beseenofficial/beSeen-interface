@@ -11,14 +11,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { BrandLogo } from "@/components/ui/brand-logo";
-import { cn, shortenAddress } from "@/lib/utils";
-import { useProfile } from "@/providers/profile-provider";
+import { useAuth } from "@/lib/blux";
+import { cn } from "@/lib/utils";
 
 const navigationItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/broadcasts", label: "Broadcasts", icon: Radio },
   { href: "/dashboard/messenger", label: "Messenger", icon: MessageCircleMore },
-  { href: "/dashboard/profile", label: "Creator Profile", icon: UserRound },
+  { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ];
 
 type NavigationProps = {
@@ -28,7 +28,7 @@ type NavigationProps = {
 
 export function Navigation({ close, onLogout }: NavigationProps) {
   const pathname = usePathname();
-  const { profile } = useProfile();
+  const { user } = useAuth();
 
   return (
     <>
@@ -64,17 +64,15 @@ export function Navigation({ close, onLogout }: NavigationProps) {
       <div className="mt-auto border-t border-border pt-5">
         <div className="flex items-center gap-2.5 px-1.5 pb-3.5">
           <Avatar
-            username={profile?.username || null}
-            src={profile?.avatarUrl}
+            username={user?.username || null}
+            src={user?.avatar}
             size="sm"
           />
           <div className="flex min-w-0 flex-col">
             <strong className="overflow-hidden text-ellipsis text-[13px]">
-              @{profile?.username || "creator"}
+              @{user?.username || "creator"}
             </strong>
-            <span className="text-[10px] text-muted">
-              {shortenAddress(profile?.stellarAddress || "")}
-            </span>
+            <span className="text-[10px] text-muted">Secure API session</span>
           </div>
         </div>
         <button

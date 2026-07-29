@@ -1,13 +1,19 @@
-export const BESEEN_MESSAGING_KEY_MESSAGE = [
-  "BeSeen Messenger Key Setup",
-  "Version: 1",
-  "Purpose: Create your private messaging encryption key.",
-  "This signature does not authorize a transaction or move funds.",
-  "Domain: beseen.fi",
-].join("\n");
-
+// Where shareable profile links point. NEXT_PUBLIC_APP_URL wins; without it
+// the app falls back to whatever origin it is actually served from.
 export const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://beseen.fi";
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+  (typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:3000");
 
-export const DEMO_ADDRESS =
-  "GCJ7XZIWQBPLFMK6FFWB6V5BWX46GD2KPYOJ6LZ7MRYG2LQFM4BSEEN";
+export const RESERVED_USERNAMES = [
+  "admin",
+  "administrator",
+  "api",
+  "beseen",
+  "me",
+  "moderator",
+  "root",
+  "support",
+  "system",
+] as const;

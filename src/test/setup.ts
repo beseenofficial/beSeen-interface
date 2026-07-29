@@ -4,6 +4,7 @@ import { cleanup } from "@testing-library/react";
 
 afterEach(() => {
   cleanup();
-  localStorage.clear();
-  sessionStorage.clear();
+  // Some suites run in the node environment (no DOM globals).
+  if (typeof localStorage !== "undefined") localStorage.clear();
+  if (typeof sessionStorage !== "undefined") sessionStorage.clear();
 });

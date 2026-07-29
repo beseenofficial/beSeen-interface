@@ -1,146 +1,77 @@
 # BeSeen Interface
 
-Frontend dashboard for BeSeen creators. The application covers authentication, creator onboarding, messaging-key setup, profile management, broadcasts, and account activity.
+BeSeen’s Next.js client integrates directly with the BeSeen v1 API. It uses a
+Stellar wallet only for deterministic local key recovery, JWTs for ordinary API
+authentication, and client-side authenticated encryption for broadcasts.
 
-The project is built with Next.js App Router, React, TypeScript, Tailwind CSS, and the Blux React SDK. Local development can run with either Blux authentication or the included demo authentication flow.
+## Security and authentication
 
-## Requirements
+At startup the client loads `GET /v1/auth/config`, restores a rotating refresh
+session from encrypted IndexedDB when possible, and keeps the access token in
+memory. Wallet sign-in builds the backend-configured fixed sequence-0 Stellar
+transaction locally and never submits or uploads it. Its one raw signature is
+domain-separated with HKDF-SHA-256 into Ed25519 signing and X25519 encryption
+keys. Private material is encrypted under a non-extractable device key in
+IndexedDB and can be reconstructed by signing the same fixed transaction again.
 
-- Node.js 20.9 or newer
-- npm
-- A Blux application ID when testing real authentication
+Registration sends the Stellar public address and the two raw public keys only.
+Login signs the canonical timestamped UUID proof. Public profiles contain only
+`id`, `username`, and `avatar`.
 
-## Getting started
+## Encrypted broadcasts
 
-Install the dependencies:
+Publishing uses the v1 draft workflow. The backend freezes the token-holder
+audience; the browser encrypts content once with XChaCha20-Poly1305, seals the
+same content key for every recipient and the creator, uploads retry-stable
+wrapped keys, signs the canonical encrypted manifest, and finalizes the draft.
+Unfinished local cryptographic state is encrypted in IndexedDB so interrupted
+uploads can resume without changing sealed ciphertext. Drafts whose local state
+cannot be recovered are canceled.
 
-```bash
-npm install
-```
+Received and sent feed items are verified with the creator’s Ed25519 public key
+before any decryption or display. A restored API session without local private
+keys shows encrypted items as locked until the registered wallet reconnects.
 
-Create a local environment file:
+## Local setup
 
-```bash
+Requirements: Node.js 20.9+, the BeSeen API, and a Blux application ID.
+
+```sh
+npm ci
 cp .env.example .env.local
-```
-
-Start the development server:
-
-```bash
 npm run dev
 ```
 
-The application will be available at [http://localhost:3000](http://localhost:3000).
+The frontend runs at [http://localhost:3000](http://localhost:3000). The local
+API default is `http://localhost:5000`.
 
-On Windows PowerShell, you can copy the environment file with:
+## Environment
 
-```powershell
-Copy-Item .env.example .env.local
-```
+| Variable | Description |
+| --- | --- |
+| `NEXT_PUBLIC_BLUX_APP_ID` | Blux application used to connect a Stellar wallet. |
+| `NEXT_PUBLIC_API_BASE_URL` | BeSeen API origin, without `/v1`; defaults to `http://localhost:5000`. |
+| `NEXT_PUBLIC_APP_URL` | Public frontend origin used for profile links. |
 
-## Environment variables
+`Dockerfile` and `compose.yaml` pass all three public values at build time.
 
-```env
-NEXT_PUBLIC_BLUX_APP_ID=
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_USE_MOCK_AUTH=false
-```
+## Important modules
 
-| Variable                    | Description                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_BLUX_APP_ID`   | Application ID from the Blux dashboard. If it is empty, the local demo authentication flow is used. |
-| `NEXT_PUBLIC_APP_URL`       | Base URL used when creating public profile links.                                                   |
-| `NEXT_PUBLIC_USE_MOCK_AUTH` | Set to `true` to use demo authentication even when a Blux application ID is configured.             |
+- `src/lib/api/transport.ts` — envelope parsing, typed errors, bearer transport,
+  rotating refresh-token persistence, and the single-flight refresh mutex.
+- `src/lib/api/` — focused auth, profile, token, and broadcast route clients.
+- `src/lib/keys.ts` — fixed Stellar transaction validation, dual-key derivation,
+  canonical login proofs, and local key vault access.
+- `src/lib/broadcast-crypto.ts` — XChaCha encryption, sealed boxes, recipient
+  digests, manifest serialization/signing, verification, and feed decryption.
+- `src/lib/broadcast-workflow.ts` — draft creation, pagination, retry-safe upload,
+  finalization, recovery, and cancellation.
 
-## Authentication and networks
+## Validation
 
-Authentication is handled through Blux. The configured login methods are wallet, email, passkey, Google, GitHub, and Discord. Their availability also depends on the settings of the corresponding Blux application.
-
-Both Stellar Testnet and Mainnet are registered in the client configuration. Testnet is the default network. Network and login-method settings are kept in [`src/lib/stellar-network.ts`](src/lib/stellar-network.ts).
-
-When real authentication is not configured, the application stores the demo session in `sessionStorage`. Demo profile and dashboard data are stored locally in the browser.
-
-## Available routes
-
-| Route                   | Purpose                                                    |
-| ----------------------- | ---------------------------------------------------------- |
-| `/login`                | Sign in with Blux or the local demo flow.                  |
-| `/onboarding/security`  | Create or recover the device messaging key.                |
-| `/onboarding/profile`   | Choose a username and optional avatar.                     |
-| `/dashboard`            | Creator overview, statistics, and recent activity.         |
-| `/dashboard/broadcasts` | Create and review broadcasts.                              |
-| `/dashboard/messenger`  | Messenger placeholder page.                                |
-| `/dashboard/profile`    | Public profile details, Aura status, and creator activity. |
-
-Authentication, profile completion, and the local messaging key are checked before protected pages are displayed.
-
-## Project structure
-
-```text
-src/
-├── app/                 # Routes, layouts, loading and error states
-│   ├── (auth)/
-│   ├── (dashboard)/
-│   └── (onboarding)/
-├── components/
-│   ├── features/        # Components tied to a product feature
-│   ├── layout/          # Navigation, shells and route guards
-│   └── ui/              # Reusable interface components
-├── lib/                 # Domain utilities, local API and cryptography
-├── providers/           # Authentication, profile and notification state
-├── test/                # Vitest and Testing Library tests
-└── types/               # Shared TypeScript types
-```
-
-## Local data layer
-
-The current dashboard uses the typed service in [`src/lib/mock-api.ts`](src/lib/mock-api.ts) as its data boundary. Pages call this service instead of accessing browser storage directly. This keeps the UI independent from the temporary local implementation and makes it easier to replace with a backend API later.
-
-The local service currently handles:
-
-- Creator profile creation and updates
-- Username availability checks
-- Messaging public-key registration
-- Dashboard statistics and activity
-- Broadcast creation and history
-
-## Messaging-key storage
-
-Messaging keys are derived and stored on the client:
-
-1. The user signs a fixed, versioned setup message.
-2. The signature is normalized and passed through HKDF-SHA-256.
-3. An X25519 key pair is created with libsodium.
-4. Only the public key is added to the creator profile.
-5. The private key is encrypted with a non-exportable AES-GCM key and stored in IndexedDB.
-
-The implementation is located in:
-
-- [`src/lib/crypto/messaging-keys.ts`](src/lib/crypto/messaging-keys.ts)
-- [`src/lib/crypto/key-storage.ts`](src/lib/crypto/key-storage.ts)
-
-Private keys and derived seed material are not written to `localStorage` or sent through the local API.
-
-## Scripts
-
-```bash
-npm run dev        # Start the development server
-npm run build      # Create a standard Next.js production build
-npm run start      # Run the production server
-npm run lint       # Run ESLint
-npm run typecheck  # Check TypeScript types
-npm test           # Run the test suite
-```
-
-Before opening a pull request, run:
-
-```bash
+```sh
 npm run typecheck
 npm run lint
 npm test
 npm run build
 ```
-
-## Current scope
-
-This repository contains the creator dashboard frontend. Broadcast delivery, marketplace features, Aura purchasing, bounty settlement, escrow, smart contracts, and the complete messenger experience are not implemented here. Dashboard statistics and activity are currently backed by local development data.
