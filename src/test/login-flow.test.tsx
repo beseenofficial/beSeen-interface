@@ -39,9 +39,11 @@ beforeEach(() => {
 });
 
 describe('login flow', () => {
-  it('offers a plain Login button when signed out', () => {
+  it('offers a Blux sign-in button when signed out', () => {
     render(<LoginPage />);
-    expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /sign in with blux/i }),
+    ).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
 
@@ -88,6 +90,8 @@ describe('login flow', () => {
     auth.status = 'loading';
     render(<LoginPage />);
     expect(replace).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Login' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /sign in with blux/i }),
+    ).toBeNull();
   });
 });

@@ -40,17 +40,17 @@ describe('public follower count', () => {
     mocks.purchase.mockResolvedValue({ created: true, holding: {} });
     render(<PublicProfilePage />);
     expect(await screen.findByText('4 followers')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /buy token/i }));
+    await userEvent.click(screen.getByRole('button', { name: /subscribe to broadcasts/i }));
     await waitFor(() => expect(screen.getByText('5 followers')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Following' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Subscribed' })).toBeDisabled();
   });
 
   it('does not increment when the idempotent purchase returns 200', async () => {
     mocks.purchase.mockResolvedValue({ created: false, holding: {} });
     render(<PublicProfilePage />);
     expect(await screen.findByText('4 followers')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /buy token/i }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Following' })).toBeDisabled());
+    await userEvent.click(screen.getByRole('button', { name: /subscribe to broadcasts/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Subscribed' })).toBeDisabled());
     expect(screen.getByText('4 followers')).toBeInTheDocument();
   });
 });
