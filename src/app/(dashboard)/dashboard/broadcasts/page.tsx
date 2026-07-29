@@ -1,17 +1,13 @@
 'use client';
 
 import {
-  CalendarDays,
   CheckCircle2,
   Clock3,
-  FilePenLine,
   KeyRound,
   Lightbulb,
   LockKeyhole,
   MoreHorizontal,
-  Paperclip,
   Radio,
-  Save,
   ShieldAlert,
   ShieldCheck,
   UsersRound,
@@ -22,13 +18,13 @@ import {
   BroadcastStats,
   type StatCard,
 } from '@/components/broadcasts/broadcast-stats';
-import { DashboardActions } from '@/components/layout/dashboard-actions';
 import { PageHeader } from '@/components/layout/page-header';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { broadcastApi } from '@/lib/api';
+import { tokenApi } from '@/lib/api';
+import { loadCompleteBroadcastFeed } from '@/lib/broadcast-feed';
 import { decryptFeedItem, MAX_BROADCAST_BYTES } from '@/lib/broadcast-crypto';
 import {
   publishEncryptedBroadcast,
@@ -37,7 +33,7 @@ import {
 import { useAuth } from '@/lib/blux';
 import { utf8 } from '@/lib/encoding';
 import { useToast } from '@/providers/toast-provider';
-import type { BroadcastFeedItem, DecryptedBroadcast } from '@/types';
+import type { DecryptedBroadcast } from '@/types';
 
 const timestamp = new Intl.DateTimeFormat('en', {
   month: 'short',
@@ -46,64 +42,62 @@ const timestamp = new Intl.DateTimeFormat('en', {
   minute: '2-digit',
 });
 
-async function loadCompleteFeed(
-  view: 'received' | 'sent',
-): Promise<BroadcastFeedItem[]> {
-  const items: BroadcastFeedItem[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await broadcastApi.feed(view, cursor);
-    items.push(...page.items);
-    if (!page.hasMore) break;
-    if (!page.nextCursor) throw new Error('The feed cursor is missing.');
-    cursor = page.nextCursor;
-  } while (cursor);
-  return items;
-}
-
 export default function BroadcastsPage() {
   const { user, keys, completeSignIn } = useAuth();
   const { toast } = useToast();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [view, setView] = useState<'received' | 'sent' | 'drafts'>('received');
+  const [view, setView] = useState<'received' | 'sent'>('received');
+  const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [feeds, setFeeds] = useState<
     Record<'received' | 'sent', DecryptedBroadcast[] | null>
   >({ received: null, sent: null });
   const [error, setError] = useState<string | null>(null);
   const draftBytes = useMemo(() => utf8(draft).length, [draft]);
 
+  const sentFeed = feeds.sent;
+  const totalRecipients = sentFeed?.reduce(
+    (total, item) => total + item.manifest.audienceCount,
+    0,
+  );
+  const latestSent = sentFeed?.reduce<DecryptedBroadcast | null>(
+    (latest, item) =>
+      !latest || new Date(item.publishedAt) > new Date(latest.publishedAt)
+        ? item
+        : latest,
+    null,
+  );
   const stats: StatCard[] = [
     {
       icon: Radio,
       label: 'Total broadcasts',
-      value: '24',
-      detail: '+12%',
-      note: 'vs last 30 days',
+      value: sentFeed ? sentFeed.length.toLocaleString() : '—',
+      detail: '',
+      note: sentFeed ? 'Published broadcasts' : 'Loading',
       tone: 'bg-lilac/55 text-[#5144bb]',
     },
     {
       icon: UsersRound,
       label: 'Followers reached',
-      value: '1,842',
-      detail: '+28%',
-      note: 'vs last 30 days',
-      tone: 'bg-aqua/70 text-[#087886]',
-    },
-    {
-      icon: FilePenLine,
-      label: 'Drafts',
-      value: '3',
+      value: totalRecipients?.toLocaleString() ?? '—',
       detail: '',
-      note: 'Saved drafts',
-      tone: 'bg-lime/85 text-[#425c00]',
+      note: sentFeed ? 'Total encrypted deliveries' : 'Loading',
+      tone: 'bg-aqua/70 text-[#087886]',
     },
     {
       icon: Clock3,
       label: 'Last sent',
-      value: 'Jul 29, 2:48 AM',
+      value: latestSent
+        ? timestamp.format(new Date(latestSent.publishedAt))
+        : sentFeed
+          ? 'Never'
+          : '—',
       detail: '',
-      note: '2,014 delivered',
+      note: latestSent
+        ? `${latestSent.manifest.audienceCount.toLocaleString()} recipients`
+        : sentFeed
+          ? 'No broadcasts published'
+          : 'Loading',
       tone: 'bg-peach/65 text-[#9b3e2b]',
     },
   ];
@@ -113,15 +107,17 @@ export default function BroadcastsPage() {
     setError(null);
     try {
       if (keys) await resumeOrCancelDrafts(user, keys);
-      const [received, sent] = await Promise.all([
-        loadCompleteFeed('received'),
-        loadCompleteFeed('sent'),
+      const [received, sent, followers] = await Promise.all([
+        loadCompleteBroadcastFeed('received'),
+        loadCompleteBroadcastFeed('sent'),
+        tokenApi.followerCount(user.username),
       ]);
       const [decryptedReceived, decryptedSent] = await Promise.all([
         Promise.all(received.map((item) => decryptFeedItem(item, keys))),
         Promise.all(sent.map((item) => decryptFeedItem(item, keys))),
       ]);
       setFeeds({ received: decryptedReceived, sent: decryptedSent });
+      setFollowerCount(followers);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -162,7 +158,7 @@ export default function BroadcastsPage() {
   }
 
   if (!user) return <LoadingState label="Loading your broadcasts…" />;
-  const feed = view === 'drafts' ? [] : feeds[view];
+  const feed = feeds[view];
 
   return (
     <div className="mx-auto w-full max-w-[1220px] px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
@@ -247,7 +243,6 @@ export default function BroadcastsPage() {
                 [
                   ['received', 'All'],
                   ['sent', 'Sent'],
-                  ['drafts', 'Drafts'],
                 ] as const
               ).map(([key, label]) => (
                 <button
@@ -284,11 +279,7 @@ export default function BroadcastsPage() {
               <LoadingState label="Verifying encrypted broadcasts…" />
             ) : feed.length === 0 ? (
               <EmptyState
-                title={
-                  view === 'drafts'
-                    ? 'No saved drafts yet'
-                    : `No ${view} broadcasts yet`
-                }
+                title={`No ${view} broadcasts yet`}
                 message="Encrypted broadcasts will appear here after publication."
               />
             ) : (
@@ -394,22 +385,15 @@ export default function BroadcastsPage() {
               <h2 className="text-base font-semibold">Audience preview</h2>
               <div className="mt-5">
                 <span className="text-xs text-secondary">Followers</span>
-                <strong className="mt-1 block text-2xl">1,842</strong>
-                <p className="mt-1 text-[11px] text-muted">
-                  All followers will receive this broadcast.
-                </p>
-              </div>
-              <div className="my-5 h-px bg-border" />
-              <div>
-                <span className="text-xs text-secondary">Aura holders</span>
-                <strong className="mt-1 block text-xl">
-                  1,206{' '}
-                  <small className="ml-2 rounded-full bg-info-bg px-2 py-1 text-[10px] text-navy">
-                    65%
-                  </small>
+                <strong className="mt-1 block text-2xl">
+                  {followerCount === null ? '—' : followerCount.toLocaleString()}
                 </strong>
                 <p className="mt-1 text-[11px] text-muted">
-                  Aura holders can access premium content.
+                  {followerCount === null
+                    ? 'Loading your current audience.'
+                    : followerCount === 0
+                      ? 'No followers will receive this broadcast yet.'
+                      : `All ${followerCount.toLocaleString()} followers will receive this broadcast.`}
                 </p>
               </div>
             </div>
@@ -441,7 +425,7 @@ export default function BroadcastsPage() {
             <div>
               <strong className="text-xs">Only you can read this</strong>
               <p className="mt-1 text-[11px] leading-4 text-muted">
-                Your drafts, settings, and analytics are private and encrypted.
+                Your settings and analytics are private and encrypted.
               </p>
             </div>
           </section>

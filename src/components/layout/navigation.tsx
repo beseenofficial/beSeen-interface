@@ -49,9 +49,10 @@ export function Navigation({ close, onLogout }: NavigationProps) {
             <Link
               href={item.href}
               className={cn(
-                "relative flex min-h-12.5 items-center gap-3.5 rounded-xl px-3.5 text-sm font-semibold text-secondary transition-[background,color] duration-150 hover:bg-subtle hover:text-navy",
-                active &&
-                  "bg-info-bg text-brand before:absolute before:-left-2 before:h-6 before:w-0.75 before:rounded-r before:bg-brand",
+                "relative flex min-h-12.5 items-center gap-3.5 rounded-xl px-3.5 text-sm font-semibold transition-[background,color] duration-150",
+                active
+                  ? "bg-info-bg text-brand before:absolute before:-left-2 before:h-6 before:w-0.75 before:rounded-r before:bg-brand"
+                  : "text-secondary hover:bg-subtle hover:text-navy",
               )}
               aria-current={active ? "page" : undefined}
               key={item.href}

@@ -1,4 +1,4 @@
-import { MoreHorizontal, Radio } from 'lucide-react';
+import { LoaderCircle, Radio } from 'lucide-react';
 import Link from 'next/link';
 
 export interface BroadcastItem {
@@ -11,9 +11,10 @@ export interface BroadcastItem {
 
 interface RecentBroadcastsProps {
   broadcasts: BroadcastItem[];
+  loading?: boolean;
 }
 
-export function RecentBroadcasts({ broadcasts }: RecentBroadcastsProps) {
+export function RecentBroadcasts({ broadcasts, loading = false }: RecentBroadcastsProps) {
   return (
     <article className="rounded-2xl border border-border bg-white p-5.5">
       <div className="flex items-center justify-between">
@@ -25,7 +26,12 @@ export function RecentBroadcasts({ broadcasts }: RecentBroadcastsProps) {
           View all
         </Link>
       </div>
-      {broadcasts.length === 0 ? (
+      {loading ? (
+        <div className="grid min-h-40 place-items-center text-secondary" role="status">
+          <LoaderCircle className="animate-spin" size={25} aria-hidden="true" />
+          <span className="sr-only">Loading recent broadcasts</span>
+        </div>
+      ) : broadcasts.length === 0 ? (
         <div className="grid min-h-40 place-items-center text-center">
           <div>
             <span className="mx-auto grid size-16 place-items-center rounded-full bg-info-bg text-brand">
@@ -44,11 +50,7 @@ export function RecentBroadcasts({ broadcasts }: RecentBroadcastsProps) {
               <span
                 className={`grid size-12 shrink-0 place-items-center rounded-full ${broadcast.iconBg}`}
               >
-                {broadcast.iconBg.includes('aqua') ? (
-                  <Radio size={21} />
-                ) : (
-                  <MoreHorizontal size={21} />
-                )}
+                <Radio size={21} />
               </span>
               <span className="min-w-0">
                 <strong className="block text-sm">{broadcast.title}</strong>

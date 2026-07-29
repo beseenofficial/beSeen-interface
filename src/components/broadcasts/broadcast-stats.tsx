@@ -16,7 +16,7 @@ interface BroadcastStatsProps {
 export function BroadcastStats({ stats }: BroadcastStatsProps) {
   return (
     <section
-      className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3"
       aria-label="Broadcast summary"
     >
       {stats.map((stat) => {
