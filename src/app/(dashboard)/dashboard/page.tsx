@@ -2,61 +2,59 @@
 
 import {
   CalendarDays,
-  HandCoins,
   KeyRound,
   MessageCircleMore,
   Radio,
-  Share2,
-  ShieldCheck,
+  Sparkles,
   WalletCards,
 } from 'lucide-react';
-import Link from 'next/link';
-import { AuraRipple } from '@/components/ui/aura-ripple';
-import { Avatar } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { CopyButton } from '@/components/ui/copy-button';
-import { LoadingState } from '@/components/ui/states';
-import { StatusBadge } from '@/components/ui/status-badge';
+import {
+  AccountActivity,
+  type ActivityStat,
+} from '@/components/dashboard/account-activity';
+import { IdentityCard } from '@/components/dashboard/identity-card';
+import {
+  IdentityFacts,
+  type IdentityFact,
+} from '@/components/dashboard/identity-facts';
+import {
+  RecentBroadcasts,
+  type BroadcastItem,
+} from '@/components/dashboard/recent-broadcasts';
+import { RecentMessages } from '@/components/dashboard/recent-messages';
 import { PageHeader } from '@/components/layout/page-header';
+import { LoadingState } from '@/components/ui/states';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
 import { bytesToBase64 } from '@/lib/encoding';
 import { formatDate, shortenAddress } from '@/lib/utils';
 import { useToast } from '@/providers/toast-provider';
 
-const features = [
-  {
-    href: '/dashboard/broadcasts',
-    icon: Radio,
-    title: 'Broadcasts',
-    description: 'End-to-end encrypted updates for your followers.',
-    soon: false,
-  },
-  {
-    href: '/dashboard/messenger',
-    icon: MessageCircleMore,
-    title: 'Messenger',
-    description: 'Private bounty messages and replies.',
-    soon: true,
-  },
-];
-
 export default function OverviewPage() {
-  const { user, keys, config, openWalletProfile, fundWallet, completeSignIn } = useAuth();
+  const { user, keys, address, openWalletProfile, fundWallet, completeSignIn } =
+    useAuth();
   const { toast } = useToast();
 
   if (!user) return <LoadingState label="Loading your profile…" />;
 
   const profileUrl = `${APP_URL}/${user.username}`;
-  const identityFacts = [
+  const publicKey = keys ? bytesToBase64(keys.signingPublicKey) : null;
+  const identityFacts: IdentityFact[] = [
+    {
+      icon: WalletCards,
+      label: 'Stellar wallet',
+      value: address ? shortenAddress(address) : 'Not connected',
+      copy: address,
+      hint: 'The account you use across BeSeen.',
+    },
     {
       icon: KeyRound,
       label: 'Sign-in key',
-      value: keys ? shortenAddress(bytesToBase64(keys.signingPublicKey)) : 'Locked',
-      copy: keys ? bytesToBase64(keys.signingPublicKey) : null,
-      hint: keys
-        ? 'Derived locally; the private half never leaves this browser.'
-        : 'Reconnect the registered wallet to decrypt messages.',
+      value: publicKey ? shortenAddress(publicKey) : 'Locked',
+      copy: publicKey,
+      hint: publicKey
+        ? 'Device fingerprint verified. This key is never stored on our servers.'
+        : 'Reconnect the registered wallet to unlock your local key.',
     },
     {
       icon: CalendarDays,
@@ -67,133 +65,76 @@ export default function OverviewPage() {
     },
   ];
 
+  const shareProfile = async () => {
+    if (navigator.share) {
+      await navigator.share({ title: 'My BeSeen profile', url: profileUrl });
+      return;
+    }
+    await navigator.clipboard.writeText(profileUrl);
+    toast('Profile link copied', 'It is ready to share.');
+  };
+
+  const activityStats: ActivityStat[] = [
+    { value: '1', label: 'Broadcasts', sublabel: 'Sent', icon: Radio },
+    {
+      value: '0',
+      label: 'Messages',
+      sublabel: 'Received',
+      icon: MessageCircleMore,
+    },
+    { value: '0', label: 'Auras', sublabel: 'Owned', icon: Sparkles },
+    {
+      value: 'XLM',
+      label: 'Wallet balance',
+      sublabel: 'Open wallet',
+      icon: WalletCards,
+      onClick: openWalletProfile,
+    },
+  ];
+
+  const recentBroadcasts: BroadcastItem[] = [
+    {
+      id: '1',
+      title: 'Welcome to BeSeen',
+      description: 'First broadcast to your followers.',
+      timestamp: 'Jul 29, 2026 · 10:42 AM',
+      iconBg: 'bg-aqua/35 text-brand',
+    },
+    {
+      id: '2',
+      title: 'No title',
+      description: 'You have not added a message yet.',
+      timestamp: 'Jul 29, 2026 · 09:15 AM',
+      iconBg: 'bg-info-bg text-secondary',
+    },
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-360 px-12 pb-16 pt-12 max-[1180px]:px-8 max-[1180px]:pb-14 max-[1180px]:pt-10 max-sm:px-4 max-sm:pb-12 max-sm:pt-7.5">
+    <div className="mx-auto w-full max-w-[1220px] px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       <PageHeader
-        eyebrow="overview"
+        eyebrow="Overview"
         title={`Good to see you, @${user.username}.`}
-        description="Your BeSeen identity at a glance."
+        description="Here's what's happening with your BeSeen identity."
       />
 
-      <section className="relative grid min-h-95 grid-cols-[minmax(0,1fr)_300px] items-center gap-11 overflow-hidden rounded-3xl border border-[#d9d1ff] bg-[#faf9ff] p-10.5 max-[1180px]:grid-cols-[1fr_260px] max-[1180px]:p-8.5 max-[900px]:grid-cols-1 max-sm:min-h-0 max-sm:gap-7 max-sm:rounded-[20px] max-sm:px-5 max-sm:py-6.5">
-        <AuraRipple
-          className="absolute! -bottom-42.5 right-27.5 size-107.5 [&_i:nth-child(3)]:size-105"
-          tone="lilac"
-        />
-        <div className="relative z-1 [&>h2]:mt-4.5 [&>h2]:text-[clamp(34px,4vw,46px)] [&>h2]:font-semibold [&>p]:mt-3 [&>p]:text-[17px] [&>p]:text-secondary max-sm:[&>h2]:text-4xl">
-          <StatusBadge tone="success">
-            <ShieldCheck size={14} /> {config.stellarNetwork} session active
-          </StatusBadge>
-          <h2>Your BeSeen identity is ready.</h2>
-          <p>
-            Authenticated with a rotating API session and secured by keys that
-            only exist on your devices.
-          </p>
-          <div className="mt-6 flex max-w-162.5 items-center justify-between gap-3 rounded-[14px] border border-border bg-white py-2 pl-4 pr-2 max-sm:flex-col max-sm:items-stretch max-sm:p-3.5">
-            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold max-sm:break-all max-sm:whitespace-normal">
-              {profileUrl}
-            </span>
-            <CopyButton value={profileUrl} />
-          </div>
-          <div className="mt-4.5 flex flex-wrap gap-2.5 max-sm:w-full max-sm:[&>*]:w-full">
-            {!keys && (
-              <Button icon={<KeyRound size={18} />} onClick={() => void completeSignIn()}>
-                Reconnect wallet to unlock
-              </Button>
-            )}
-            <Button
-              icon={<Share2 size={18} />}
-              onClick={async () => {
-                if (navigator.share) {
-                  await navigator.share({
-                    title: 'My BeSeen profile',
-                    url: profileUrl,
-                  });
-                } else {
-                  await navigator.clipboard.writeText(profileUrl);
-                  toast('Profile link copied', 'It is ready to share.');
-                }
-              }}
-            >
-              Share profile
-            </Button>
-            {/* Blux's built-in wallet screens. */}
-            <Button
-              variant="secondary"
-              icon={<WalletCards size={18} />}
-              onClick={openWalletProfile}
-            >
-              Wallet profile
-            </Button>
-            <Button
-              variant="secondary"
-              icon={<HandCoins size={18} />}
-              onClick={fundWallet}
-            >
-              Fund wallet
-            </Button>
-          </div>
-        </div>
-        <div className="relative z-1 flex flex-col items-center rounded-[18px] border border-[#5949b5]/15 bg-white p-7 text-center shadow-[0_10px_24px_rgb(11_11_63/5%)]">
-          <Avatar username={user.username} src={user.avatar} size="xl" />
-          <strong className="mt-4 block text-[26px]">@{user.username}</strong>
-          <p className="mt-1.5 text-xs text-success">active · {config.stellarNetwork}</p>
-        </div>
-      </section>
+      <IdentityCard
+        username={user.username}
+        avatar={user.avatar}
+        profileUrl={profileUrl}
+        hasKeys={!!keys}
+        onReconnect={() => completeSignIn()}
+        onShare={() => shareProfile()}
+        onOpenWallet={openWalletProfile}
+        onFundWallet={fundWallet}
+      />
 
-      <section
-        className="mt-5 grid grid-cols-2 gap-4 max-[1180px]:grid-cols-1"
-        aria-label="Identity details"
-      >
-        {identityFacts.map((fact) => {
-          const Icon = fact.icon;
-          return (
-            <div
-              className="rounded-2xl border border-border bg-white p-6"
-              key={fact.label}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-info-bg text-brand">
-                  <Icon size={19} />
-                </span>
-                {fact.copy && <CopyButton value={fact.copy} label="Copy" />}
-              </div>
-              <span className="mt-4 block text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
-                {fact.label}
-              </span>
-              <strong className="mt-1 block break-all text-lg">
-                {fact.value}
-              </strong>
-              <p className="mt-2 text-xs leading-5 text-secondary">{fact.hint}</p>
-            </div>
-          );
-        })}
-      </section>
+      <IdentityFacts facts={identityFacts} />
 
-      <section className="mt-5 grid grid-cols-2 gap-4 max-sm:grid-cols-1" aria-label="Features">
-        {features.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              className="group flex items-center gap-4 rounded-2xl border border-border bg-white p-6 transition hover:-translate-y-px hover:border-[#a9c2ca]"
-              href={item.href}
-              key={item.href}
-            >
-              <span className="grid size-11 place-items-center rounded-xl bg-[#f0edff] text-[#6555bd]">
-                <Icon size={20} />
-              </span>
-              <span className="min-w-0">
-                <strong className="flex items-center gap-2 text-base">
-                  {item.title}
-                  {item.soon && <StatusBadge tone="warning">Soon</StatusBadge>}
-                </strong>
-                <span className="mt-0.5 block text-xs text-muted">
-                  {item.description}
-                </span>
-              </span>
-            </Link>
-          );
-        })}
+      <AccountActivity stats={activityStats} />
+
+      <section className="mt-4 grid gap-3.5 lg:grid-cols-[1fr_1.05fr]">
+        <RecentBroadcasts broadcasts={recentBroadcasts} />
+        <RecentMessages hasMessages={false} />
       </section>
     </div>
   );
