@@ -11,8 +11,9 @@ session from encrypted IndexedDB when possible, and keeps the access token in
 memory. Wallet sign-in builds the backend-configured fixed sequence-0 Stellar
 transaction locally and never submits or uploads it. Its one raw signature is
 domain-separated with HKDF-SHA-256 into Ed25519 signing and X25519 encryption
-keys. Private material is encrypted under a non-extractable device key in
-IndexedDB and can be reconstructed by signing the same fixed transaction again.
+keys. The signed fixed transaction is encrypted under a non-extractable device
+key in an account-bound IndexedDB collection. Derived private keys exist only
+in memory and are reconstructed from that encrypted signature after refresh.
 
 Registration sends the Stellar public address and the two raw public keys only.
 Login signs the canonical timestamped UUID proof. Public profiles contain only
@@ -30,7 +31,8 @@ cannot be recovered are canceled.
 
 Received and sent feed items are verified with the creator’s Ed25519 public key
 before any decryption or display. A restored API session without local private
-keys shows encrypted items as locked until the registered wallet reconnects.
+keys stays behind the loading gate until the account-bound signed transaction
+has restored the derived keys or a new ownership signature has been approved.
 
 ## Local setup
 

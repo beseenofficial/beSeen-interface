@@ -7,7 +7,12 @@ import {
   TransactionBuilder,
 } from '@stellar/stellar-sdk';
 import { base64ToBytes, bytesToBase64, bytesToHex, utf8 } from '@/lib/encoding';
-import { deleteSecureRecord, getSecureJson, setSecureJson } from '@/lib/secure-storage';
+import {
+  deleteAccountBoundRecord,
+  deleteSecureRecordsWithPrefix,
+  getAccountBoundJson,
+  setAccountBoundJson,
+} from '@/lib/secure-storage';
 import type { AuthConfig, DerivedKeys } from '@/types';
 
 export type SignTransaction = (
@@ -111,7 +116,19 @@ export async function deriveKeys(
       network: config.networkPassphrase,
     }),
   );
-  const parsed = TransactionBuilder.fromXDR(signedXdr(response), config.networkPassphrase);
+  return deriveKeysFromSignedTransaction(walletAddress, config, signedXdr(response));
+}
+
+export async function deriveKeysFromSignedTransaction(
+  walletAddress: string,
+  config: AuthConfig,
+  signedTransactionXdr: string,
+): Promise<DerivedKeys> {
+  const expected = buildKdfTransaction(walletAddress, config.networkPassphrase);
+  const parsed = TransactionBuilder.fromXDR(
+    signedTransactionXdr,
+    config.networkPassphrase,
+  );
   if (!(parsed instanceof Transaction)) throw new Error('The wallet returned an unsupported transaction.');
   if (parsed.signatures.length !== 1) throw new Error('The key transaction must have exactly one signature.');
   if (parsed.source !== walletAddress.toUpperCase()) throw new Error('The signed transaction source is incorrect.');
@@ -172,48 +189,82 @@ export async function deriveKeys(
   }
 }
 
-const keyRecordId = (wallet: string, network: string, version: number) =>
-  `keys:${wallet.toUpperCase()}:${network}:${version}`;
+const keyMaterialCollectionId = (network: string, version: number) =>
+  `key-material:${network}:${version}`;
 
-type StoredKeys = {
-  signingPublicKey: string;
-  signingPrivateKey: string;
-  encryptionPublicKey: string;
-  encryptionPrivateKey: string;
+let legacyKeyPurge: Promise<void> | null = null;
+
+function purgeLegacyStoredKeys(): Promise<void> {
+  legacyKeyPurge ??= deleteSecureRecordsWithPrefix('keys:');
+  return legacyKeyPurge;
+}
+
+type StoredKeyMaterial = {
+  signedTransactionXdr: string;
 };
 
-export async function saveKeys(
+export async function deriveAndSaveKeys(
   wallet: string,
   config: AuthConfig,
-  keys: DerivedKeys,
-): Promise<void> {
-  await setSecureJson(keyRecordId(wallet, config.stellarNetwork, config.keyDerivation.version), {
-    signingPublicKey: bytesToBase64(keys.signingPublicKey),
-    signingPrivateKey: bytesToBase64(keys.signingPrivateKey),
-    encryptionPublicKey: bytesToBase64(keys.encryptionPublicKey),
-    encryptionPrivateKey: bytesToBase64(keys.encryptionPrivateKey),
-  } satisfies StoredKeys);
+  signTransaction: SignTransaction,
+): Promise<DerivedKeys> {
+  await purgeLegacyStoredKeys();
+  const expected = buildKdfTransaction(wallet, config.networkPassphrase);
+  const response = await withTimeout(
+    signTransaction(expected.toEnvelope().toXDR('base64'), {
+      network: config.networkPassphrase,
+    }),
+  );
+  const signedTransactionXdr = signedXdr(response);
+  const keys = await deriveKeysFromSignedTransaction(
+    wallet,
+    config,
+    signedTransactionXdr,
+  );
+  await setAccountBoundJson(
+    keyMaterialCollectionId(
+      config.stellarNetwork,
+      config.keyDerivation.version,
+    ),
+    wallet,
+    { signedTransactionXdr } satisfies StoredKeyMaterial,
+  );
+  return keys;
 }
 
 export async function loadKeys(wallet: string, config: AuthConfig): Promise<DerivedKeys | null> {
-  const stored = await getSecureJson<StoredKeys>(
-    keyRecordId(wallet, config.stellarNetwork, config.keyDerivation.version),
+  await purgeLegacyStoredKeys();
+  const stored = await getAccountBoundJson<StoredKeyMaterial>(
+    keyMaterialCollectionId(
+      config.stellarNetwork,
+      config.keyDerivation.version,
+    ),
+    wallet,
   );
   if (!stored) return null;
   try {
-    return {
-      signingPublicKey: base64ToBytes(stored.signingPublicKey, 32),
-      signingPrivateKey: base64ToBytes(stored.signingPrivateKey, 64),
-      encryptionPublicKey: base64ToBytes(stored.encryptionPublicKey, 32),
-      encryptionPrivateKey: base64ToBytes(stored.encryptionPrivateKey, 32),
-    };
+    return await deriveKeysFromSignedTransaction(
+      wallet,
+      config,
+      stored.signedTransactionXdr,
+    );
   } catch {
+    await forgetKeys(wallet, config);
     return null;
   }
 }
 
 export async function forgetKeys(wallet: string, config: AuthConfig): Promise<void> {
-  await deleteSecureRecord(keyRecordId(wallet, config.stellarNetwork, config.keyDerivation.version));
+  await Promise.all([
+    deleteAccountBoundRecord(
+      keyMaterialCollectionId(
+        config.stellarNetwork,
+        config.keyDerivation.version,
+      ),
+      wallet,
+    ),
+    purgeLegacyStoredKeys(),
+  ]);
 }
 
 export function serializeLoginProof(walletAddress: string, requestId: string, issuedAt: string): string {
