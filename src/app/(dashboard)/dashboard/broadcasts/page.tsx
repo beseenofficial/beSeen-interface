@@ -3,7 +3,6 @@
 import {
   CheckCircle2,
   Clock3,
-  KeyRound,
   Lightbulb,
   LockKeyhole,
   MoreHorizontal,
@@ -43,7 +42,7 @@ const timestamp = new Intl.DateTimeFormat('en', {
 });
 
 export default function BroadcastsPage() {
-  const { user, keys, completeSignIn } = useAuth();
+  const { user, keys } = useAuth();
   const { toast } = useToast();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -103,10 +102,10 @@ export default function BroadcastsPage() {
   ];
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user || !keys) return;
     setError(null);
     try {
-      if (keys) await resumeOrCancelDrafts(user, keys);
+      await resumeOrCancelDrafts(user, keys);
       const [received, sent, followers] = await Promise.all([
         loadCompleteBroadcastFeed('received'),
         loadCompleteBroadcastFeed('sent'),
@@ -157,7 +156,9 @@ export default function BroadcastsPage() {
     }
   }
 
-  if (!user) return <LoadingState label="Loading your broadcasts…" />;
+  if (!user || !keys) {
+    return <LoadingState label="Preparing your encrypted broadcasts…" />;
+  }
   const feed = feeds[view];
 
   return (
@@ -213,24 +214,14 @@ export default function BroadcastsPage() {
                 </span>
               </button>
 
-              {keys ? (
-                <Button
-                  type="submit"
-                  loading={sending}
-                  disabled={!draft.trim() || draftBytes > MAX_BROADCAST_BYTES}
-                  icon={<LockKeyhole size={17} />}
-                >
-                  Publish encrypted
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  icon={<KeyRound size={17} />}
-                  onClick={() => void completeSignIn()}
-                >
-                  Reconnect to publish
-                </Button>
-              )}
+              <Button
+                type="submit"
+                loading={sending}
+                disabled={!draft.trim() || draftBytes > MAX_BROADCAST_BYTES}
+                icon={<LockKeyhole size={17} />}
+              >
+                Publish encrypted
+              </Button>
             </div>
           </form>
 
@@ -259,21 +250,6 @@ export default function BroadcastsPage() {
                 </button>
               ))}
             </div>
-
-            {!keys && (
-              <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-info-bg p-4 text-sm text-secondary max-sm:flex-col max-sm:items-stretch">
-                <span>
-                  <KeyRound className="mr-2 inline" size={17} />
-                  Reconnect your wallet to unlock encrypted content.
-                </span>
-                <Button
-                  variant="secondary"
-                  onClick={() => void completeSignIn()}
-                >
-                  Unlock
-                </Button>
-              </div>
-            )}
 
             {!feed ? (
               <LoadingState label="Verifying encrypted broadcasts…" />

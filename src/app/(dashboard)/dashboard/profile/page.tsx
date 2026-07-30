@@ -29,7 +29,9 @@ export default function ProfilePage() {
     setAvatarUrl(user.avatar);
   }, [user]);
 
-  if (!user) return <LoadingState label="Loading your profile…" />;
+  if (!user || !auth.keys) {
+    return <LoadingState label="Preparing your secure profile…" />;
+  }
 
   async function save() {
     if (!user) return;
@@ -63,9 +65,7 @@ export default function ProfilePage() {
 
   const visibleUsername = username || user.username;
   const profileUrl = `${APP_URL}/${visibleUsername}`;
-  const publicKey = auth.keys
-    ? bytesToBase64(auth.keys.signingPublicKey)
-    : null;
+  const publicKey = bytesToBase64(auth.keys.signingPublicKey);
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-6 pb-12 pt-8 2xl:max-w-[1320px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">

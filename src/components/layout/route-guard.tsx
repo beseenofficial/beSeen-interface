@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
-import { LoadingState } from '@/components/ui/states';
+import { SecureLoadingScreen } from '@/components/ui/states';
 import { useAuth, type AuthStatus } from '@/lib/blux';
 
 type Mode = 'login' | 'onboarding' | 'app';
@@ -48,7 +48,9 @@ export function RouteGuard({
     // "Creating your keypair — approve the signature request in your wallet")
     // instead of a silent generic spinner.
     return (
-      <LoadingState label={busyLabel ?? 'Preparing your BeSeen experience…'} />
+      <SecureLoadingScreen
+        label={busyLabel ?? 'Preparing your BeSeen experience…'}
+      />
     );
   }
   return children;

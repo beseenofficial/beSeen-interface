@@ -22,14 +22,14 @@ const broadcastTime = new Intl.DateTimeFormat('en', {
 });
 
 export default function OverviewPage() {
-  const { user, keys, address, openWalletProfile, fundWallet, completeSignIn } = useAuth();
+  const { user, keys, address, openWalletProfile, fundWallet } = useAuth();
   const { toast } = useToast();
   const [sentBroadcasts, setSentBroadcasts] = useState<BroadcastItem[]>([]);
   const [sentBroadcastCount, setSentBroadcastCount] = useState<number | null>(null);
   const [broadcastsLoading, setBroadcastsLoading] = useState(true);
 
   const loadRecentBroadcasts = useCallback(async () => {
-    if (!user) return;
+    if (!user || !keys) return;
     setBroadcastsLoading(true);
     try {
       const sent = await loadCompleteBroadcastFeed('sent');
@@ -42,7 +42,7 @@ export default function OverviewPage() {
           : item.state === 'locked' ? 'Encrypted broadcast' : 'Broadcast verification failed',
         description: item.state === 'decrypted'
           ? `Sent to ${item.manifest.audienceCount.toLocaleString()} follower${item.manifest.audienceCount === 1 ? '' : 's'}.`
-          : item.state === 'locked' ? 'Reconnect your wallet to read this broadcast.' : 'This broadcast could not be verified.',
+          : item.state === 'locked' ? 'This broadcast could not be decrypted.' : 'This broadcast could not be verified.',
         timestamp: broadcastTime.format(new Date(item.publishedAt)),
         iconBg: 'bg-aqua/35 text-brand',
       })));
@@ -56,13 +56,13 @@ export default function OverviewPage() {
 
   useEffect(() => { void loadRecentBroadcasts(); }, [loadRecentBroadcasts]);
 
-  if (!user) return <LoadingState label="Loading your profile…" />;
+  if (!user || !keys) return <LoadingState label="Preparing your secure profile…" />;
 
   const profileUrl = `${APP_URL}/${user.username}`;
-  const publicKey = keys ? bytesToBase64(keys.signingPublicKey) : null;
+  const publicKey = bytesToBase64(keys.signingPublicKey);
   const identityFacts: IdentityFact[] = [
     { icon: WalletCards, label: 'Stellar wallet', value: address ? shortenAddress(address) : 'Not connected', copy: address, hint: 'The account you use across BeSeen.' },
-    { icon: KeyRound, label: 'Sign-in key', value: publicKey ? shortenAddress(publicKey) : 'Locked', copy: publicKey, hint: publicKey ? 'Device fingerprint verified. This key is never stored on our servers.' : 'Reconnect the registered wallet to unlock your local key.' },
+    { icon: KeyRound, label: 'Sign-in key', value: shortenAddress(publicKey), copy: publicKey, hint: 'Device fingerprint verified. This key is never stored on our servers.' },
     { icon: CalendarDays, label: 'Member since', value: formatDate(user.createdAt), copy: null, hint: 'The day this BeSeen account was created.' },
   ];
 
@@ -82,7 +82,7 @@ export default function OverviewPage() {
   return (
     <div className="mx-auto w-full max-w-[1220px] px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       <PageHeader eyebrow="Overview" title={`Good to see you, @${user.username}.`} description="Here's what's happening with your BeSeen identity." />
-      <IdentityCard username={user.username} avatar={user.avatar} profileUrl={profileUrl} hasKeys={!!keys} onReconnect={() => completeSignIn()} onShare={() => shareProfile()} onOpenWallet={openWalletProfile} onFundWallet={fundWallet} />
+      <IdentityCard username={user.username} avatar={user.avatar} profileUrl={profileUrl} onShare={() => shareProfile()} onOpenWallet={openWalletProfile} onFundWallet={fundWallet} />
       <IdentityFacts facts={identityFacts} />
       <AccountActivity stats={activityStats} />
       <section className="mt-4 grid gap-3.5 lg:grid-cols-[1fr_1.05fr]">

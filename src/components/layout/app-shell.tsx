@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useAuth } from "@/lib/blux";
 import { BrandLogo } from "@/components/ui/brand-logo";
-import { LoadingState } from "@/components/ui/states";
+import { SecureLoadingScreen } from "@/components/ui/states";
 import { Navigation } from "./navigation";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -27,7 +27,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", escape);
   }, [open]);
 
-  if (!auth.user) return <LoadingState />;
+  if (!auth.user || !auth.keys) {
+    return <SecureLoadingScreen label="Preparing your secure workspace…" />;
+  }
 
   const onLogout = () => {
     setOpen(false);

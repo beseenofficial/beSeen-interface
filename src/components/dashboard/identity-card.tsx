@@ -1,6 +1,5 @@
 import {
   HandCoins,
-  KeyRound,
   Share2,
   ShieldCheck,
   WalletCards,
@@ -13,8 +12,6 @@ interface IdentityCardProps {
   username: string;
   avatar: string | null;
   profileUrl: string;
-  hasKeys: boolean;
-  onReconnect: () => void;
   onShare: () => void;
   onOpenWallet: () => void;
   onFundWallet: () => void;
@@ -24,8 +21,6 @@ export function IdentityCard({
   username,
   avatar,
   profileUrl,
-  hasKeys,
-  onReconnect,
   onShare,
   onOpenWallet,
   onFundWallet,
@@ -58,15 +53,6 @@ export function IdentityCard({
           <CopyButton value={profileUrl} className="text-[#0B0B3F]" />
         </div>
         <div className="mt-4 flex flex-wrap gap-3 max-sm:grid max-sm:grid-cols-1">
-          {!hasKeys && (
-            <button
-              className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-5 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]"
-              onClick={onReconnect}
-              type="button"
-            >
-              <KeyRound size={18} /> Reconnect wallet
-            </button>
-          )}
           <button
             className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-5 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]"
             onClick={onShare}

@@ -85,6 +85,33 @@
   }
 }
 
+@keyframes secure-loader-breathe {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes secure-loader-progress {
+  0% {
+    transform: translateX(-115%);
+  }
+
+  50% {
+    transform: translateX(75%);
+  }
+
+  100% {
+    transform: translateX(285%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

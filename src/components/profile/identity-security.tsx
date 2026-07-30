@@ -3,7 +3,7 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { shortenAddress } from '@/lib/utils';
 
 interface IdentitySecurityProps {
-  publicKey: string | null;
+  publicKey: string;
 }
 
 export function IdentitySecurity({ publicKey }: IdentitySecurityProps) {
@@ -25,11 +25,9 @@ export function IdentitySecurity({ publicKey }: IdentitySecurityProps) {
         <span className="text-xs font-semibold">Public key</span>
         <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border pl-4 max-sm:flex-col max-sm:items-stretch max-sm:p-3">
           <span className="min-w-0 truncate text-sm font-semibold max-sm:break-all max-sm:whitespace-normal">
-            {publicKey
-              ? shortenAddress(publicKey)
-              : 'Reconnect your wallet to unlock local keys.'}
+            {shortenAddress(publicKey)}
           </span>
-          {publicKey && <CopyButton value={publicKey} label="Copy" />}
+          <CopyButton value={publicKey} label="Copy" />
         </div>
         <p className="mt-2 max-w-[640px] text-xs leading-5 text-muted">
           This key is derived from your verified wallet signature and is used to
