@@ -11,9 +11,15 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { ApiError, authApi, clearSession, profileApi, restoreSession } from '@/lib/api';
-import { bytesToBase64 } from '@/lib/encoding';
-import { deriveKeys, forgetKeys, loadKeys, saveKeys } from '@/lib/keys';
+import {
+  ApiError,
+  authApi,
+  clearSession,
+  profileApi,
+  restoreSession,
+} from '@/lib/api';
+import { SecureLoadingScreen } from '@/components/ui/states';
+import { deriveAndSaveKeys, forgetKeys, loadKeys } from '@/lib/keys';
 import type { AuthConfig, DerivedKeys, User } from '@/types';
 
 export type AuthStatus =
@@ -54,7 +60,20 @@ const appearance = {
   borderWidth: '1px',
 };
 
-function AuthBridge({ children, config }: { children: ReactNode; config: AuthConfig }) {
+function wipeKeys(keys: DerivedKeys): void {
+  keys.signingPublicKey.fill(0);
+  keys.signingPrivateKey.fill(0);
+  keys.encryptionPublicKey.fill(0);
+  keys.encryptionPrivateKey.fill(0);
+}
+
+export function AuthBridge({
+  children,
+  config,
+}: {
+  children: ReactNode;
+  config: AuthConfig;
+}) {
   const blux = useBlux();
   const address = blux.user?.address?.toUpperCase() ?? null;
   const [keysForAddress, setKeysForAddress] = useState<{
@@ -64,11 +83,40 @@ function AuthBridge({ children, config }: { children: ReactNode; config: AuthCon
   const [user, setUser] = useState<User | null>(null);
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [initializing, setInitializing] = useState(true);
-  const [busyLabel, setBusyLabel] = useState<string | null>('Restoring your secure session…');
+  const [busyLabel, setBusyLabel] = useState<string | null>(
+    'Restoring your secure session…',
+  );
   const [error, setError] = useState<string | null>(null);
+  const [autoAttemptedAddress, setAutoAttemptedAddress] = useState<
+    string | null
+  >(null);
   const inFlight = useRef(false);
-  const autoAttempted = useRef<string | null>(null);
-  const keys = keysForAddress && keysForAddress.address === address ? keysForAddress.keys : null;
+  const activeBluxIdentity = useRef({
+    address,
+    isAuthenticated: blux.isAuthenticated,
+  });
+  const keys =
+    keysForAddress && keysForAddress.address === address
+      ? keysForAddress.keys
+      : null;
+
+  useEffect(() => {
+    activeBluxIdentity.current = {
+      address,
+      isAuthenticated: blux.isAuthenticated,
+    };
+    if (!blux.isAuthenticated) setAutoAttemptedAddress(null);
+    setKeysForAddress((current) => {
+      if (
+        !current ||
+        (blux.isAuthenticated && current.address === address)
+      ) {
+        return current;
+      }
+      wipeKeys(current.keys);
+      return null;
+    });
+  }, [address, blux.isAuthenticated]);
 
   useEffect(() => {
     let active = true;
@@ -94,71 +142,113 @@ function AuthBridge({ children, config }: { children: ReactNode; config: AuthCon
       try {
         await blux.login();
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Wallet connection was not completed.');
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'Wallet connection was not completed.',
+        );
       }
       return;
     }
     inFlight.current = true;
     setError(null);
+    let derived: DerivedKeys | null = null;
     try {
       setBusyLabel('Unlocking your BeSeen keys…');
-      let derived = await loadKeys(address, config);
+      derived = await loadKeys(address, config);
       if (!derived) {
-        setBusyLabel('Approve the fixed key-derivation transaction in your wallet…');
-        derived = await deriveKeys(address, config, blux.signTransaction);
-        await saveKeys(address, config, derived);
+        setBusyLabel(
+          'Approve the fixed key-derivation transaction in your wallet…',
+        );
+        derived = await deriveAndSaveKeys(
+          address,
+          config,
+          blux.signTransaction,
+        );
       }
 
-      if (user) {
-        const registered = await profileApi.keys(user.username);
-        if (
-          registered.signing.publicKey !== bytesToBase64(derived.signingPublicKey) ||
-          registered.encryption.publicKey !== bytesToBase64(derived.encryptionPublicKey)
-        ) {
-          throw new Error('This wallet does not own the keys registered to the restored account.');
-        }
-        setKeysForAddress({ address, keys: derived });
+      if (
+        !activeBluxIdentity.current.isAuthenticated ||
+        activeBluxIdentity.current.address !== address
+      ) {
+        wipeKeys(derived);
+        derived = null;
         return;
       }
 
-      setBusyLabel('Signing a fresh BeSeen login proof…');
+      setBusyLabel('Verifying your restored BeSeen identity…');
+      const readyKeys = derived;
       try {
-        const authenticated = await authApi.login(address, derived);
-        setKeysForAddress({ address, keys: derived });
+        const authenticated = await authApi.login(address, readyKeys);
+        setKeysForAddress({ address, keys: readyKeys });
+        derived = null;
         setUser(authenticated);
         setNeedsRegistration(false);
       } catch (cause) {
         if (cause instanceof ApiError && cause.code === 'ACCOUNT_UNAVAILABLE') {
-          setKeysForAddress({ address, keys: derived });
+          setKeysForAddress({ address, keys: readyKeys });
+          derived = null;
+          setUser(null);
           setNeedsRegistration(true);
           return;
         }
         throw cause;
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Secure sign-in could not be completed.');
+      if (derived) wipeKeys(derived);
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Secure sign-in could not be completed.',
+      );
     } finally {
       inFlight.current = false;
       setBusyLabel(null);
+      if (
+        activeBluxIdentity.current.isAuthenticated &&
+        activeBluxIdentity.current.address !== address
+      ) {
+        setAutoAttemptedAddress(null);
+      }
     }
-  }, [address, blux, config, user]);
+  }, [address, blux, config]);
 
   const login = useCallback(async () => {
     setError(null);
     try {
       await blux.login();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Wallet connection was not completed.');
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Wallet connection was not completed.',
+      );
       throw cause;
     }
   }, [blux]);
 
   useEffect(() => {
-    if (initializing || !blux.isReady || !blux.isAuthenticated || !address || keys) return;
-    if (autoAttempted.current === address) return;
-    autoAttempted.current = address;
+    if (
+      initializing ||
+      !blux.isReady ||
+      !blux.isAuthenticated ||
+      !address ||
+      keys
+    )
+      return;
+    if (autoAttemptedAddress === address) return;
+    setAutoAttemptedAddress(address);
     void completeSignIn();
-  }, [address, blux.isAuthenticated, blux.isReady, completeSignIn, initializing, keys, user]);
+  }, [
+    address,
+    autoAttemptedAddress,
+    blux.isAuthenticated,
+    blux.isReady,
+    completeSignIn,
+    initializing,
+    keys,
+    user,
+  ]);
 
   const logout = useCallback(async () => {
     try {
@@ -168,26 +258,44 @@ function AuthBridge({ children, config }: { children: ReactNode; config: AuthCon
     }
     blux.logout();
     setUser(null);
-    setKeysForAddress(null);
+    setKeysForAddress((current) => {
+      if (current) wipeKeys(current.keys);
+      return null;
+    });
     setNeedsRegistration(false);
     setError(null);
-    autoAttempted.current = null;
+    setAutoAttemptedAddress(null);
   }, [blux]);
 
   const forgetPrivateKeys = useCallback(async () => {
     if (address) await forgetKeys(address, config);
-    setKeysForAddress(null);
+    setKeysForAddress((current) => {
+      if (current) wipeKeys(current.keys);
+      return null;
+    });
   }, [address, config]);
 
-  const status: AuthStatus = initializing || !blux.isReady || busyLabel
-    ? 'loading'
-    : user
-      ? 'ready'
-      : needsRegistration
-        ? 'needs-username'
-        : !blux.isAuthenticated || !address
-          ? 'signed-out'
-          : 'sign-required';
+  const awaitingAutomaticKeyRestore =
+    !initializing &&
+    blux.isReady &&
+    blux.isAuthenticated &&
+    !!address &&
+    !keys &&
+    autoAttemptedAddress !== address;
+
+  const status: AuthStatus =
+    initializing ||
+    !blux.isReady ||
+    busyLabel ||
+    awaitingAutomaticKeyRestore
+      ? 'loading'
+      : !blux.isAuthenticated || !address
+        ? 'signed-out'
+        : user && keys
+          ? 'ready'
+          : needsRegistration && keys
+            ? 'needs-username'
+            : 'sign-required';
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -231,11 +339,18 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    authApi.config(controller.signal).then(setConfig).catch((cause) => {
-      if (!controller.signal.aborted) {
-        setError(cause instanceof Error ? cause.message : 'Authentication configuration is unavailable.');
-      }
-    });
+    authApi
+      .config(controller.signal)
+      .then(setConfig)
+      .catch((cause) => {
+        if (!controller.signal.aborted) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'Authentication configuration is unavailable.',
+          );
+        }
+      });
     return () => controller.abort();
   }, []);
 
@@ -243,10 +358,14 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
     throw new Error('NEXT_PUBLIC_BLUX_APP_ID is required (see .env.example).');
   }
   if (error) {
-    return <main className="grid min-h-screen place-items-center p-8 text-center text-error">{error}</main>;
+    return (
+      <main className="grid min-h-screen place-items-center p-8 text-center text-error">
+        {error}
+      </main>
+    );
   }
   if (!config) {
-    return <main className="grid min-h-screen place-items-center text-secondary">Loading security settings…</main>;
+    return <SecureLoadingScreen label="Loading security settings…" />;
   }
 
   const selectedNetwork = networks.testnet;
@@ -257,7 +376,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
         appName: 'BeSeen',
         networks: [selectedNetwork],
         defaultNetwork: selectedNetwork,
-        isPersistent: false,
+        isPersistent: true,
         promptOnWrongNetwork: true,
         showWalletUIs: false,
         loginMethods: ['wallet', 'email', 'google'],
@@ -271,6 +390,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used inside BeSeenAuthProvider.');
+  if (!context)
+    throw new Error('useAuth must be used inside BeSeenAuthProvider.');
   return context;
 }
