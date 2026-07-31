@@ -8,7 +8,12 @@ const mocks = vi.hoisted(() => ({
   profile: vi.fn(), followerCount: vi.fn(), profileToken: vi.fn(), mine: vi.fn(), purchase: vi.fn(),
 }));
 const auth = vi.hoisted(() => ({
-  user: { id: 'viewer', username: 'viewer', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' },
+  user: { id: 'viewer', username: 'viewer', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' } as {
+    id: string;
+    username: string;
+    avatar: null;
+    createdAt: string;
+  } | null,
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -29,6 +34,7 @@ import PublicProfilePage from '@/app/[username]/page';
 
 describe('public follower count', () => {
   beforeEach(() => {
+    auth.user = { id: 'viewer', username: 'viewer', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' };
     mocks.profile.mockResolvedValue({ id: 'alice-id', username: 'alice', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' });
     mocks.followerCount.mockResolvedValue(4);
     mocks.profileToken.mockResolvedValue({ id: 'token', owner: { id: 'alice-id', username: 'alice', avatar: null }, createdAt: '2026-01-01T00:00:00.000Z' });
@@ -52,5 +58,19 @@ describe('public follower count', () => {
     await userEvent.click(screen.getByRole('button', { name: /subscribe to broadcasts/i }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Subscribed' })).toBeDisabled());
     expect(screen.getByText('4 followers')).toBeInTheDocument();
+  });
+
+  it('does not reload the public profile when auth finishes restoring', async () => {
+    auth.user = null;
+    const view = render(<PublicProfilePage />);
+    expect(await screen.findByText('4 followers')).toBeInTheDocument();
+
+    auth.user = { id: 'viewer', username: 'viewer', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' };
+    view.rerender(<PublicProfilePage />);
+
+    await waitFor(() => expect(mocks.mine).toHaveBeenCalledOnce());
+    expect(mocks.profile).toHaveBeenCalledOnce();
+    expect(mocks.followerCount).toHaveBeenCalledOnce();
+    expect(screen.queryByText(/loading public profile/i)).toBeNull();
   });
 });

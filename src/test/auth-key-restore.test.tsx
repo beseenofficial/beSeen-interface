@@ -100,6 +100,27 @@ describe('auth key restoration', () => {
     expect(screen.getByTestId('keys')).toHaveTextContent('locked');
   });
 
+  it('does not report signed out while Blux is still restoring a persisted session', async () => {
+    mocks.blux.isAuthenticated = false;
+    mocks.blux.user = undefined;
+    const view = renderBridge();
+
+    await waitFor(() => expect(mocks.profileMe).toHaveBeenCalledOnce());
+    expect(screen.getByTestId('status')).toHaveTextContent('loading');
+
+    mocks.blux.isAuthenticated = true;
+    mocks.blux.user = { address: WALLET };
+    view.rerender(
+      <AuthBridge config={{} as never}>
+        <Probe />
+      </AuthBridge>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('status')).toHaveTextContent('ready'),
+    );
+  });
+
   it('restores a valid signed-message record after refresh without wallet interaction', async () => {
     renderBridge();
 

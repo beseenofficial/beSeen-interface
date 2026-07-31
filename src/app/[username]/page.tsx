@@ -21,7 +21,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Avatar } from '@/components/ui/avatar';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { ErrorState, LoadingState } from '@/components/ui/states';
+import { ErrorState, SecureLoadingScreen } from '@/components/ui/states';
 import { profileApi, tokenApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
 import type { PublicUser } from '@/types';
@@ -44,18 +44,9 @@ export default function PublicProfilePage() {
       const [loadedProfile, count] = await Promise.all([
         profileApi.public(username),
         tokenApi.followerCount(username),
-        tokenApi.profileToken(username),
       ]);
       setProfile(loadedProfile);
       setFollowerCount(count);
-      if (auth.user && auth.user.id !== loadedProfile.id) {
-        const holdings = await tokenApi.mine();
-        setFollowing(
-          holdings.some((token) => token.owner.id === loadedProfile.id),
-        );
-      } else {
-        setFollowing(false);
-      }
     } catch (cause) {
       setProfile(null);
       setError(
@@ -66,11 +57,45 @@ export default function PublicProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [auth.user, username]);
+  }, [username]);
 
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    let active = true;
+    setFollowing(false);
+
+    if (!profile || !auth.user || auth.user.id === profile.id) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void tokenApi
+      .mine()
+      .then((holdings) => {
+        if (active) {
+          setFollowing(
+            holdings.some((token) => token.owner.id === profile.id),
+          );
+        }
+      })
+      .catch((cause) => {
+        if (active) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'Your subscription status could not be loaded.',
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [auth.user, profile]);
 
   async function follow() {
     if (!profile || !auth.user || followingBusy) return;
@@ -112,7 +137,9 @@ export default function PublicProfilePage() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
-  if (loading) return <LoadingState label="Loading public profile…" />;
+  if (loading) {
+    return <SecureLoadingScreen label="Loading public profile…" />;
+  }
   if (error && !profile) {
     return (
       <main className="min-h-svh bg-ice p-6">
