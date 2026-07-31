@@ -109,10 +109,7 @@ export function AuthBridge({
     };
     if (!blux.isAuthenticated) setAutoAttemptedAddress(null);
     setKeysForAddress((current) => {
-      if (
-        !current ||
-        (blux.isAuthenticated && current.address === address)
-      ) {
+      if (!current || (blux.isAuthenticated && current.address === address)) {
         return current;
       }
       wipeKeys(current.keys);
@@ -296,8 +293,7 @@ export function AuthBridge({
     !!address &&
     !keys &&
     autoAttemptedAddress !== address;
-  const restoredSessionStillHydrating =
-    awaitingRestoredBluxSession && !keys;
+  const restoredSessionStillHydrating = awaitingRestoredBluxSession && !keys;
 
   const status: AuthStatus =
     initializing ||
@@ -393,7 +389,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
         appName: 'BeSeen',
         networks: [selectedNetwork],
         defaultNetwork: selectedNetwork,
-        isPersistent: true,
+        isPersistent: false,
         promptOnWrongNetwork: true,
         showWalletUIs: false,
         loginMethods: ['wallet', 'email', 'google'],
