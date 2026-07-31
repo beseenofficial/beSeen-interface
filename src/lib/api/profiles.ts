@@ -1,15 +1,37 @@
 import { apiRequest } from '@/lib/api/transport';
+import { avatarApiErrorMessage } from '@/lib/avatar';
 import type { PublicUser, User, UsernameAvailability } from '@/types';
+
+export type ProfileUpdate = {
+  username?: string;
+  avatarFile?: File;
+  removeAvatar?: true;
+};
 
 export const profileApi = {
   async me(signal?: AbortSignal): Promise<User> {
     return (await apiRequest<{ user: User }>('/v1/users/me', { auth: true, signal })).user;
   },
-  async update(changes: { username?: string; avatar?: string | null }): Promise<User> {
+  async update(changes: ProfileUpdate): Promise<User> {
+    const { avatarFile, ...payload } = changes;
+    if (avatarFile && payload.removeAvatar) {
+      throw new Error('An avatar cannot be uploaded and removed in the same update.');
+    }
+    const body = avatarFile
+      ? (() => {
+          const formData = new FormData();
+          if (Object.keys(payload).length > 0) {
+            formData.append('payload', JSON.stringify(payload));
+          }
+          formData.append('avatar', avatarFile);
+          return formData;
+        })()
+      : payload;
+
     return (
       await apiRequest<{ user: User }>('/v1/users/me', {
         method: 'PATCH',
-        body: changes,
+        body,
         auth: true,
       })
     ).user;
@@ -33,4 +55,11 @@ export const profileApi = {
     );
   },
 };
+
+export function profileUpdateErrorMessage(cause: unknown): string {
+  return (
+    avatarApiErrorMessage(cause) ??
+    (cause instanceof Error ? cause.message : 'Your profile could not be updated.')
+  );
+}
 

@@ -1,12 +1,19 @@
 'use client';
 
 import { Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OnboardingShell } from '@/components/layout/onboarding-shell';
 import { AuraRipple } from '@/components/ui/aura-ripple';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ApiError, authApi, profileApi, validateUsername } from '@/lib/api';
+import {
+  ApiError,
+  authApi,
+  profileApi,
+  registrationErrorMessage,
+  validateUsername,
+} from '@/lib/api';
+import { AVATAR_ALLOWED_TYPES, validateAvatar } from '@/lib/avatar';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
 import { useToast } from '@/providers/toast-provider';
@@ -17,11 +24,25 @@ export default function OnboardingPage() {
   const auth = useAuth();
   const { toast } = useToast();
   const [username, setUsername] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarValidating, setAvatarValidating] = useState(false);
   const [availability, setAvailability] = useState<Availability>('idle');
   const [availabilityReason, setAvailabilityReason] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const avatarPreviewRef = useRef<string | null>(null);
+  const avatarValidationId = useRef(0);
+  const submissionInProgress = useRef(false);
+
+  useEffect(
+    () => () => {
+      if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -43,9 +64,48 @@ export default function OnboardingPage() {
     };
   }, [username]);
 
+  function clearAvatar(resetInput = true) {
+    avatarValidationId.current += 1;
+    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+    avatarPreviewRef.current = null;
+    setAvatarFile(null);
+    setAvatarPreviewUrl(null);
+    setAvatarValidating(false);
+    if (resetInput && avatarInputRef.current) avatarInputRef.current.value = '';
+  }
+
+  async function selectAvatar(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    clearAvatar(false);
+    setAvatarError(null);
+    if (!file) return;
+
+    const validationId = avatarValidationId.current;
+    setAvatarValidating(true);
+    try {
+      await validateAvatar(file);
+      if (validationId !== avatarValidationId.current) return;
+      const previewUrl = URL.createObjectURL(file);
+      avatarPreviewRef.current = previewUrl;
+      setAvatarFile(file);
+      setAvatarPreviewUrl(previewUrl);
+    } catch (cause) {
+      if (validationId !== avatarValidationId.current) return;
+      setAvatarError(
+        cause instanceof Error ? cause.message : 'The selected profile image is invalid.',
+      );
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    } finally {
+      if (validationId === avatarValidationId.current) setAvatarValidating(false);
+    }
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (submissionInProgress.current) return;
     setError(null);
+    if (avatarValidating) return;
+    if (avatarError) return;
     if (!validateUsername(username)) {
       setError('Use 3–30 lowercase letters, numbers, or underscores.');
       return;
@@ -63,12 +123,13 @@ export default function OnboardingPage() {
       return;
     }
 
+    submissionInProgress.current = true;
     setSubmitting(true);
     try {
       const user = await authApi.register({
         walletAddress: auth.address,
         username,
-        avatar: avatarUrl,
+        avatarFile: avatarFile ?? undefined,
         keys: auth.keys,
       });
       auth.setUser(user);
@@ -82,12 +143,9 @@ export default function OnboardingPage() {
         await auth.completeSignIn();
         return;
       }
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Your BeSeen account could not be created.',
-      );
+      setError(registrationErrorMessage(cause));
     } finally {
+      submissionInProgress.current = false;
       setSubmitting(false);
     }
   }
@@ -137,19 +195,50 @@ export default function OnboardingPage() {
             </small>
           </label>
 
-          <label className="mt-6 grid max-w-120 gap-2 text-[13px] font-semibold">
-            Logo URL <span className="-mt-1 font-normal text-muted">Optional · http/https</span>
+          <div className="mt-6 grid max-w-120 gap-2 text-[13px] font-semibold">
+            <label htmlFor="avatar-input">Profile image</label>
+            <span className="-mt-1 font-normal text-muted">
+              Optional · JPEG, PNG, or WebP · max 5 MB
+            </span>
             <div className="flex items-center gap-4">
-              <Avatar username={username || null} src={avatarUrl} size="lg" />
+              <Avatar username={username || null} src={avatarPreviewUrl} size="lg" />
               <input
-                className="min-h-12 min-w-0 flex-1 rounded-xl border border-border px-3.5 outline-none focus:border-brand"
-                type="url"
-                value={avatarUrl ?? ''}
-                placeholder="https://…"
-                onChange={(event) => setAvatarUrl(event.target.value || null)}
+                ref={avatarInputRef}
+                id="avatar-input"
+                className="min-h-12 min-w-0 flex-1 rounded-xl border border-border px-3.5 py-2 text-sm outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-info-bg file:px-3 file:py-2 file:font-semibold file:text-brand focus:border-brand"
+                type="file"
+                accept={AVATAR_ALLOWED_TYPES.join(',')}
+                aria-describedby={avatarError ? 'avatar-help avatar-error' : 'avatar-help'}
+                aria-invalid={avatarError ? true : undefined}
+                disabled={submitting}
+                onChange={selectAvatar}
               />
             </div>
-          </label>
+            <small id="avatar-help" className="font-normal text-muted">
+              Minimum dimensions: 128×128 pixels.
+            </small>
+            {avatarValidating && (
+              <small className="font-normal text-muted">Checking profile image…</small>
+            )}
+            {avatarError && (
+              <small id="avatar-error" className="font-normal text-error" role="alert">
+                {avatarError}
+              </small>
+            )}
+            {avatarFile && !avatarValidating && (
+              <button
+                className="w-fit text-xs font-semibold text-brand hover:underline"
+                type="button"
+                disabled={submitting}
+                onClick={() => {
+                  clearAvatar();
+                  setAvatarError(null);
+                }}
+              >
+                Remove profile image
+              </button>
+            )}
+          </div>
 
           {error && (
             <p
@@ -162,7 +251,8 @@ export default function OnboardingPage() {
           <div className="mt-8 flex items-center gap-3 max-sm:flex-col max-sm:items-stretch max-sm:[&_button]:w-full">
             <Button
               type="submit"
-              loading={submitting}
+              loading={submitting || avatarValidating}
+              disabled={Boolean(avatarError)}
               icon={<Sparkles size={18} />}
             >
               Create BeSeen account
@@ -188,7 +278,7 @@ export default function OnboardingPage() {
           <span className="relative z-1 mb-5 text-[10px] font-bold uppercase tracking-[0.09em] text-[#b65d48]">
             Your public identity
           </span>
-          <Avatar username={username || null} src={avatarUrl} size="xl" />
+          <Avatar username={username || null} src={avatarPreviewUrl} size="xl" />
           <h2 className="relative z-1 mt-4 text-[28px] font-semibold">
             @{username || 'yourname'}
           </h2>

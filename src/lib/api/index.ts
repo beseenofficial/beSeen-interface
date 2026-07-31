@@ -1,6 +1,7 @@
-export { authApi } from './auth';
+export { authApi, registrationErrorMessage } from './auth';
 export { broadcastApi } from './broadcasts';
-export { profileApi } from './profiles';
+export { profileApi, profileUpdateErrorMessage } from './profiles';
+export type { ProfileUpdate } from './profiles';
 export { tokenApi } from './tokens';
 export {
   ApiError,
