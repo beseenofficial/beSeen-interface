@@ -94,8 +94,8 @@ export default function OnboardingPage() {
 
   return (
     <OnboardingShell>
-      <section className="mx-auto grid min-h-155 w-full max-w-295 grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] overflow-hidden rounded-3xl border border-border bg-white shadow-elevated max-[900px]:grid-cols-1 max-sm:min-h-0">
-        <form className="p-14 max-sm:p-6 max-sm:py-9" onSubmit={submit}>
+      <section className="mx-auto grid h-full min-h-0 w-full max-w-295 grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] overflow-hidden rounded-3xl border border-border bg-white shadow-elevated max-[900px]:h-auto max-[900px]:grid-cols-1">
+        <form className="min-w-0 p-[clamp(32px,5vh,56px)] max-sm:p-6 max-sm:py-9" onSubmit={submit}>
           <span className="mb-2 inline-block text-xs font-bold uppercase tracking-[0.09em] text-brand">
             BeSeen identity
           </span>
@@ -178,7 +178,7 @@ export default function OnboardingPage() {
         </form>
 
         <aside
-          className="relative flex min-h-125 flex-col items-center justify-center overflow-hidden bg-[#fff6f3] p-10 text-center max-[900px]:order-first max-[900px]:min-h-95 max-sm:min-h-75 max-sm:p-6"
+          className="relative flex min-h-0 min-w-0 flex-col items-center justify-center overflow-hidden bg-[#fff6f3] p-10 text-center max-[900px]:order-first max-[900px]:min-h-95 max-sm:min-h-75 max-sm:p-6"
           aria-label="Public profile preview"
         >
           <AuraRipple

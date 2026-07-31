@@ -163,7 +163,7 @@ export default function PublicProfilePage() {
   const followingLabel = following ? 'Subscribed' : 'Subscribe to broadcasts';
 
   return (
-    <main className="relative min-h-svh overflow-hidden bg-[#f6fafc] px-4 py-5 text-navy sm:px-7 lg:px-[clamp(42px,6.5vw,112px)] lg:py-[clamp(24px,4.5vh,46px)]">
+    <main className="relative min-h-svh overflow-x-hidden bg-[#f6fafc] px-4 py-5 text-navy sm:px-7 min-[1000px]:h-svh min-[1000px]:overflow-y-hidden lg:px-[clamp(42px,6.5vw,112px)] lg:py-[clamp(18px,3vh,36px)]">
       <Image
         className="pointer-events-none absolute -bottom-28 -left-28 w-[360px] select-none opacity-10 max-md:hidden"
         src="/brand/beseen-brand-rays.svg"
@@ -172,8 +172,8 @@ export default function PublicProfilePage() {
         alt=""
       />
 
-      <div className="relative mx-auto w-full max-w-[1480px]">
-        <header className="flex min-h-14 items-center justify-between gap-4">
+      <div className="relative mx-auto w-full max-w-[1480px] min-[1000px]:flex min-[1000px]:h-full min-[1000px]:flex-col">
+        <header className="flex min-h-14 shrink-0 items-center justify-between gap-4">
           <Link
             href={auth.user ? '/dashboard' : '/login'}
             aria-label="Go to BeSeen"
@@ -190,7 +190,7 @@ export default function PublicProfilePage() {
           </button>
         </header>
 
-        <section className="relative mt-7 grid min-h-[720px] overflow-hidden rounded-[28px] border border-white bg-white/90 shadow-[0_22px_65px_rgb(25_58_87/10%)] backdrop-blur-sm min-[1000px]:grid-cols-[minmax(0,1fr)_486px] min-[1000px]:gap-[clamp(44px,6vw,88px)] min-[1000px]:px-[clamp(52px,4.4vw,68px)] min-[1000px]:py-[62px] max-[999px]:gap-10 max-[999px]:px-7 max-[999px]:py-9 max-sm:mt-5 max-sm:rounded-[22px] max-sm:px-5 max-sm:py-7">
+        <section className="public-profile-card relative mt-7 grid overflow-hidden rounded-[28px] border border-white bg-white/90 shadow-[0_22px_65px_rgb(25_58_87/10%)] backdrop-blur-sm min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] min-[1000px]:gap-[clamp(24px,3vw,64px)] min-[1000px]:px-[clamp(28px,3.5vw,68px)] min-[1000px]:py-[clamp(30px,5vh,62px)] max-[999px]:min-h-[720px] max-[999px]:gap-10 max-[999px]:px-7 max-[999px]:py-9 max-sm:mt-5 max-sm:rounded-[22px] max-sm:px-5 max-sm:py-7">
           <Image
             className="pointer-events-none absolute -top-[278px] left-[24%] w-[640px] max-w-none select-none opacity-75 max-[999px]:-top-[330px] max-[999px]:left-[8%] max-sm:-top-[350px] max-sm:-left-24"
             src="/brand/beseen-aura-ripple-signature.svg"
@@ -200,18 +200,18 @@ export default function PublicProfilePage() {
             alt=""
           />
 
-          <div className="relative z-10 flex min-w-0 flex-col justify-end pb-1 min-[1000px]:pt-2 max-[999px]:pt-12 max-sm:pt-16">
+          <div className="public-profile-main relative z-10 flex min-w-0 flex-col justify-end pb-1 min-[1000px]:pt-2 max-[999px]:pt-12 max-sm:pt-16">
             <span className="w-fit rounded-full border-4 border-white bg-white shadow-[0_13px_30px_rgb(11_11_63/12%)]">
               <Avatar
                 username={profile.username}
                 src={profile.avatar}
                 size="xxl"
-                className="size-[158px] text-[45px] max-sm:size-[118px] max-sm:text-[36px]"
+                className="public-profile-avatar size-[158px] text-[45px] max-sm:size-[118px] max-sm:text-[36px]"
               />
             </span>
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <h1 className="text-[clamp(42px,4.7vw,61px)] font-semibold tracking-[-0.05em]">
+            <div className="public-profile-name mt-7 flex min-w-0 flex-wrap items-center gap-3">
+              <h1 className="min-w-0 break-all text-[clamp(38px,4.7vw,61px)] font-semibold tracking-[-0.05em]">
                 @{profile.username}
               </h1>
               <BadgeCheck
@@ -221,18 +221,18 @@ export default function PublicProfilePage() {
               />
             </div>
 
-            <p className="mt-3 text-[18px] font-semibold text-secondary max-sm:text-base">
+            <p className="public-profile-tagline mt-3 text-[18px] font-semibold text-secondary max-sm:text-base">
               Building in public. Creating value.
             </p>
 
-            <p className="mt-7 flex flex-wrap items-center gap-3 text-[17px] font-semibold text-secondary">
+            <p className="public-profile-followers mt-7 flex flex-wrap items-center gap-3 text-[17px] font-semibold text-secondary">
               <Users size={20} aria-hidden="true" />
               <span>{followerCount} follower{followerCount === 1 ? '' : 's'}</span>
               <span className="text-muted" aria-hidden="true">•</span>
               <span>0 following</span>
             </p>
 
-            <div className="mt-8 max-w-[800px] border-t border-border pt-7 text-[16px] leading-7 text-secondary">
+            <div className="public-profile-bio mt-8 max-w-[800px] border-t border-border pt-7 text-[16px] leading-7 text-secondary">
               <p>Exploring ideas, building products, and sharing the journey.</p>
               <p>DM if you&apos;re building something interesting.</p>
             </div>
@@ -243,7 +243,7 @@ export default function PublicProfilePage() {
               </p>
             )}
 
-            <div className="mt-8 flex flex-wrap gap-5 max-sm:grid max-sm:grid-cols-1">
+            <div className="public-profile-actions mt-8 flex flex-wrap gap-5 max-sm:grid max-sm:grid-cols-1">
               <Link
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
                 href={auth.user ? '/dashboard/messenger' : '/login'}
@@ -279,8 +279,8 @@ export default function PublicProfilePage() {
             </div>
           </div>
 
-          <aside className="relative z-10 flex flex-col justify-end gap-6">
-            <section className="rounded-[20px] border border-border/90 bg-white/76 p-8 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:p-5">
+          <aside className="public-profile-aside relative z-10 flex min-h-0 flex-col justify-end gap-6">
+            <section className="public-profile-details rounded-[20px] border border-border/90 bg-white/76 p-8 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:p-5">
               <h2 className="text-xl font-semibold">Profile details</h2>
               <dl className="mt-5 divide-y divide-border">
                 <div className="grid grid-cols-[34px_minmax(0,1fr)_36px] items-center gap-3 py-4 first:pt-2">
@@ -325,7 +325,7 @@ export default function PublicProfilePage() {
               </dl>
             </section>
 
-            <section className="grid grid-cols-3 divide-x divide-border rounded-[20px] border border-border/90 bg-white/76 px-5 py-7 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:px-2">
+            <section className="public-profile-stats grid grid-cols-3 divide-x divide-border rounded-[20px] border border-border/90 bg-white/76 px-5 py-7 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:px-2">
               <div className="grid justify-items-center gap-2 px-3 text-center">
                 <span className="grid size-10 place-items-center rounded-full bg-info-bg text-brand">
                   <MessageCircleMore size={20} aria-hidden="true" />

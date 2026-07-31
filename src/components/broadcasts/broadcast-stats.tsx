@@ -16,14 +16,14 @@ interface BroadcastStatsProps {
 export function BroadcastStats({ stats }: BroadcastStatsProps) {
   return (
     <section
-      className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3"
+      className="grid min-w-0 gap-3.5 sm:grid-cols-2 xl:grid-cols-3"
       aria-label="Broadcast summary"
     >
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (
           <article
-            className="flex min-h-31 items-center gap-4 rounded-2xl border border-border bg-white p-5"
+            className="flex min-h-31 min-w-0 items-center gap-4 rounded-2xl border border-border bg-white p-5 max-sm:p-4"
             key={stat.label}
           >
             <span
@@ -38,7 +38,7 @@ export function BroadcastStats({ stats }: BroadcastStatsProps) {
               <strong className="mt-1 block truncate text-[23px]">
                 {stat.value}
               </strong>
-              <span className="mt-1 block text-[11px] text-muted">
+              <span className="mt-1 block break-words text-[11px] text-muted">
                 {stat.detail && (
                   <b className="mr-2 text-success">{stat.detail}</b>
                 )}

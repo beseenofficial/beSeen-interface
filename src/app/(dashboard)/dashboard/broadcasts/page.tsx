@@ -162,7 +162,7 @@ export default function BroadcastsPage() {
   const feed = feeds[view];
 
   return (
-    <div className="mx-auto w-full max-w-[1220px] px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <div className="mx-auto min-w-0 w-full max-w-[1220px] overflow-x-hidden px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       <PageHeader
         eyebrow="End-to-end encrypted"
         title="Broadcasts"
@@ -171,10 +171,10 @@ export default function BroadcastsPage() {
 
       <BroadcastStats stats={stats} />
 
-      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1.85fr)_minmax(300px,1fr)]">
-        <div className="grid gap-5">
+      <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.85fr)_minmax(300px,1fr)]">
+        <div className="grid min-w-0 gap-5">
           <form
-            className="rounded-2xl border border-border bg-white p-6 max-sm:p-4"
+            className="min-w-0 rounded-2xl border border-border bg-white p-6 max-sm:p-4"
             onSubmit={publish}
           >
             <h2 className="text-xl font-semibold">New broadcast</h2>
@@ -200,7 +200,7 @@ export default function BroadcastsPage() {
               <LockKeyhole size={13} /> Encrypted before it leaves this device
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-2.5 max-sm:items-stretch max-sm:[&_button]:min-w-0 max-sm:[&_button]:flex-1">
               <button
                 className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-white px-3 text-xs font-semibold hover:bg-subtle"
                 type="button"
@@ -227,7 +227,7 @@ export default function BroadcastsPage() {
 
           {error && <ErrorState message={error} retry={() => void load()} />}
 
-          <section className="rounded-2xl border border-border bg-white p-5.5 max-sm:p-4">
+          <section className="min-w-0 rounded-2xl border border-border bg-white p-5.5 max-sm:p-4">
             <h2 className="text-lg font-semibold">Recent broadcasts</h2>
             <div className="mt-2 flex gap-5 border-b border-border">
               {(
@@ -259,7 +259,7 @@ export default function BroadcastsPage() {
                 message="Encrypted broadcasts will appear here after publication."
               />
             ) : (
-              <div className="mt-3 overflow-x-auto">
+              <div className="mt-3 w-full max-w-full overflow-x-auto overscroll-x-contain">
                 <div className="min-w-[680px]">
                   <div className="grid grid-cols-[minmax(260px,1.7fr)_90px_90px_110px_28px] gap-3 border-b border-border px-2 pb-2 text-[10px] text-muted">
                     <span>Broadcast</span>
@@ -325,7 +325,7 @@ export default function BroadcastsPage() {
           </section>
         </div>
 
-        <aside className="grid gap-5">
+        <aside className="grid min-w-0 gap-5">
           <section className="rounded-2xl border border-border bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-base font-semibold">Encryption status</h2>
