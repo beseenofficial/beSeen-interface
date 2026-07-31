@@ -83,6 +83,8 @@ export function AuthBridge({
   const [user, setUser] = useState<User | null>(null);
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [awaitingRestoredBluxSession, setAwaitingRestoredBluxSession] =
+    useState(false);
   const [busyLabel, setBusyLabel] = useState<string | null>(
     'Restoring your secure session…',
   );
@@ -122,7 +124,16 @@ export function AuthBridge({
     let active = true;
     void (async () => {
       try {
-        if ((await restoreSession()) && active) setUser(await profileApi.me());
+        if ((await restoreSession()) && active) {
+          const restoredUser = await profileApi.me();
+          if (active) {
+            setUser(restoredUser);
+            // Blux marks itself ready before its persistent silent login has
+            // necessarily finished. Keep the auth gate closed until that
+            // matching wallet identity and its local keys are restored.
+            setAwaitingRestoredBluxSession(true);
+          }
+        }
       } finally {
         if (active) {
           setInitializing(false);
@@ -184,6 +195,7 @@ export function AuthBridge({
         derived = null;
         setUser(authenticated);
         setNeedsRegistration(false);
+        setAwaitingRestoredBluxSession(false);
       } catch (cause) {
         if (cause instanceof ApiError && cause.code === 'ACCOUNT_UNAVAILABLE') {
           setKeysForAddress({ address, keys: readyKeys });
@@ -196,6 +208,7 @@ export function AuthBridge({
       }
     } catch (cause) {
       if (derived) wipeKeys(derived);
+      setAwaitingRestoredBluxSession(false);
       setError(
         cause instanceof Error
           ? cause.message
@@ -263,6 +276,7 @@ export function AuthBridge({
       return null;
     });
     setNeedsRegistration(false);
+    setAwaitingRestoredBluxSession(false);
     setError(null);
     setAutoAttemptedAddress(null);
   }, [blux]);
@@ -282,12 +296,15 @@ export function AuthBridge({
     !!address &&
     !keys &&
     autoAttemptedAddress !== address;
+  const restoredSessionStillHydrating =
+    awaitingRestoredBluxSession && !keys;
 
   const status: AuthStatus =
     initializing ||
     !blux.isReady ||
     busyLabel ||
-    awaitingAutomaticKeyRestore
+    awaitingAutomaticKeyRestore ||
+    restoredSessionStillHydrating
       ? 'loading'
       : !blux.isAuthenticated || !address
         ? 'signed-out'
