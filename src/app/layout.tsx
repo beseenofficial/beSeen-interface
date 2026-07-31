@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from 'next';
+import { Outfit } from 'next/font/google';
 import { Providers } from '@/providers';
 import './globals.css';
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-outfit',
+});
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://beseen.fi';
@@ -98,7 +105,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${outfit.variable} ${outfit.className}`}>
         <Providers>{children}</Providers>
       </body>
     </html>
