@@ -16,11 +16,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: {
-      canonical: `/${encodeURIComponent(username)}`,
+      canonical: `/u/${encodeURIComponent(username)}`,
     },
     openGraph: {
       type: 'profile',
-      url: `/${encodeURIComponent(username)}`,
+      url: `/u/${encodeURIComponent(username)}`,
       title: `${title} on BeSeen`,
       description,
     },

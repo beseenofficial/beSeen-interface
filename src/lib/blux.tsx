@@ -160,7 +160,7 @@ export function AuthBridge({
       derived = await loadKeys(address, config);
       if (!derived) {
         setBusyLabel(
-          'Approve the fixed key-derivation transaction in your wallet…',
+          'Approve the signature request to derive your BeSeen signing keypair…',
         );
         derived = await deriveAndSaveKeys(
           address,
@@ -380,7 +380,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
         isPersistent: false,
         promptOnWrongNetwork: true,
         showWalletUIs: false,
-        loginMethods: ['wallet', 'email', 'google'],
+        loginMethods: ['passkey', 'wallet', 'email', 'google'],
         appearance,
       }}
     >

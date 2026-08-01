@@ -62,3 +62,7 @@ yarn-error.log*
 .codex/
 .dev-server.log
 .dev-server-error.log
+.pnpm-store/v11/index.db-shm
+.pnpm-store/v11/index.db-wal
+.pnpm-store/v11/index.db
+design-qa.md

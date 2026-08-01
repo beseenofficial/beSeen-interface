@@ -39,10 +39,10 @@ beforeEach(() => {
 });
 
 describe('login flow', () => {
-  it('offers a Blux sign-in button when signed out', () => {
+  it('offers a BeSeen sign-in button when signed out', () => {
     render(<LoginPage />);
     expect(
-      screen.getByRole('button', { name: /sign in with blux/i }),
+      screen.getByRole('button', { name: /sign in to beseen/i }),
     ).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
@@ -72,6 +72,8 @@ describe('login flow', () => {
       'Creating your keypair — approve the signature request in your wallet';
     render(<LoginPage />);
     expect(screen.getByText(/creating your keypair/i)).toBeInTheDocument();
+    expect(screen.getByText(/no transaction is submitted to stellar/i)).toBeInTheDocument();
+    expect(screen.getByText(/derive your beseen signing keypair/i)).toBeInTheDocument();
   });
 
   it('auto-advances signed-in users without an account to onboarding', () => {
@@ -91,7 +93,7 @@ describe('login flow', () => {
     render(<LoginPage />);
     expect(replace).not.toHaveBeenCalled();
     expect(
-      screen.queryByRole('button', { name: /sign in with blux/i }),
+      screen.queryByRole('button', { name: /sign in to beseen/i }),
     ).toBeNull();
   });
 });

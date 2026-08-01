@@ -55,9 +55,10 @@ export function SecureLoadingScreen({
         >
           <span className="block h-full w-2/5 rounded-full bg-gradient-to-r from-aqua via-brand to-lilac [animation:secure-loader-progress_1.8s_ease-in-out_infinite]" />
         </div>
-        <p className="mt-5 text-xs text-muted">
-          Your private keys stay on this device.
-        </p>
+        <div className="mt-5 max-w-82 text-xs leading-5 text-muted">
+          <p>No transaction is submitted to Stellar and no funds are moved.</p>
+          <p>We only use your signature locally to derive your BeSeen signing keypair.</p>
+        </div>
       </section>
     </main>
   );
