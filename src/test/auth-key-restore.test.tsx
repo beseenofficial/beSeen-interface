@@ -100,14 +100,18 @@ describe('auth key restoration', () => {
     expect(screen.getByTestId('keys')).toHaveTextContent('locked');
   });
 
-  it('does not report signed out while Blux is still restoring a persisted session', async () => {
+  it('does not deadlock on loading when the API session exists but Blux is signed out', async () => {
     mocks.blux.isAuthenticated = false;
     mocks.blux.user = undefined;
     const view = renderBridge();
 
     await waitFor(() => expect(mocks.profileMe).toHaveBeenCalledOnce());
-    expect(screen.getByTestId('status')).toHaveTextContent('loading');
+    await waitFor(() =>
+      expect(screen.getByTestId('status')).toHaveTextContent('signed-out'),
+    );
 
+    // If Blux later restores the matching wallet, the existing automatic key
+    // restoration flow still resumes normally.
     mocks.blux.isAuthenticated = true;
     mocks.blux.user = { address: WALLET };
     view.rerender(

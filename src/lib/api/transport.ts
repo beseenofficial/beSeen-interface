@@ -84,12 +84,20 @@ async function fetchEnvelope<T>(
   options: RequestOptions,
 ): Promise<{ result: T; status: number }> {
   const headers = new Headers({ Accept: 'application/json' });
-  if (options.body !== undefined) headers.set('Content-Type', 'application/json');
+  const bodyIsFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (options.body !== undefined && !bodyIsFormData) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (options.auth && accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
     headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body:
+      options.body === undefined
+        ? undefined
+        : bodyIsFormData
+          ? (options.body as FormData)
+          : JSON.stringify(options.body),
     signal: options.signal,
   });
   try {

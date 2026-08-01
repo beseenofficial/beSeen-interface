@@ -1,4 +1,5 @@
 import { apiRequest, clearSession, storeSession } from '@/lib/api/transport';
+import { avatarApiErrorMessage } from '@/lib/avatar';
 import { bytesToBase64, utf8 } from '@/lib/encoding';
 import { serializeLoginProof, signBytes } from '@/lib/keys';
 import type { AuthConfig, AuthenticatedResult, DerivedKeys, User } from '@/types';
@@ -10,15 +11,15 @@ export const authApi = {
   async register(input: {
     walletAddress: string;
     username: string;
-    avatar: string | null;
+    avatarFile?: File;
     keys: DerivedKeys;
   }): Promise<User> {
-    const result = await apiRequest<AuthenticatedResult>('/v1/auth/register', {
-      method: 'POST',
-      body: {
+    const formData = new FormData();
+    formData.append(
+      'payload',
+      JSON.stringify({
         walletAddress: input.walletAddress.toUpperCase(),
         username: input.username.trim().toLowerCase(),
-        avatar: input.avatar,
         keys: {
           signing: { algorithm: 'Ed25519', publicKey: bytesToBase64(input.keys.signingPublicKey) },
           encryption: {
@@ -26,7 +27,13 @@ export const authApi = {
             publicKey: bytesToBase64(input.keys.encryptionPublicKey),
           },
         },
-      },
+      }),
+    );
+    if (input.avatarFile) formData.append('avatar', input.avatarFile);
+
+    const result = await apiRequest<AuthenticatedResult>('/v1/auth/register', {
+      method: 'POST',
+      body: formData,
     });
     await storeSession(result.auth);
     return result.user;
@@ -64,4 +71,11 @@ export const authApi = {
     }
   },
 };
+
+export function registrationErrorMessage(cause: unknown): string {
+  return (
+    avatarApiErrorMessage(cause) ??
+    (cause instanceof Error ? cause.message : 'Your BeSeen account could not be created.')
+  );
+}
 
