@@ -3,10 +3,11 @@
 import {
   ArrowRight,
   CheckCircle2,
-  KeyRound,
+  Coins,
+  Eye,
   LockKeyhole,
   PenLine,
-  ShieldCheck,
+  Radio,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useState, type ReactNode } from 'react';
@@ -41,8 +42,6 @@ function LoginContent() {
   const auth = useAuth();
   const [working, setWorking] = useState(false);
   const needsSignature = auth.status === 'sign-required';
-  const stellarNetwork = auth.config.stellarNetwork ?? 'Testnet';
-
   async function continueWithBlux() {
     setWorking(true);
     try {
@@ -121,20 +120,18 @@ function LoginContent() {
           <p className="mt-2 max-w-[400px] text-[13px] leading-5 text-secondary [@media(min-height:900px)]:mt-3 [@media(min-height:900px)]:text-[17px] [@media(min-height:900px)]:leading-6.5">
             {needsSignature
               ? `You're connected as ${shortenAddress(auth.address ?? '')}. Approve one small signature in your wallet to unlock your BeSeen keys — it changes nothing on the Stellar network.`
-              : 'Sign in to create your Aura and manage your creator presence.'}
+              : 'Sign in to broadcast your message and turn attention into value.'}
           </p>
 
           <button
-            className="mt-5 grid min-h-14 w-full cursor-pointer grid-cols-[76px_1px_minmax(0,1fr)_22px] items-center rounded-[13px] border-0 bg-brand px-5 text-white shadow-[0_10px_22px_rgb(35_70_238/18%)] transition hover:-translate-y-px hover:bg-[#183cdf] disabled:cursor-wait disabled:opacity-70 [@media(min-height:900px)]:mt-7 [@media(min-height:900px)]:min-h-17.5 [@media(min-height:900px)]:grid-cols-[100px_1px_minmax(0,1fr)_25px] [@media(min-height:900px)]:px-7"
+            className="mt-5 grid min-h-14 w-full cursor-pointer grid-cols-[minmax(0,1fr)_22px] items-center rounded-[13px] border-0 bg-brand px-5 text-white shadow-[0_10px_22px_rgb(35_70_238/18%)] transition hover:-translate-y-px hover:bg-[#183cdf] disabled:cursor-wait disabled:opacity-70 [@media(min-height:900px)]:mt-7 [@media(min-height:900px)]:min-h-17.5 [@media(min-height:900px)]:grid-cols-[minmax(0,1fr)_25px] [@media(min-height:900px)]:px-7"
             onClick={() => void continueWithBlux()}
             disabled={working}
             type="button"
             aria-busy={working}
           >
-            <span className="justify-self-start text-[30px] font-semibold leading-none tracking-[-0.07em] [@media(min-height:900px)]:text-[37px]" aria-hidden="true">blux</span>
-            <span className="h-8 w-px bg-white/45" aria-hidden="true" />
             <span className="justify-self-center whitespace-nowrap px-2 text-sm font-semibold [@media(min-height:900px)]:text-[17px]">
-              {working ? 'Waiting for Blux…' : needsSignature ? 'Sign to continue' : 'Sign in with Blux'}
+              {working ? 'Opening secure sign-in…' : needsSignature ? 'Sign to continue' : 'Sign in to BeSeen'}
             </span>
             <ArrowRight size={22} aria-hidden="true" />
           </button>
@@ -148,19 +145,19 @@ function LoginContent() {
 
           <div className="mt-5 grid grid-cols-[minmax(30px,1fr)_auto_minmax(30px,1fr)] items-center gap-3 text-[#7d8be4] [@media(min-height:900px)]:mt-8 [@media(min-height:900px)]:gap-4">
             <span className="h-px bg-[#cdd5fa]" aria-hidden="true" />
-            <strong className="text-[10px] font-bold uppercase tracking-[0.15em] [@media(min-height:900px)]:text-[13px]">Secure by default</strong>
+            <strong className="text-[10px] font-bold uppercase tracking-[0.15em] [@media(min-height:900px)]:text-[13px]">Attention with real value</strong>
             <span className="h-px bg-[#cdd5fa]" aria-hidden="true" />
           </div>
 
           <ul className="mt-5 grid gap-3 [@media(min-height:900px)]:mt-8 [@media(min-height:900px)]:gap-4.5">
-            <SecurityFeature icon={<ShieldCheck size={25} />} title="One secure account">Access with email, wallet, or passkey.</SecurityFeature>
-            <SecurityFeature icon={<KeyRound size={25} />} title="No seed phrases">Blux handles keys securely.</SecurityFeature>
-            <SecurityFeature icon={<LockKeyhole size={25} />} title="Never share private keys">Your assets and identity stay protected.</SecurityFeature>
+            <SecurityFeature icon={<Radio size={25} />} title="Broadcast your message">Reach people who choose to give you their attention.</SecurityFeature>
+            <SecurityFeature icon={<Coins size={25} />} title="Pay for attention">Reward the people who engage with what you share.</SecurityFeature>
+            <SecurityFeature icon={<Eye size={25} />} title="Earn for attention">Get paid for the valuable attention you give.</SecurityFeature>
           </ul>
 
           <p className="mt-auto pt-4 text-[10px] leading-4 text-muted [@media(min-height:900px)]:pt-7 [@media(min-height:900px)]:text-[13px] [@media(min-height:900px)]:leading-5">
-            Secure sign-in is handled by Blux on Stellar {stellarNetwork}.<br />
-            BeSeen never receives your wallet seed or private signing keys.
+            Built on Stellar for fast, transparent attention payments.<br />
+            Passkey sign-in is available for a simpler, safer start.
           </p>
         </section>
       </div>
