@@ -58,7 +58,7 @@ export default function OverviewPage() {
 
   if (!user || !keys) return <LoadingState label="Preparing your secure profile…" />;
 
-  const profileUrl = `${APP_URL}/${user.username}`;
+  const profileUrl = `${APP_URL}/u/${user.username}`;
   const publicKey = bytesToBase64(keys.signingPublicKey);
   const identityFacts: IdentityFact[] = [
     { icon: WalletCards, label: 'Stellar wallet', value: address ? shortenAddress(address) : 'Not connected', copy: address, hint: 'The account you use across BeSeen.' },

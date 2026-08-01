@@ -77,9 +77,7 @@ export default function PublicProfilePage() {
       .mine()
       .then((holdings) => {
         if (active) {
-          setFollowing(
-            holdings.some((token) => token.owner.id === profile.id),
-          );
+          setFollowing(holdings.some((token) => token.owner.id === profile.id));
         }
       })
       .catch((cause) => {
@@ -117,7 +115,7 @@ export default function PublicProfilePage() {
   }
 
   async function shareProfile(profileUrl: string) {
-    const url = `${window.location.origin}/${profile?.username ?? username}`;
+    const url = `${window.location.origin}/u/${profile?.username ?? username}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: `@${username} on BeSeen`, url });
@@ -159,7 +157,7 @@ export default function PublicProfilePage() {
     month: 'long',
     year: 'numeric',
   }).format(new Date(profile.createdAt));
-  const profileUrl = `beseen.fi/${profile.username}`;
+  const profileUrl = `app.beseen.fi/u/${profile.username}`;
   const followingLabel = following ? 'Subscribed' : 'Subscribe to broadcasts';
 
   return (
@@ -185,7 +183,11 @@ export default function PublicProfilePage() {
             onClick={() => void shareProfile(profileUrl)}
             type="button"
           >
-            {copied ? <Check size={20} aria-hidden="true" /> : <Share2 size={20} aria-hidden="true" />}
+            {copied ? (
+              <Check size={20} aria-hidden="true" />
+            ) : (
+              <Share2 size={20} aria-hidden="true" />
+            )}
             {copied ? 'Copied' : 'Share'}
           </button>
         </header>
@@ -227,13 +229,19 @@ export default function PublicProfilePage() {
 
             <p className="public-profile-followers mt-7 flex flex-wrap items-center gap-3 text-[17px] font-semibold text-secondary">
               <Users size={20} aria-hidden="true" />
-              <span>{followerCount} follower{followerCount === 1 ? '' : 's'}</span>
-              <span className="text-muted" aria-hidden="true">•</span>
+              <span>
+                {followerCount} follower{followerCount === 1 ? '' : 's'}
+              </span>
+              <span className="text-muted" aria-hidden="true">
+                •
+              </span>
               <span>0 following</span>
             </p>
 
             <div className="public-profile-bio mt-8 max-w-[800px] border-t border-border pt-7 text-[16px] leading-7 text-secondary">
-              <p>Exploring ideas, building products, and sharing the journey.</p>
+              <p>
+                Exploring ideas, building products, and sharing the journey.
+              </p>
               <p>DM if you&apos;re building something interesting.</p>
             </div>
 
@@ -273,7 +281,8 @@ export default function PublicProfilePage() {
                   className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-border bg-white px-7 text-[16px] font-semibold transition hover:-translate-y-px hover:bg-subtle"
                   href="/login"
                 >
-                  <RadioTower size={20} aria-hidden="true" /> Subscribe to broadcasts
+                  <RadioTower size={20} aria-hidden="true" /> Subscribe to
+                  broadcasts
                 </Link>
               )}
             </div>
@@ -287,7 +296,9 @@ export default function PublicProfilePage() {
                   <Globe2 className="text-brand" size={23} aria-hidden="true" />
                   <div className="min-w-0">
                     <dt className="text-sm font-semibold">Profile link</dt>
-                    <dd className="truncate text-sm font-semibold text-brand">{profileUrl}</dd>
+                    <dd className="truncate text-sm font-semibold text-brand">
+                      {profileUrl}
+                    </dd>
                   </div>
                   <button
                     className="grid size-9 cursor-pointer place-items-center rounded-lg text-secondary transition hover:bg-info-bg hover:text-brand"
@@ -300,7 +311,11 @@ export default function PublicProfilePage() {
                 </div>
 
                 <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 py-4">
-                  <CalendarDays className="text-secondary" size={23} aria-hidden="true" />
+                  <CalendarDays
+                    className="text-secondary"
+                    size={23}
+                    aria-hidden="true"
+                  />
                   <div>
                     <dt className="text-sm text-muted">Joined</dt>
                     <dd className="text-sm font-semibold">{joined}</dd>
@@ -308,18 +323,32 @@ export default function PublicProfilePage() {
                 </div>
 
                 <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 py-4">
-                  <ShieldCheck className="text-secondary" size={23} aria-hidden="true" />
+                  <ShieldCheck
+                    className="text-secondary"
+                    size={23}
+                    aria-hidden="true"
+                  />
                   <div>
-                    <dt className="text-sm font-semibold">Verified with Blux</dt>
-                    <dd className="text-sm text-muted">Wallet signature verified</dd>
+                    <dt className="text-sm font-semibold">
+                      Verified with Blux
+                    </dt>
+                    <dd className="text-sm text-muted">
+                      Wallet signature verified
+                    </dd>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 pt-4">
-                  <Sparkles className="text-brand" size={23} aria-hidden="true" />
+                  <Sparkles
+                    className="text-brand"
+                    size={23}
+                    aria-hidden="true"
+                  />
                   <div>
                     <dt className="text-sm font-semibold">BeSeen token</dt>
-                    <dd className="text-sm text-muted">Following controls future broadcasts</dd>
+                    <dd className="text-sm text-muted">
+                      Following controls future broadcasts
+                    </dd>
                   </div>
                 </div>
               </dl>
