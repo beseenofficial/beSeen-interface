@@ -7,7 +7,7 @@ export function validateUsername(username: string): boolean {
   return (
     normalized.length >= 3 &&
     normalized.length <= 30 &&
-    /^[a-z0-9_]+$/.test(normalized) &&
+    /^[a-z][a-z0-9]*$/.test(normalized) &&
     !RESERVED_USERNAMES.includes(normalized as (typeof RESERVED_USERNAMES)[number])
   );
 }

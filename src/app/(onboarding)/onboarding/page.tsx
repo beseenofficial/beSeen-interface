@@ -3,6 +3,7 @@
 import { Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { OnboardingShell } from '@/components/layout/onboarding-shell';
+import { AvatarCropDialog } from '@/components/profile/avatar-crop-dialog';
 import { AuraRipple } from '@/components/ui/aura-ripple';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ export default function OnboardingPage() {
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [cropSourceFile, setCropSourceFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarValidating, setAvatarValidating] = useState(false);
@@ -69,6 +71,7 @@ export default function OnboardingPage() {
     if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
     avatarPreviewRef.current = null;
     setAvatarFile(null);
+    setCropSourceFile(null);
     setAvatarPreviewUrl(null);
     setAvatarValidating(false);
     if (resetInput && avatarInputRef.current) avatarInputRef.current.value = '';
@@ -76,7 +79,8 @@ export default function OnboardingPage() {
 
   async function selectAvatar(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    clearAvatar(false);
+    avatarValidationId.current += 1;
+    setCropSourceFile(null);
     setAvatarError(null);
     if (!file) return;
 
@@ -85,10 +89,7 @@ export default function OnboardingPage() {
     try {
       await validateAvatar(file);
       if (validationId !== avatarValidationId.current) return;
-      const previewUrl = URL.createObjectURL(file);
-      avatarPreviewRef.current = previewUrl;
-      setAvatarFile(file);
-      setAvatarPreviewUrl(previewUrl);
+      setCropSourceFile(file);
     } catch (cause) {
       if (validationId !== avatarValidationId.current) return;
       setAvatarError(
@@ -100,6 +101,29 @@ export default function OnboardingPage() {
     }
   }
 
+  function cancelCrop() {
+    setCropSourceFile(null);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  }
+
+  async function applyCroppedAvatar(file: File) {
+    setAvatarError(null);
+    setAvatarValidating(true);
+    try {
+      await validateAvatar(file);
+      if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+      const previewUrl = URL.createObjectURL(file);
+      avatarPreviewRef.current = previewUrl;
+      setAvatarFile(file);
+      setAvatarPreviewUrl(previewUrl);
+      setCropSourceFile(null);
+    } catch (cause) {
+      setAvatarError(cause instanceof Error ? cause.message : 'The cropped image is invalid.');
+    } finally {
+      setAvatarValidating(false);
+    }
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (submissionInProgress.current) return;
@@ -107,7 +131,7 @@ export default function OnboardingPage() {
     if (avatarValidating) return;
     if (avatarError) return;
     if (!validateUsername(username)) {
-      setError('Use 3–30 lowercase letters, numbers, or underscores.');
+      setError('Use 3–30 English letters or numbers, starting with a letter.');
       return;
     }
     if (availability === 'unavailable') {
@@ -135,7 +159,7 @@ export default function OnboardingPage() {
       auth.setUser(user);
       toast(
         'Your BeSeen profile is live',
-        `${APP_URL}/${user.username} is ready to share.`,
+        `${APP_URL}/u/${user.username} is ready to share.`,
       );
       // RouteGuard sees status "ready" and moves us to /dashboard.
     } catch (cause) {
@@ -152,6 +176,13 @@ export default function OnboardingPage() {
 
   return (
     <OnboardingShell>
+      {cropSourceFile && (
+        <AvatarCropDialog
+          file={cropSourceFile}
+          onCancel={cancelCrop}
+          onConfirm={(file) => void applyCroppedAvatar(file)}
+        />
+      )}
       <section className="mx-auto grid h-full min-h-max w-full max-w-295 grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] overflow-hidden rounded-3xl border border-border bg-white shadow-elevated max-[900px]:h-auto max-[900px]:grid-cols-1">
         <form className="min-w-0 p-[clamp(32px,5vh,56px)] max-sm:p-6 max-sm:py-9" onSubmit={submit}>
           <span className="mb-2 inline-block text-xs font-bold uppercase tracking-[0.09em] text-brand">
@@ -172,10 +203,18 @@ export default function OnboardingPage() {
               <input
                 className="min-w-0 flex-1 border-0 bg-transparent px-2 outline-none"
                 autoComplete="username"
+                inputMode="text"
+                pattern="[A-Za-z][A-Za-z0-9]{2,29}"
+                minLength={3}
+                maxLength={30}
                 value={username}
-                onChange={(event) =>
-                  setUsername(event.target.value.toLowerCase().slice(0, 30))
-                }
+                onChange={(event) => {
+                  const englishLettersAndNumbers = event.target.value
+                    .replace(/[^a-z0-9]/gi, '')
+                    .replace(/^[0-9]+/, '')
+                    .toLowerCase();
+                  setUsername(englishLettersAndNumbers.slice(0, 30));
+                }}
                 placeholder="yourname"
               />
             </div>
@@ -191,7 +230,7 @@ export default function OnboardingPage() {
               {availability === 'unavailable' &&
                 `Username is ${availabilityReason ?? 'unavailable'}`}
               {availability === 'idle' &&
-                '3–30 lowercase letters, numbers, or _'}
+                '3–30 English letters or numbers · must start with a letter'}
             </small>
           </label>
 
@@ -283,7 +322,7 @@ export default function OnboardingPage() {
             @{username || 'yourname'}
           </h2>
           <div className="relative z-1 mt-6 max-w-full break-words rounded-xl border border-white/70 bg-white/80 px-4 py-3 text-sm font-semibold shadow-[0_8px_20px_rgb(11_11_63/6%)]">
-            {APP_URL.replace(/^https?:\/\//, '')}/{username || 'yourname'}
+            {APP_URL.replace(/^https?:\/\//, '')}/u/{username || 'yourname'}
           </div>
         </aside>
       </section>

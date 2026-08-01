@@ -94,29 +94,34 @@ export function PublicProfileEditor({
         </div>
         {showAvatarInput && (
           <label className="mt-3 grid gap-2 text-xs font-semibold">
-            Select profile image
-            <input
-              ref={avatarInputRef}
-              className="min-h-11 w-full rounded-xl border border-border px-3.5 py-2 text-sm outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-info-bg file:px-3 file:py-2 file:font-semibold file:text-brand focus:border-brand"
-              type="file"
-              accept={AVATAR_ALLOWED_TYPES.join(',')}
-              aria-describedby={avatarError ? 'profile-avatar-help profile-avatar-error' : 'profile-avatar-help'}
-              aria-invalid={avatarError ? true : undefined}
-              disabled={saving || avatarValidating}
-              onChange={async (event) => {
-                const file = event.target.files?.[0];
-                if (file) await onAvatarFileChange(file);
-                event.target.value = '';
-              }}
-            />
+            <span>Select profile image</span>
+            <span className="flex min-h-11 w-full cursor-pointer items-center overflow-hidden rounded-xl border border-border bg-white text-sm font-normal outline-none transition focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/10">
+              <span className="m-1.5 shrink-0 rounded-lg bg-info-bg px-3 py-1.5 font-semibold text-brand">
+                Choose file
+              </span>
+              <span className="min-w-0 flex-1 truncate px-2 text-secondary">
+                {avatarFileName ?? 'No file chosen'}
+              </span>
+              <input
+                ref={avatarInputRef}
+                className="sr-only"
+                type="file"
+                accept={AVATAR_ALLOWED_TYPES.join(',')}
+                aria-describedby={avatarError ? 'profile-avatar-help profile-avatar-error' : 'profile-avatar-help'}
+                aria-invalid={avatarError ? true : undefined}
+                disabled={saving || avatarValidating}
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (file) await onAvatarFileChange(file);
+                  event.target.value = '';
+                }}
+              />
+            </span>
             <small id="profile-avatar-help" className="font-normal text-muted">
               JPEG, PNG, or WebP · max 5 MB · minimum 128×128 pixels
             </small>
             {avatarValidating && (
               <small className="font-normal text-muted">Checking profile image…</small>
-            )}
-            {avatarFileName && !avatarValidating && !avatarError && (
-              <small className="font-normal text-success">Selected: {avatarFileName}</small>
             )}
             {avatarError && (
               <small id="profile-avatar-error" className="font-normal text-error" role="alert">

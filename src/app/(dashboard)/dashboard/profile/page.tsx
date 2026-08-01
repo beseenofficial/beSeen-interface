@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
-import { IdentitySecurity } from '@/components/profile/identity-security';
-import { ProfileLink } from '@/components/profile/profile-link';
+import { AvatarCropDialog } from '@/components/profile/avatar-crop-dialog';
 import { PublicPreview } from '@/components/profile/public-preview';
 import { PublicProfileEditor } from '@/components/profile/public-profile-editor';
 import { LoadingState } from '@/components/ui/states';
@@ -11,8 +10,6 @@ import { profileApi, profileUpdateErrorMessage } from '@/lib/api';
 import type { ProfileUpdate } from '@/lib/api';
 import { validateAvatar } from '@/lib/avatar';
 import { useAuth } from '@/lib/blux';
-import { APP_URL } from '@/lib/constants';
-import { bytesToBase64 } from '@/lib/encoding';
 import { useToast } from '@/providers/toast-provider';
 
 export default function ProfilePage() {
@@ -21,6 +18,7 @@ export default function ProfilePage() {
   const [username, setUsername] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [cropSourceFile, setCropSourceFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -41,6 +39,7 @@ export default function ProfilePage() {
     setUsername(user.username);
     setAvatarUrl(user.avatar);
     setAvatarFile(null);
+    setCropSourceFile(null);
     setAvatarPreviewUrl(null);
     setRemoveAvatar(false);
     setAvatarError(null);
@@ -49,7 +48,8 @@ export default function ProfilePage() {
 
   useEffect(
     () => () => {
-      if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+      if (avatarPreviewRef.current)
+        URL.revokeObjectURL(avatarPreviewRef.current);
     },
     [],
   );
@@ -63,30 +63,53 @@ export default function ProfilePage() {
     if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
     avatarPreviewRef.current = null;
     setAvatarFile(null);
+    setCropSourceFile(null);
     setAvatarPreviewUrl(null);
     setAvatarValidating(false);
   }
 
   async function selectAvatar(file: File) {
-    discardPendingAvatar();
+    avatarValidationId.current += 1;
     setAvatarError(null);
-    setRemoveAvatar(false);
     const validationId = avatarValidationId.current;
     setAvatarValidating(true);
     try {
       await validateAvatar(file);
       if (validationId !== avatarValidationId.current) return;
+      setCropSourceFile(file);
+    } catch (cause) {
+      if (validationId !== avatarValidationId.current) return;
+      setAvatarError(
+        cause instanceof Error
+          ? cause.message
+          : 'The selected profile image is invalid.',
+      );
+    } finally {
+      if (validationId === avatarValidationId.current)
+        setAvatarValidating(false);
+    }
+  }
+
+  async function applyCroppedAvatar(file: File) {
+    setAvatarError(null);
+    setAvatarValidating(true);
+    try {
+      await validateAvatar(file);
+      discardPendingAvatar();
       const previewUrl = URL.createObjectURL(file);
       avatarPreviewRef.current = previewUrl;
       setAvatarFile(file);
       setAvatarPreviewUrl(previewUrl);
+      setRemoveAvatar(false);
+      setCropSourceFile(null);
     } catch (cause) {
-      if (validationId !== avatarValidationId.current) return;
       setAvatarError(
-        cause instanceof Error ? cause.message : 'The selected profile image is invalid.',
+        cause instanceof Error
+          ? cause.message
+          : 'The cropped image is invalid.',
       );
     } finally {
-      if (validationId === avatarValidationId.current) setAvatarValidating(false);
+      setAvatarValidating(false);
     }
   }
 
@@ -97,7 +120,8 @@ export default function ProfilePage() {
   }
 
   async function save() {
-    if (!user || saveInProgress.current || avatarValidating || avatarError) return;
+    if (!user || saveInProgress.current || avatarValidating || avatarError)
+      return;
     setError(null);
     saveInProgress.current = true;
     setSaving(true);
@@ -128,12 +152,18 @@ export default function ProfilePage() {
   }
 
   const visibleUsername = username || user.username;
-  const visibleAvatarUrl = avatarPreviewUrl ?? (removeAvatar ? null : avatarUrl);
-  const profileUrl = `${APP_URL}/${visibleUsername}`;
-  const publicKey = bytesToBase64(auth.keys.signingPublicKey);
+  const visibleAvatarUrl =
+    avatarPreviewUrl ?? (removeAvatar ? null : avatarUrl);
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-6 pb-12 pt-8 2xl:max-w-[1320px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+      {cropSourceFile && (
+        <AvatarCropDialog
+          file={cropSourceFile}
+          onCancel={() => setCropSourceFile(null)}
+          onConfirm={(file) => void applyCroppedAvatar(file)}
+        />
+      )}
       <PageHeader
         eyebrow="Your account"
         title="Profile"
@@ -141,7 +171,7 @@ export default function ProfilePage() {
       />
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(340px,.78fr)_minmax(0,1.22fr)]">
-        <div className="grid gap-5">
+        <div>
           <PublicProfileEditor
             username={username}
             avatarUrl={visibleAvatarUrl}
@@ -157,18 +187,14 @@ export default function ProfilePage() {
             onToggleAvatarInput={() => setShowAvatarInput((value) => !value)}
             onSave={() => void save()}
           />
-
-          <ProfileLink profileUrl={profileUrl} />
         </div>
 
-        <div className="grid gap-5">
+        <div>
           <PublicPreview
             username={visibleUsername}
             avatarUrl={visibleAvatarUrl}
-            profileUrl={profileUrl}
+            profileUrl={`app.beseen.fi/u/${visibleUsername}`}
           />
-
-          <IdentitySecurity publicKey={publicKey} />
         </div>
       </div>
     </div>

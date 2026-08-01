@@ -30,7 +30,7 @@ vi.mock('@/lib/blux', () => ({
   useAuth: () => auth,
 }));
 
-import PublicProfilePage from '@/app/[username]/page';
+import PublicProfilePage from '@/app/u/[username]/page';
 
 describe('public follower count', () => {
   beforeEach(() => {

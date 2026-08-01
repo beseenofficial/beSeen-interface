@@ -45,7 +45,7 @@ export function RouteGuard({
 
   if (!allowed) {
     // While signing in, tell the user what is actually happening (e.g.
-    // "Creating your keypair — approve the signature request in your wallet")
+    // "Approve the signature request to derive your BeSeen signing keypair…")
     // instead of a silent generic spinner.
     return (
       <SecureLoadingScreen
