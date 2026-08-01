@@ -152,7 +152,7 @@ export default function OnboardingPage() {
 
   return (
     <OnboardingShell>
-      <section className="mx-auto grid h-full min-h-0 w-full max-w-295 grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] overflow-hidden rounded-3xl border border-border bg-white shadow-elevated max-[900px]:h-auto max-[900px]:grid-cols-1">
+      <section className="mx-auto grid h-full min-h-max w-full max-w-295 grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] overflow-hidden rounded-3xl border border-border bg-white shadow-elevated max-[900px]:h-auto max-[900px]:grid-cols-1">
         <form className="min-w-0 p-[clamp(32px,5vh,56px)] max-sm:p-6 max-sm:py-9" onSubmit={submit}>
           <span className="mb-2 inline-block text-xs font-bold uppercase tracking-[0.09em] text-brand">
             BeSeen identity
