@@ -16,11 +16,10 @@ import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/blux";
 import { cn, shortenAddress } from "@/lib/utils";
 
-const navigationItems = [
+const baseNavigationItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/broadcasts", label: "Broadcasts", icon: Radio },
   { href: "/dashboard/messenger", label: "Messenger", icon: MessageCircleMore },
-  { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ];
 
 type NavigationProps = {
@@ -31,6 +30,10 @@ type NavigationProps = {
 export function Navigation({ close, onLogout }: NavigationProps) {
   const pathname = usePathname();
   const { user, address } = useAuth();
+  const navigationItems = [
+    ...baseNavigationItems,
+    { href: "/dashboard/profile", label: "Profile", icon: UserRound },
+  ];
 
   return (
     <>

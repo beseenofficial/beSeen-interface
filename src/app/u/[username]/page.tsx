@@ -4,16 +4,14 @@ import {
   BadgeCheck,
   CalendarDays,
   Check,
-  Copy,
-  Flame,
-  Globe2,
+  LayoutDashboard,
+  LogIn,
   MessageCircleMore,
   RadioTower,
   Send,
   Share2,
-  ShieldCheck,
-  Sparkles,
   Users,
+  UserRound,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,6 +19,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Avatar } from '@/components/ui/avatar';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
 import { ErrorState, SecureLoadingScreen } from '@/components/ui/states';
 import { profileApi, tokenApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
@@ -129,12 +128,6 @@ export default function PublicProfilePage() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
-  async function copyProfileLink(profileUrl: string) {
-    await navigator.clipboard.writeText(profileUrl);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-  }
-
   if (loading) {
     return <SecureLoadingScreen label="Loading public profile…" />;
   }
@@ -159,6 +152,12 @@ export default function PublicProfilePage() {
   }).format(new Date(profile.createdAt));
   const profileUrl = `app.beseen.fi/u/${profile.username}`;
   const followingLabel = following ? 'Subscribed' : 'Subscribe to broadcasts';
+  const siteCta = !auth.user
+    ? { href: '/login', label: 'Join BeSeen', icon: LogIn }
+    : ownProfile
+      ? { href: '/dashboard', label: 'Go to dashboard', icon: LayoutDashboard }
+      : { href: `/u/${auth.user.username}`, label: 'My profile', icon: UserRound };
+  const SiteCtaIcon = siteCta.icon;
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-[#f6fafc] px-4 py-5 text-navy sm:px-7 min-[1000px]:h-svh min-[1000px]:overflow-y-hidden lg:px-[clamp(42px,6.5vw,112px)] lg:py-[clamp(18px,3vh,36px)]">
@@ -178,18 +177,28 @@ export default function PublicProfilePage() {
           >
             <BrandLogo className="w-[146px] max-sm:w-[128px]" />
           </Link>
-          <button
-            className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-3 rounded-full border border-border bg-white px-6 text-[15px] font-semibold shadow-[0_7px_22px_rgb(11_11_63/5%)] transition hover:-translate-y-px hover:border-[#becfd6]"
-            onClick={() => void shareProfile(profileUrl)}
-            type="button"
-          >
-            {copied ? (
-              <Check size={20} aria-hidden="true" />
-            ) : (
-              <Share2 size={20} aria-hidden="true" />
-            )}
-            {copied ? 'Copied' : 'Share'}
-          </button>
+          <div className="flex items-center gap-2.5">
+            <Link
+              className="inline-flex min-h-12 items-center justify-center gap-2.5 rounded-full bg-brand px-5 text-[14px] font-semibold text-white shadow-[0_8px_22px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6] max-sm:px-4"
+              href={siteCta.href}
+            >
+              <SiteCtaIcon size={18} aria-hidden="true" />
+              <span className="max-[430px]:hidden">{siteCta.label}</span>
+            </Link>
+            <button
+              className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-3 rounded-full border border-border bg-white px-5 text-[15px] font-semibold shadow-[0_7px_22px_rgb(11_11_63/5%)] transition hover:-translate-y-px hover:border-[#becfd6] max-sm:px-4"
+              onClick={() => void shareProfile(profileUrl)}
+              type="button"
+              aria-label={copied ? 'Profile link copied' : 'Share profile'}
+            >
+              {copied ? (
+                <Check size={20} aria-hidden="true" />
+              ) : (
+                <Share2 size={20} aria-hidden="true" />
+              )}
+              <span className="max-sm:hidden">{copied ? 'Copied' : 'Share'}</span>
+            </button>
+          </div>
         </header>
 
         <section className="public-profile-card relative mt-7 grid overflow-hidden rounded-[28px] border border-white bg-white/90 shadow-[0_22px_65px_rgb(25_58_87/10%)] backdrop-blur-sm min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] min-[1000px]:gap-[clamp(24px,3vw,64px)] min-[1000px]:px-[clamp(28px,3.5vw,68px)] min-[1000px]:py-[clamp(30px,5vh,62px)] max-[999px]:min-h-[720px] max-[999px]:gap-10 max-[999px]:px-7 max-[999px]:py-9 max-sm:mt-5 max-sm:rounded-[22px] max-sm:px-5 max-sm:py-7">
@@ -270,12 +279,7 @@ export default function PublicProfilePage() {
                   {followingBusy ? 'Subscribing…' : followingLabel}
                 </button>
               ) : ownProfile ? (
-                <Link
-                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-border bg-white px-7 text-[16px] font-semibold transition hover:-translate-y-px hover:bg-subtle"
-                  href="/dashboard/profile"
-                >
-                  <RadioTower size={20} aria-hidden="true" /> Manage profile
-                </Link>
+                <OwnProfileEditor onUpdated={setProfile} />
               ) : (
                 <Link
                   className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-border bg-white px-7 text-[16px] font-semibold transition hover:-translate-y-px hover:bg-subtle"
@@ -291,26 +295,8 @@ export default function PublicProfilePage() {
           <aside className="public-profile-aside relative z-10 flex min-h-0 flex-col justify-end gap-6">
             <section className="public-profile-details rounded-[20px] border border-border/90 bg-white/76 p-8 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:p-5">
               <h2 className="text-xl font-semibold">Profile details</h2>
-              <dl className="mt-5 divide-y divide-border">
-                <div className="grid grid-cols-[34px_minmax(0,1fr)_36px] items-center gap-3 py-4 first:pt-2">
-                  <Globe2 className="text-brand" size={23} aria-hidden="true" />
-                  <div className="min-w-0">
-                    <dt className="text-sm font-semibold">Profile link</dt>
-                    <dd className="truncate text-sm font-semibold text-brand">
-                      {profileUrl}
-                    </dd>
-                  </div>
-                  <button
-                    className="grid size-9 cursor-pointer place-items-center rounded-lg text-secondary transition hover:bg-info-bg hover:text-brand"
-                    onClick={() => void copyProfileLink(profileUrl)}
-                    type="button"
-                    aria-label="Copy profile link"
-                  >
-                    {copied ? <Check size={21} /> : <Copy size={21} />}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 py-4">
+              <dl className="mt-5">
+                <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 pt-2">
                   <CalendarDays
                     className="text-secondary"
                     size={23}
@@ -321,40 +307,10 @@ export default function PublicProfilePage() {
                     <dd className="text-sm font-semibold">{joined}</dd>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 py-4">
-                  <ShieldCheck
-                    className="text-secondary"
-                    size={23}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <dt className="text-sm font-semibold">
-                      Verified with Blux
-                    </dt>
-                    <dd className="text-sm text-muted">
-                      Wallet signature verified
-                    </dd>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 pt-4">
-                  <Sparkles
-                    className="text-brand"
-                    size={23}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <dt className="text-sm font-semibold">BeSeen token</dt>
-                    <dd className="text-sm text-muted">
-                      Following controls future broadcasts
-                    </dd>
-                  </div>
-                </div>
               </dl>
             </section>
 
-            <section className="public-profile-stats grid grid-cols-3 divide-x divide-border rounded-[20px] border border-border/90 bg-white/76 px-5 py-7 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:px-2">
+            <section className="public-profile-stats grid grid-cols-2 divide-x divide-border rounded-[20px] border border-border/90 bg-white/76 px-5 py-7 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:px-2">
               <div className="grid justify-items-center gap-2 px-3 text-center">
                 <span className="grid size-10 place-items-center rounded-full bg-info-bg text-brand">
                   <MessageCircleMore size={20} aria-hidden="true" />
@@ -368,13 +324,6 @@ export default function PublicProfilePage() {
                 </span>
                 <strong className="text-xl">0</strong>
                 <span className="text-xs text-muted">Broadcasts</span>
-              </div>
-              <div className="grid justify-items-center gap-2 px-3 text-center">
-                <span className="grid size-10 place-items-center rounded-full bg-peach/20 text-[#ff806b]">
-                  <Flame size={20} aria-hidden="true" />
-                </span>
-                <strong className="text-xl">0</strong>
-                <span className="text-xs text-muted">Replies earned</span>
               </div>
             </section>
           </aside>

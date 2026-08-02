@@ -1,202 +1,115 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { BadgeCheck, CalendarDays, ExternalLink, MessageCircleMore, RadioTower, Users } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
-import { AvatarCropDialog } from '@/components/profile/avatar-crop-dialog';
-import { PublicPreview } from '@/components/profile/public-preview';
-import { PublicProfileEditor } from '@/components/profile/public-profile-editor';
+import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
+import { Avatar } from '@/components/ui/avatar';
 import { LoadingState } from '@/components/ui/states';
-import { profileApi, profileUpdateErrorMessage } from '@/lib/api';
-import type { ProfileUpdate } from '@/lib/api';
-import { validateAvatar } from '@/lib/avatar';
+import { tokenApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
-import { useToast } from '@/providers/toast-provider';
 
 export default function ProfilePage() {
   const auth = useAuth();
-  const { toast } = useToast();
-  const [username, setUsername] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [cropSourceFile, setCropSourceFile] = useState<File | null>(null);
-  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
-  const [removeAvatar, setRemoveAvatar] = useState(false);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [avatarValidating, setAvatarValidating] = useState(false);
-  const [showAvatarInput, setShowAvatarInput] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const avatarPreviewRef = useRef<string | null>(null);
-  const avatarValidationId = useRef(0);
-  const saveInProgress = useRef(false);
   const user = auth.user;
+  const [followerCount, setFollowerCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    avatarValidationId.current += 1;
-    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
-    avatarPreviewRef.current = null;
-    setUsername(user.username);
-    setAvatarUrl(user.avatar);
-    setAvatarFile(null);
-    setCropSourceFile(null);
-    setAvatarPreviewUrl(null);
-    setRemoveAvatar(false);
-    setAvatarError(null);
-    setAvatarValidating(false);
+    let active = true;
+    void tokenApi.followerCount(user.username).then((count) => {
+      if (active) setFollowerCount(count);
+    }).catch(() => {
+      if (active) setFollowerCount(0);
+    });
+    return () => { active = false; };
   }, [user]);
 
-  useEffect(
-    () => () => {
-      if (avatarPreviewRef.current)
-        URL.revokeObjectURL(avatarPreviewRef.current);
-    },
-    [],
-  );
-
   if (!user || !auth.keys) {
-    return <LoadingState label="Preparing your secure profile…" />;
+    return <LoadingState label="Preparing your profile…" />;
   }
 
-  function discardPendingAvatar() {
-    avatarValidationId.current += 1;
-    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
-    avatarPreviewRef.current = null;
-    setAvatarFile(null);
-    setCropSourceFile(null);
-    setAvatarPreviewUrl(null);
-    setAvatarValidating(false);
-  }
-
-  async function selectAvatar(file: File) {
-    avatarValidationId.current += 1;
-    setAvatarError(null);
-    const validationId = avatarValidationId.current;
-    setAvatarValidating(true);
-    try {
-      await validateAvatar(file);
-      if (validationId !== avatarValidationId.current) return;
-      setCropSourceFile(file);
-    } catch (cause) {
-      if (validationId !== avatarValidationId.current) return;
-      setAvatarError(
-        cause instanceof Error
-          ? cause.message
-          : 'The selected profile image is invalid.',
-      );
-    } finally {
-      if (validationId === avatarValidationId.current)
-        setAvatarValidating(false);
-    }
-  }
-
-  async function applyCroppedAvatar(file: File) {
-    setAvatarError(null);
-    setAvatarValidating(true);
-    try {
-      await validateAvatar(file);
-      discardPendingAvatar();
-      const previewUrl = URL.createObjectURL(file);
-      avatarPreviewRef.current = previewUrl;
-      setAvatarFile(file);
-      setAvatarPreviewUrl(previewUrl);
-      setRemoveAvatar(false);
-      setCropSourceFile(null);
-    } catch (cause) {
-      setAvatarError(
-        cause instanceof Error
-          ? cause.message
-          : 'The cropped image is invalid.',
-      );
-    } finally {
-      setAvatarValidating(false);
-    }
-  }
-
-  function removeProfileAvatar() {
-    discardPendingAvatar();
-    setAvatarError(null);
-    setRemoveAvatar(Boolean(user?.avatar));
-  }
-
-  async function save() {
-    if (!user || saveInProgress.current || avatarValidating || avatarError)
-      return;
-    setError(null);
-    saveInProgress.current = true;
-    setSaving(true);
-    try {
-      const changes: ProfileUpdate = {};
-      if (username !== user.username) changes.username = username;
-      if (avatarFile) changes.avatarFile = avatarFile;
-      else if (removeAvatar) changes.removeAvatar = true;
-      if (Object.keys(changes).length === 0) {
-        toast(
-          'Nothing to update',
-          'Your profile already matches these values.',
-        );
-        return;
-      }
-      const updated = await profileApi.update(changes);
-      discardPendingAvatar();
-      setAvatarUrl(updated.avatar);
-      setRemoveAvatar(false);
-      auth.setUser(updated);
-      toast('Profile updated', 'Your latest changes are now live.');
-    } catch (cause) {
-      setError(profileUpdateErrorMessage(cause));
-    } finally {
-      saveInProgress.current = false;
-      setSaving(false);
-    }
-  }
-
-  const visibleUsername = username || user.username;
-  const visibleAvatarUrl =
-    avatarPreviewUrl ?? (removeAvatar ? null : avatarUrl);
+  const joined = new Intl.DateTimeFormat('en', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(user.createdAt));
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] px-6 pb-12 pt-8 2xl:max-w-[1320px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
-      {cropSourceFile && (
-        <AvatarCropDialog
-          file={cropSourceFile}
-          onCancel={() => setCropSourceFile(null)}
-          onConfirm={(file) => void applyCroppedAvatar(file)}
-        />
-      )}
+    <div className="mx-auto w-full max-w-280 px-6 pb-12 pt-8 2xl:px-10 max-[900px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       <PageHeader
         eyebrow="Your account"
         title="Profile"
-        description="Manage how people appear on BeSeen."
+        description="Preview and edit the profile people see on BeSeen."
+        action={<OwnProfileEditor onUpdated={() => undefined} />}
       />
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(340px,.78fr)_minmax(0,1.22fr)]">
-        <div>
-          <PublicProfileEditor
-            username={username}
-            avatarUrl={visibleAvatarUrl}
-            showAvatarInput={showAvatarInput}
-            avatarFileName={avatarFile?.name ?? null}
-            avatarError={avatarError}
-            avatarValidating={avatarValidating}
-            saving={saving}
-            error={error}
-            onUsernameChange={setUsername}
-            onAvatarFileChange={selectAvatar}
-            onRemoveAvatar={removeProfileAvatar}
-            onToggleAvatarInput={() => setShowAvatarInput((value) => !value)}
-            onSave={() => void save()}
-          />
-        </div>
+      <section className="overflow-hidden rounded-3xl border border-border bg-white shadow-elevated">
+        <header className="flex min-h-15 items-center justify-between gap-4 border-b border-border px-5 sm:px-6">
+          <div>
+            <h2 className="text-sm font-semibold">Public profile preview</h2>
+            <p className="mt-0.5 text-xs text-muted">A compact preview of your username page</p>
+          </div>
+          <Link className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-3.5 text-xs font-semibold text-brand transition hover:bg-info-bg" href={`/u/${user.username}`}>
+            View full profile <ExternalLink size={14} aria-hidden="true" />
+          </Link>
+        </header>
 
-        <div>
-          <PublicPreview
-            username={visibleUsername}
-            avatarUrl={visibleAvatarUrl}
-            profileUrl={`app.beseen.fi/u/${visibleUsername}`}
-          />
+        <div className="bg-[#f6fafc] p-5 sm:p-8 lg:p-10">
+          <article className="relative mx-auto grid max-w-210 overflow-hidden rounded-[24px] border border-white bg-white/92 shadow-[0_18px_50px_rgb(25_58_87/10%)] lg:grid-cols-[minmax(0,1fr)_minmax(245px,35%)]">
+            <Image className="pointer-events-none absolute -top-64 left-[8%] w-125 max-w-none select-none opacity-65" src="/brand/beseen-aura-ripple-signature.svg" width={640} height={640} alt="" />
+
+            <div className="relative z-10 flex min-w-0 flex-col justify-end px-6 py-8 sm:px-9 sm:py-10">
+              <span className="w-fit rounded-full border-4 border-white bg-white shadow-[0_10px_25px_rgb(11_11_63/12%)]">
+                <Avatar username={user.username} src={user.avatar} size="xl" className="size-25 text-3xl sm:size-29" />
+              </span>
+
+              <div className="mt-5 flex min-w-0 items-center gap-2">
+                <h3 className="min-w-0 break-all text-[clamp(30px,4vw,43px)] font-semibold tracking-[-0.045em]">@{user.username}</h3>
+                <BadgeCheck className="shrink-0 text-brand" size={23} aria-label="Verified BeSeen profile" />
+              </div>
+              <p className="mt-2 text-sm font-semibold text-secondary sm:text-base">Building in public. Creating value.</p>
+              <p className="mt-5 flex flex-wrap items-center gap-2 text-sm font-semibold text-secondary">
+                <Users size={17} aria-hidden="true" />
+                {followerCount} follower{followerCount === 1 ? '' : 's'}
+                <span className="text-muted" aria-hidden="true">·</span>
+                0 following
+              </p>
+              <div className="mt-6 border-t border-border pt-5 text-sm leading-6 text-secondary">
+                <p>Exploring ideas, building products, and sharing the journey.</p>
+                <p>DM if you&apos;re building something interesting.</p>
+              </div>
+            </div>
+
+            <aside className="relative z-10 grid content-end gap-4 border-t border-border/70 bg-white/55 p-6 backdrop-blur-sm lg:border-l lg:border-t-0">
+              <div className="rounded-2xl border border-border bg-white/85 p-5">
+                <h3 className="text-base font-semibold">Profile details</h3>
+                <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+                  <CalendarDays className="text-secondary" size={20} aria-hidden="true" />
+                  <div>
+                    <span className="block text-xs text-muted">Joined</span>
+                    <strong className="text-sm">{joined}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 divide-x divide-border rounded-2xl border border-border bg-white/85 px-3 py-5">
+                <div className="grid justify-items-center gap-1.5 text-center">
+                  <MessageCircleMore className="text-brand" size={20} aria-hidden="true" />
+                  <strong>0</strong>
+                  <span className="text-[11px] text-muted">Messages</span>
+                </div>
+                <div className="grid justify-items-center gap-1.5 text-center">
+                  <RadioTower className="text-[#20aab8]" size={20} aria-hidden="true" />
+                  <strong>0</strong>
+                  <span className="text-[11px] text-muted">Broadcasts</span>
+                </div>
+              </div>
+            </aside>
+          </article>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
