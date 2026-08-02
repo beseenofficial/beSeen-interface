@@ -157,9 +157,9 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
 
             <div className="max-h-[calc(100svh-7rem)] overflow-y-auto px-6 py-7 max-sm:px-5">
               <div className="flex items-center gap-5">
-                <div className="relative shrink-0 rounded-full">
-                  <Avatar username={username || user.username} src={visibleAvatar} size="xl" className="size-28 text-3xl" />
-                  <label className="absolute inset-0 grid cursor-pointer place-items-center rounded-full bg-navy/45 text-white opacity-0 transition hover:opacity-100 focus-within:opacity-100" aria-label="Choose a new profile image">
+                <div className="relative size-28 shrink-0 overflow-hidden rounded-full leading-none">
+                  <Avatar username={username || user.username} src={visibleAvatar} size="xl" className="block size-28 text-3xl" />
+                  <label className="absolute inset-0 grid size-full cursor-pointer place-items-center overflow-hidden rounded-full bg-navy/45 text-white opacity-0 transition hover:opacity-100 focus-within:opacity-100" aria-label="Choose a new profile image">
                     <Camera size={24} />
                     <input className="sr-only" type="file" accept={AVATAR_ALLOWED_TYPES.join(',')} disabled={saving || avatarValidating} onChange={async (event) => { const file = event.target.files?.[0]; if (file) await selectAvatar(file); event.target.value = ''; }} />
                   </label>
