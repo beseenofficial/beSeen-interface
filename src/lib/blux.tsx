@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { BluxProvider, networks, useBlux } from '@bluxcc/react';
+import { BluxProvider, networks, useBlux } from "@bluxcc/react";
 import {
   createContext,
   useCallback,
@@ -10,24 +10,24 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from 'react';
+} from "react";
 import {
   ApiError,
   authApi,
   clearSession,
   profileApi,
   restoreSession,
-} from '@/lib/api';
-import { SecureLoadingScreen } from '@/components/ui/states';
-import { deriveAndSaveKeys, forgetKeys, loadKeys } from '@/lib/keys';
-import type { AuthConfig, DerivedKeys, User } from '@/types';
+} from "@/lib/api";
+import { SecureLoadingScreen } from "@/components/ui/states";
+import { deriveAndSaveKeys, forgetKeys, loadKeys } from "@/lib/keys";
+import type { AuthConfig, DerivedKeys, User } from "@/types";
 
 export type AuthStatus =
-  | 'loading'
-  | 'signed-out'
-  | 'sign-required'
-  | 'needs-username'
-  | 'ready';
+  | "loading"
+  | "signed-out"
+  | "sign-required"
+  | "needs-username"
+  | "ready";
 
 export type AuthContextValue = {
   status: AuthStatus;
@@ -49,15 +49,15 @@ export type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const appearance = {
-  logo: '/brand/beSeenLogoType.png',
-  background: '#FFFFFF',
-  fieldBackground: '#F7FAFB',
-  accentColor: '#1045F5',
-  textColor: '#0B0B3F',
-  fontFamily: 'Outfit, sans-serif',
-  borderRadius: '16px',
-  borderColor: '#D7E5EA',
-  borderWidth: '1px',
+  logo: "/brand/beSeenLogoType.png",
+  background: "#FFFFFF",
+  fieldBackground: "#F7FAFB",
+  accentColor: "#1045F5",
+  textColor: "#0B0B3F",
+  fontFamily: "Outfit, sans-serif",
+  borderRadius: "16px",
+  borderColor: "#D7E5EA",
+  borderWidth: "1px",
 };
 
 function wipeKeys(keys: DerivedKeys): void {
@@ -84,7 +84,7 @@ export function AuthBridge({
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [busyLabel, setBusyLabel] = useState<string | null>(
-    'Restoring your secure session…',
+    "Restoring your secure session…",
   );
   const [error, setError] = useState<string | null>(null);
   const [autoAttemptedAddress, setAutoAttemptedAddress] = useState<
@@ -147,7 +147,7 @@ export function AuthBridge({
         setError(
           cause instanceof Error
             ? cause.message
-            : 'Wallet connection was not completed.',
+            : "Wallet connection was not completed.",
         );
       }
       return;
@@ -156,11 +156,11 @@ export function AuthBridge({
     setError(null);
     let derived: DerivedKeys | null = null;
     try {
-      setBusyLabel('Unlocking your BeSeen keys…');
+      setBusyLabel("Unlocking your BeSeen keys…");
       derived = await loadKeys(address, config);
       if (!derived) {
         setBusyLabel(
-          'Approve the signature request to derive your BeSeen signing keypair…',
+          "Approve the signature request to derive your BeSeen signing keypair…",
         );
         derived = await deriveAndSaveKeys(
           address,
@@ -178,7 +178,7 @@ export function AuthBridge({
         return;
       }
 
-      setBusyLabel('Verifying your restored BeSeen identity…');
+      setBusyLabel("Verifying your restored BeSeen identity…");
       const readyKeys = derived;
       try {
         const authenticated = await authApi.login(address, readyKeys);
@@ -187,7 +187,7 @@ export function AuthBridge({
         setUser(authenticated);
         setNeedsRegistration(false);
       } catch (cause) {
-        if (cause instanceof ApiError && cause.code === 'ACCOUNT_UNAVAILABLE') {
+        if (cause instanceof ApiError && cause.code === "ACCOUNT_UNAVAILABLE") {
           setKeysForAddress({ address, keys: readyKeys });
           derived = null;
           setUser(null);
@@ -201,7 +201,7 @@ export function AuthBridge({
       setError(
         cause instanceof Error
           ? cause.message
-          : 'Secure sign-in could not be completed.',
+          : "Secure sign-in could not be completed.",
       );
     } finally {
       inFlight.current = false;
@@ -223,7 +223,7 @@ export function AuthBridge({
       setError(
         cause instanceof Error
           ? cause.message
-          : 'Wallet connection was not completed.',
+          : "Wallet connection was not completed.",
       );
       throw cause;
     }
@@ -285,18 +285,15 @@ export function AuthBridge({
     !keys &&
     autoAttemptedAddress !== address;
   const status: AuthStatus =
-    initializing ||
-    !blux.isReady ||
-    busyLabel ||
-    awaitingAutomaticKeyRestore
-      ? 'loading'
+    initializing || !blux.isReady || busyLabel || awaitingAutomaticKeyRestore
+      ? "loading"
       : !blux.isAuthenticated || !address
-        ? 'signed-out'
+        ? "signed-out"
         : user && keys
-          ? 'ready'
+          ? "ready"
           : needsRegistration && keys
-            ? 'needs-username'
-            : 'sign-required';
+            ? "needs-username"
+            : "sign-required";
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -348,7 +345,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
           setError(
             cause instanceof Error
               ? cause.message
-              : 'Authentication configuration is unavailable.',
+              : "Authentication configuration is unavailable.",
           );
         }
       });
@@ -356,7 +353,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   if (!process.env.NEXT_PUBLIC_BLUX_APP_ID) {
-    throw new Error('NEXT_PUBLIC_BLUX_APP_ID is required (see .env.example).');
+    throw new Error("NEXT_PUBLIC_BLUX_APP_ID is required (see .env.example).");
   }
   if (error) {
     return (
@@ -374,13 +371,11 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
     <BluxProvider
       config={{
         appId: process.env.NEXT_PUBLIC_BLUX_APP_ID,
-        appName: 'BeSeen',
+        appName: "BeSeen",
+        showWalletUIs: false,
         networks: [selectedNetwork],
         defaultNetwork: selectedNetwork,
-        isPersistent: false,
-        promptOnWrongNetwork: true,
-        showWalletUIs: false,
-        loginMethods: ['passkey', 'wallet', 'email', 'google'],
+        loginMethods: ["passkey", "wallet", "email", "google"],
         appearance,
       }}
     >
@@ -392,6 +387,6 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context)
-    throw new Error('useAuth must be used inside BeSeenAuthProvider.');
+    throw new Error("useAuth must be used inside BeSeenAuthProvider.");
   return context;
 }
