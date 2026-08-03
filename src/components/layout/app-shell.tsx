@@ -38,8 +38,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-ice pl-65 max-[900px]:pl-0 max-[900px]:pt-17">
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-65 flex-col border-r border-border bg-white px-5 pb-6 pt-7 max-[900px]:hidden">
+    <div className="min-h-screen bg-ice pl-62 max-[900px]:pl-0 max-[900px]:pt-17">
+      <aside className="fixed inset-y-0 left-0 z-20 flex w-62 flex-col border-r border-border bg-white px-3 pb-3 pt-7 max-[900px]:hidden">
         <Navigation onLogout={onLogout} />
       </aside>
       <header className="fixed inset-x-0 top-0 z-30 hidden h-17 items-center justify-between border-b border-border bg-white px-5 max-[900px]:flex">

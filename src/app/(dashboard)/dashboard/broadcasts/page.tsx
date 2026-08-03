@@ -12,18 +12,19 @@ import {
   UsersRound,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BroadcastStats,
   type StatCard,
 } from '@/components/broadcasts/broadcast-stats';
+import { BroadcastPreview } from '@/components/broadcasts/broadcast-preview';
 import { PageHeader } from '@/components/layout/page-header';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { tokenApi } from '@/lib/api';
-import { loadCompleteBroadcastFeed } from '@/lib/broadcast-feed';
+import { BROADCAST_REFRESH_INTERVAL_MS, loadCompleteBroadcastFeed, mergeBroadcastFeeds } from '@/lib/broadcast-feed';
 import { decryptFeedItem, MAX_BROADCAST_BYTES } from '@/lib/broadcast-crypto';
 import {
   publishEncryptedBroadcast,
@@ -46,15 +47,22 @@ export default function BroadcastsPage() {
   const { toast } = useToast();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [view, setView] = useState<'received' | 'sent'>('received');
+  const [view, setView] = useState<'all' | 'sent'>('all');
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [feeds, setFeeds] = useState<
     Record<'received' | 'sent', DecryptedBroadcast[] | null>
   >({ received: null, sent: null });
   const [error, setError] = useState<string | null>(null);
+  const refreshInFlight = useRef(false);
   const draftBytes = useMemo(() => utf8(draft).length, [draft]);
 
   const sentFeed = feeds.sent;
+  const allFeed = useMemo(
+    () => feeds.received && feeds.sent
+      ? mergeBroadcastFeeds(feeds.received, feeds.sent)
+      : null,
+    [feeds.received, feeds.sent],
+  );
   const totalRecipients = sentFeed?.reduce(
     (total, item) => total + item.manifest.audienceCount,
     0,
@@ -101,34 +109,54 @@ export default function BroadcastsPage() {
     },
   ];
 
-  const load = useCallback(async () => {
-    if (!user || !keys) return;
-    setError(null);
+  const load = useCallback(async ({ resumeDrafts = false, silent = false } = {}) => {
+    if (!user || !keys || refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    if (!silent) setError(null);
     try {
-      await resumeOrCancelDrafts(user, keys);
-      const [received, sent, followers] = await Promise.all([
+      if (resumeDrafts) await resumeOrCancelDrafts(user, keys);
+      const [received, sent] = await Promise.all([
         loadCompleteBroadcastFeed('received'),
         loadCompleteBroadcastFeed('sent'),
-        tokenApi.followerCount(user.username),
       ]);
       const [decryptedReceived, decryptedSent] = await Promise.all([
         Promise.all(received.map((item) => decryptFeedItem(item, keys))),
         Promise.all(sent.map((item) => decryptFeedItem(item, keys))),
       ]);
       setFeeds({ received: decryptedReceived, sent: decryptedSent });
-      setFollowerCount(followers);
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Your encrypted broadcasts could not be loaded.',
-      );
+      if (!silent) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'Your encrypted broadcasts could not be loaded.',
+        );
+      }
+    } finally {
+      refreshInFlight.current = false;
     }
   }, [keys, user]);
 
   useEffect(() => {
-    void load();
+    void load({ resumeDrafts: true });
+    const refresh = () => void load({ silent: true });
+    const interval = window.setInterval(refresh, BROADCAST_REFRESH_INTERVAL_MS);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [load]);
+
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    tokenApi.followerCount(user.username, controller.signal).then(setFollowerCount).catch(() => undefined);
+    return () => controller.abort();
+  }, [user]);
 
   async function publish(event: React.FormEvent) {
     event.preventDefault();
@@ -159,7 +187,7 @@ export default function BroadcastsPage() {
   if (!user || !keys) {
     return <LoadingState label="Preparing your encrypted broadcasts…" />;
   }
-  const feed = feeds[view];
+  const feed = view === 'all' ? allFeed : feeds.sent;
 
   return (
     <div className="mx-auto min-w-0 w-full max-w-[1220px] overflow-x-hidden px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
@@ -232,7 +260,7 @@ export default function BroadcastsPage() {
             <div className="mt-2 flex gap-5 border-b border-border">
               {(
                 [
-                  ['received', 'All'],
+                  ['all', 'All'],
                   ['sent', 'Sent'],
                 ] as const
               ).map(([key, label]) => (
@@ -285,9 +313,15 @@ export default function BroadcastsPage() {
                               @{item.creator.username}
                             </strong>
                             {item.state === 'decrypted' ? (
-                              <span className="block truncate text-[11px] text-secondary">
-                                {item.content}
-                              </span>
+                              <BroadcastPreview
+                                className="text-[11px] text-secondary"
+                                content={item.content || 'Broadcast'}
+                                username={item.creator.username}
+                                avatar={item.creator.avatar}
+                                publishedAt={item.publishedAt}
+                                isOwn={item.viewerKey.source === 'creator'}
+                                recipientCount={item.manifest.audienceCount}
+                              />
                             ) : (
                               <span className="flex items-center gap-1 text-[11px] text-warning">
                                 <ShieldAlert size={12} /> Encrypted content

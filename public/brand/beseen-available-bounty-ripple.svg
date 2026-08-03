@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="280" viewBox="0 0 520 280" fill="none">
+  <title>BeSeen Available Bounty Ripple</title>
+  <desc>Transparent concentric edge-crop ripple used inside the Available Bounties card.</desc>
+  <defs>
+    <linearGradient id="rippleStroke" x1="160" y1="40" x2="520" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1045F5" stop-opacity="0"/>
+      <stop offset="0.45" stop-color="#1045F5" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#1045F5" stop-opacity="0.28"/>
+    </linearGradient>
+    <linearGradient id="softWash" x1="150" y1="20" x2="500" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E9EEFF" stop-opacity="0"/>
+      <stop offset="1" stop-color="#E9EEFF" stop-opacity="0.38"/>
+    </linearGradient>
+    <clipPath id="cardCrop"><rect width="520" height="280" rx="24"/></clipPath>
+  </defs>
+  <g clip-path="url(#cardCrop)">
+    <path d="M244 280C244 127.569 367.569 4 520 4V280H244Z" fill="url(#softWash)"/>
+    <g stroke="url(#rippleStroke)" stroke-width="1.75">
+      <circle cx="520" cy="280" r="72"/>
+      <circle cx="520" cy="280" r="116"/>
+      <circle cx="520" cy="280" r="160"/>
+      <circle cx="520" cy="280" r="204"/>
+    </g>
+  </g>
+</svg>
