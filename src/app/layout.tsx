@@ -45,6 +45,21 @@ export const metadata: Metadata = {
     email: false,
     telephone: false,
   },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      {
+        url: '/apple-touch-icon.png',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
+  },
   manifest: '/manifest.webmanifest',
   robots: {
     index: true,
@@ -67,8 +82,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: '/brand/beSeenLogoType.png',
-        width: 1875,
-        height: 636,
+        width: 11352,
+        height: 3144,
         alt: 'BeSeen',
       },
     ],

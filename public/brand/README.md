@@ -1,7 +1,5 @@
-# BeSeen logo asset
+# BeSeen brand assets
 
-Add the original supplied dark BeSeen logo here as:
+`beSeenLogoType.png` is the official supplied BeSeen wordmark used by the UI and social metadata.
 
-`beseen-logo.svg`
-
-`BrandLogo` intentionally falls back to a labeled placeholder until this official asset is available. Do not redraw, stretch, recolor, or reconstruct the logo.
+Do not redraw, stretch, recolor, or reconstruct the logo.

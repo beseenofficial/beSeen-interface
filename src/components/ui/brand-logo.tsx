@@ -13,7 +13,7 @@ export function BrandLogo({ className }: { className?: string }) {
           className,
         )}
         aria-label="BeSeen"
-        title="Replace /public/brand/beseen-logo.svg with the official supplied logo"
+        title="BeSeen logo unavailable"
       >
         BeSeen
         <small>logo placeholder</small>
