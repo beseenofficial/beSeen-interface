@@ -147,18 +147,18 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
       {cropSourceFile && <AvatarCropDialog file={cropSourceFile} onCancel={() => setCropSourceFile(null)} onConfirm={(file) => void applyCroppedAvatar(file)} />}
 
       {open && (
-        <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-navy/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title">
-          <form className="my-auto w-full max-w-145 overflow-hidden rounded-3xl bg-white shadow-[0_28px_90px_rgb(11_11_63/28%)]" onSubmit={(event) => { event.preventDefault(); void save(); }}>
-            <header className="flex min-h-17 items-center gap-4 border-b border-border px-5">
-              <button className="grid size-10 cursor-pointer place-items-center rounded-full hover:bg-subtle" type="button" onClick={cancelEditing} aria-label="Close profile editor"><X size={20} /></button>
-              <h2 id="edit-profile-title" className="flex-1 text-xl font-semibold">Edit profile</h2>
-              <Button className="min-h-10 rounded-full px-5" type="submit" loading={saving} disabled={avatarValidating || Boolean(avatarError)}>Save</Button>
+        <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-navy/55 p-2 backdrop-blur-sm min-[380px]:p-4" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title">
+          <form className="my-auto w-full max-w-145 overflow-hidden rounded-2xl bg-white shadow-[0_28px_90px_rgb(11_11_63/28%)] sm:rounded-3xl" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+            <header className="flex min-h-17 min-w-0 items-center gap-2 border-b border-border px-3 min-[380px]:gap-4 min-[380px]:px-5">
+              <button className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-subtle" type="button" onClick={cancelEditing} aria-label="Close profile editor"><X size={20} /></button>
+              <h2 id="edit-profile-title" className="min-w-0 flex-1 truncate text-lg font-semibold min-[380px]:text-xl">Edit profile</h2>
+              <Button className="min-h-10 shrink-0 rounded-full px-4 min-[380px]:px-5" type="submit" loading={saving} disabled={avatarValidating || Boolean(avatarError)}>Save</Button>
             </header>
 
-            <div className="max-h-[calc(100svh-7rem)] overflow-y-auto px-6 py-7 max-sm:px-5">
-              <div className="flex items-center gap-5">
-                <div className="relative size-28 shrink-0 overflow-hidden rounded-full leading-none">
-                  <Avatar username={username || user.username} src={visibleAvatar} size="xl" className="block size-28 text-3xl" />
+            <div className="max-h-[calc(100svh-5.75rem)] overflow-y-auto px-4 py-6 min-[380px]:px-5 sm:max-h-[calc(100svh-7rem)] sm:px-6 sm:py-7">
+              <div className="flex min-w-0 flex-col items-start gap-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-5">
+                <div className="relative size-24 shrink-0 overflow-hidden rounded-full leading-none min-[380px]:size-28">
+                  <Avatar username={username || user.username} src={visibleAvatar} size="xl" className="block size-24 text-3xl min-[380px]:size-28" />
                   <label className="absolute inset-0 grid size-full cursor-pointer place-items-center overflow-hidden rounded-full bg-navy/45 text-white opacity-0 transition hover:opacity-100 focus-within:opacity-100" aria-label="Choose a new profile image">
                     <Camera size={24} />
                     <input className="sr-only" type="file" accept={AVATAR_ALLOWED_TYPES.join(',')} disabled={saving || avatarValidating} onChange={async (event) => { const file = event.target.files?.[0]; if (file) await selectAvatar(file); event.target.value = ''; }} />

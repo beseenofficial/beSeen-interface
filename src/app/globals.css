@@ -205,3 +205,137 @@
     height: 32px;
   }
 }
+
+/* Let the overview use the complete desktop viewport without overflowing it. */
+@media (min-width: 1280px) {
+  .overview-page {
+    display: flex;
+    height: 100svh;
+    flex-direction: column;
+  }
+
+  .overview-page-header,
+  .overview-primary,
+  .overview-secondary {
+    flex: none;
+  }
+
+  .overview-recent {
+    min-height: 0;
+    flex: 1;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .overview-recent-card {
+    display: flex;
+    min-height: 0;
+    height: 100%;
+    flex-direction: column;
+  }
+
+  .overview-recent-empty {
+    min-height: 0;
+    flex: 1;
+  }
+}
+
+/* Keep the dashboard overview visible in one frame on shorter laptops. */
+@media (min-width: 1280px) and (max-height: 900px) {
+  .overview-page {
+    padding-block: 16px;
+  }
+
+  .overview-page-header {
+    margin-bottom: 12px;
+  }
+
+  .overview-page-header h1 {
+    font-size: 30px;
+  }
+
+  .overview-primary {
+    grid-template-rows: 68px 140px;
+    gap: 14px;
+  }
+
+  .overview-bounty {
+    padding: 18px;
+  }
+
+  .overview-bounty-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .overview-bounty-content {
+    padding-top: 0;
+  }
+
+  .overview-bounty-value {
+    margin-top: 4px;
+    font-size: 48px;
+  }
+
+  .overview-bounty-hint {
+    margin-top: 8px;
+  }
+
+  .overview-bounty-action {
+    min-height: 40px;
+    margin-top: 12px;
+  }
+
+  .overview-secondary,
+  .overview-recent {
+    margin-top: 14px;
+    gap: 14px;
+  }
+
+  .overview-stat-card {
+    min-height: 124px;
+    padding: 14px 16px;
+  }
+
+  .overview-stat-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .overview-stat-label {
+    margin-top: 10px;
+  }
+
+  .overview-stat-value {
+    margin-top: 4px;
+    font-size: 22px;
+  }
+
+  .overview-stat-hint {
+    margin-top: 6px;
+  }
+
+  .overview-recent-card {
+    min-height: 0;
+    max-height: none;
+    height: 100%;
+    overflow: hidden;
+    padding: 18px 20px;
+  }
+
+  .overview-recent {
+    flex: 0 0 clamp(240px, 35svh, 310px);
+  }
+
+  .overview-recent-empty {
+    min-height: 0;
+  }
+
+  .overview-recent-list > li {
+    min-height: 54px;
+    padding-block: 6px;
+  }
+
+  .overview-recent-list > li:nth-child(n + 3) {
+    display: none;
+  }
+}

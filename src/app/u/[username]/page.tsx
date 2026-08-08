@@ -160,7 +160,7 @@ export default function PublicProfilePage() {
   const SiteCtaIcon = siteCta.icon;
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-[#f6fafc] px-4 py-5 text-navy sm:px-7 min-[1000px]:h-svh min-[1000px]:overflow-y-hidden lg:px-[clamp(42px,6.5vw,112px)] lg:py-[clamp(18px,3vh,36px)]">
+    <main className="relative min-h-svh overflow-x-hidden bg-[#f6fafc] px-4 py-5 text-navy sm:px-7 lg:px-[clamp(42px,6.5vw,112px)] lg:py-[clamp(18px,3vh,36px)]">
       <Image
         className="pointer-events-none absolute -bottom-28 -left-28 w-[360px] select-none opacity-10 max-md:hidden"
         src="/brand/beseen-brand-rays.svg"
@@ -169,7 +169,7 @@ export default function PublicProfilePage() {
         alt=""
       />
 
-      <div className="relative mx-auto w-full max-w-[1480px] min-[1000px]:flex min-[1000px]:h-full min-[1000px]:flex-col">
+      <div className="relative mx-auto flex min-h-[calc(100svh-40px)] w-full max-w-[1480px] flex-col lg:min-h-[calc(100svh-clamp(36px,6vh,72px))]">
         <header className="flex min-h-14 shrink-0 items-center justify-between gap-4">
           <Link
             href={auth.user ? '/dashboard' : '/login'}
@@ -201,7 +201,7 @@ export default function PublicProfilePage() {
           </div>
         </header>
 
-        <section className="public-profile-card relative mt-7 grid overflow-hidden rounded-[28px] border border-white bg-white/90 shadow-[0_22px_65px_rgb(25_58_87/10%)] backdrop-blur-sm min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] min-[1000px]:gap-[clamp(24px,3vw,64px)] min-[1000px]:px-[clamp(28px,3.5vw,68px)] min-[1000px]:py-[clamp(30px,5vh,62px)] max-[999px]:min-h-[720px] max-[999px]:gap-10 max-[999px]:px-7 max-[999px]:py-9 max-sm:mt-5 max-sm:rounded-[22px] max-sm:px-5 max-sm:py-7">
+        <section className="public-profile-card relative mt-7 grid min-w-0 overflow-hidden rounded-[28px] border border-white bg-white/90 shadow-[0_22px_65px_rgb(25_58_87/10%)] backdrop-blur-sm min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] min-[1000px]:gap-[clamp(24px,3vw,64px)] min-[1000px]:px-[clamp(28px,3.5vw,68px)] min-[1000px]:py-[clamp(30px,5vh,62px)] max-[999px]:gap-10 max-[999px]:px-7 max-[999px]:py-9 max-sm:mt-5 max-sm:gap-8 max-sm:rounded-[22px] max-sm:px-5 max-sm:py-7">
           <Image
             className="pointer-events-none absolute -top-[278px] left-[24%] w-[640px] max-w-none select-none opacity-75 max-[999px]:-top-[330px] max-[999px]:left-[8%] max-sm:-top-[350px] max-sm:-left-24"
             src="/brand/beseen-aura-ripple-signature.svg"
@@ -212,7 +212,7 @@ export default function PublicProfilePage() {
           />
 
           <div className="public-profile-main relative z-10 flex min-w-0 flex-col justify-end pb-1 min-[1000px]:pt-2 max-[999px]:pt-12 max-sm:pt-16">
-            <span className="w-fit rounded-full border-4 border-white bg-white shadow-[0_13px_30px_rgb(11_11_63/12%)]">
+            <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full border-4 border-white bg-white leading-none shadow-[0_13px_30px_rgb(11_11_63/12%)]">
               <Avatar
                 username={profile.username}
                 src={profile.avatar}
