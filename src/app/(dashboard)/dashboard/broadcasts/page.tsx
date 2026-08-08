@@ -18,6 +18,7 @@ import {
   type StatCard,
 } from '@/components/broadcasts/broadcast-stats';
 import { BroadcastPreview } from '@/components/broadcasts/broadcast-preview';
+import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -190,7 +191,7 @@ export default function BroadcastsPage() {
   const feed = view === 'all' ? allFeed : feeds.sent;
 
   return (
-    <div className="mx-auto min-w-0 w-full max-w-[1220px] overflow-x-hidden px-6 pb-12 pt-8 2xl:max-w-[1380px] 2xl:px-10 max-[1100px]:px-5 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <DashboardPage className="min-w-0 overflow-x-hidden">
       <PageHeader
         eyebrow="End-to-end encrypted"
         title="Broadcasts"
@@ -441,6 +442,6 @@ export default function BroadcastsPage() {
           </section>
         </aside>
       </div>
-    </div>
+    </DashboardPage>
   );
 }
