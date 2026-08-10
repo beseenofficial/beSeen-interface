@@ -66,14 +66,15 @@ describe('login flow', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/timed out/i);
   });
 
-  it('tells the user what is happening while keys are being created', () => {
+  it('keeps the sign-in transition lightweight while keys are being created', () => {
     auth.status = 'loading';
     auth.busyLabel =
       'Creating your keypair — approve the signature request in your wallet';
     render(<LoginPage />);
-    expect(screen.getByText(/creating your keypair/i)).toBeInTheDocument();
-    expect(screen.getByText(/no transaction is submitted to stellar/i)).toBeInTheDocument();
-    expect(screen.getByText(/derive your beseen signing keypair/i)).toBeInTheDocument();
+    expect(screen.getByText('Signing you in…')).toBeInTheDocument();
+    expect(screen.queryByText(/creating your keypair/i)).toBeNull();
+    expect(screen.queryByText(/no transaction is submitted to stellar/i)).toBeNull();
+    expect(screen.queryByText(/derive your beseen signing keypair/i)).toBeNull();
   });
 
   it('auto-advances signed-in users without an account to onboarding', () => {
