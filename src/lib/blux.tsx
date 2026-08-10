@@ -93,7 +93,9 @@ function hasRecentBluxLogin(): boolean {
 
     // These are the persistence windows used by Blux 0.2.x itself.
     const usesJwt =
-      record.authMethod !== "wallet" && typeof record.jwt === "string" && !!record.jwt;
+      record.authMethod !== "wallet" &&
+      typeof record.jwt === "string" &&
+      !!record.jwt;
     const maxAge = usesJwt ? 21_600_000 : 2_400_000;
     return Date.now() - record.timestamp <= maxAge;
   } catch {
@@ -424,13 +426,19 @@ export function AuthBridge({
 }
 
 function pathAcceptsStatus(pathname: string, status: AuthStatus): boolean {
-  if (status === "loading" || pathname === "/") return false;
-  if (pathname === "/login") {
+  const isLogin = pathname === "/login" || pathname.startsWith("/login/");
+  const isOnboarding =
+    pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+  const isDashboard = pathname.startsWith("/dashboard");
+
+  if (pathname === "/") return false;
+  if (!isLogin && !isOnboarding && !isDashboard) return true;
+  if (status === "loading") return false;
+  if (isLogin) {
     return status === "signed-out" || status === "sign-required";
   }
-  if (pathname === "/onboarding") return status === "needs-username";
-  if (pathname.startsWith("/dashboard")) return status === "ready";
-  return true;
+  if (isOnboarding) return status === "needs-username";
+  return status === "ready";
 }
 
 function AuthStartupResolver() {
