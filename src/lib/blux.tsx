@@ -1,6 +1,11 @@
 "use client";
 
-import { BluxProvider, networks, useBlux } from "@bluxcc/react";
+import {
+  BluxProvider,
+  networks,
+  useBlux,
+} from "@bluxcc/react";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -18,9 +23,9 @@ import {
   profileApi,
   restoreSession,
 } from "@/lib/api";
-import { SecureLoadingScreen } from "@/components/ui/states";
 import { deriveAndSaveKeys, forgetKeys, loadKeys } from "@/lib/keys";
 import type { AuthConfig, DerivedKeys, User } from "@/types";
+import { useAuthStartup } from "@/providers/auth-startup";
 
 export type AuthStatus =
   | "loading"
@@ -67,6 +72,75 @@ function wipeKeys(keys: DerivedKeys): void {
   keys.encryptionPrivateKey.fill(0);
 }
 
+const BLUX_RECENT_LOGIN = "__BLUX__RECENT_LOGIN_CONFIG";
+const BLUX_RESTORE_TIMEOUT_MS = 8_000;
+
+function hasRecentBluxLogin(): boolean {
+  try {
+    const raw = window.localStorage.getItem(BLUX_RECENT_LOGIN);
+    if (!raw) return false;
+    const record = JSON.parse(raw) as {
+      authMethod?: unknown;
+      timestamp?: unknown;
+      jwt?: unknown;
+    };
+    if (
+      typeof record.authMethod !== "string" ||
+      typeof record.timestamp !== "number"
+    ) {
+      return false;
+    }
+
+    // These are the persistence windows used by Blux 0.2.x itself.
+    const usesJwt =
+      record.authMethod !== "wallet" && typeof record.jwt === "string" && !!record.jwt;
+    const maxAge = usesJwt ? 21_600_000 : 2_400_000;
+    return Date.now() - record.timestamp <= maxAge;
+  } catch {
+    return false;
+  }
+}
+
+function useBluxRestoreSettled({
+  address,
+  apiSessionRestored,
+  isAuthenticated,
+  isReady,
+}: {
+  address: string | null;
+  apiSessionRestored: boolean | null;
+  isAuthenticated: boolean;
+  isReady: boolean;
+}): boolean {
+  const [settled, setSettled] = useState(isAuthenticated && !!address);
+
+  useEffect(() => {
+    if (settled) return;
+    if (isAuthenticated && address) {
+      setSettled(true);
+      return;
+    }
+    if (!isReady || apiSessionRestored === null) return;
+
+    const restoreExpected = apiSessionRestored || hasRecentBluxLogin();
+    if (!restoreExpected) {
+      setSettled(true);
+      return;
+    }
+
+    // Blux 0.2.x has no public "silent restore complete" signal. Keep the
+    // startup barrier up while a previous session is expected, but always
+    // provide a bounded escape hatch if the wallet/runtime cannot reconnect.
+    const timeout = window.setTimeout(
+      () => setSettled(true),
+      BLUX_RESTORE_TIMEOUT_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [address, apiSessionRestored, isAuthenticated, isReady, settled]);
+
+  return settled;
+}
+
 export function AuthBridge({
   children,
   config,
@@ -83,6 +157,9 @@ export function AuthBridge({
   const [user, setUser] = useState<User | null>(null);
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [apiSessionRestored, setApiSessionRestored] = useState<boolean | null>(
+    null,
+  );
   const [busyLabel, setBusyLabel] = useState<string | null>(
     "Restoring your secure session…",
   );
@@ -99,6 +176,12 @@ export function AuthBridge({
     keysForAddress && keysForAddress.address === address
       ? keysForAddress.keys
       : null;
+  const bluxRestoreSettled = useBluxRestoreSettled({
+    address,
+    apiSessionRestored,
+    isAuthenticated: blux.isAuthenticated,
+    isReady: blux.isReady,
+  });
 
   useEffect(() => {
     activeBluxIdentity.current = {
@@ -119,7 +202,9 @@ export function AuthBridge({
     let active = true;
     void (async () => {
       try {
-        if ((await restoreSession()) && active) {
+        const restored = await restoreSession();
+        if (active) setApiSessionRestored(restored);
+        if (restored && active) {
           const restoredUser = await profileApi.me();
           if (active) {
             setUser(restoredUser);
@@ -232,6 +317,7 @@ export function AuthBridge({
   useEffect(() => {
     if (
       initializing ||
+      !bluxRestoreSettled ||
       !blux.isReady ||
       !blux.isAuthenticated ||
       !address ||
@@ -246,6 +332,7 @@ export function AuthBridge({
     autoAttemptedAddress,
     blux.isAuthenticated,
     blux.isReady,
+    bluxRestoreSettled,
     completeSignIn,
     initializing,
     keys,
@@ -279,13 +366,18 @@ export function AuthBridge({
 
   const awaitingAutomaticKeyRestore =
     !initializing &&
+    bluxRestoreSettled &&
     blux.isReady &&
     blux.isAuthenticated &&
     !!address &&
     !keys &&
     autoAttemptedAddress !== address;
   const status: AuthStatus =
-    initializing || !blux.isReady || busyLabel || awaitingAutomaticKeyRestore
+    initializing ||
+    !bluxRestoreSettled ||
+    !blux.isReady ||
+    busyLabel ||
+    awaitingAutomaticKeyRestore
       ? "loading"
       : !blux.isAuthenticated || !address
         ? "signed-out"
@@ -331,9 +423,32 @@ export function AuthBridge({
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+function pathAcceptsStatus(pathname: string, status: AuthStatus): boolean {
+  if (status === "loading" || pathname === "/") return false;
+  if (pathname === "/login") {
+    return status === "signed-out" || status === "sign-required";
+  }
+  if (pathname === "/onboarding") return status === "needs-username";
+  if (pathname.startsWith("/dashboard")) return status === "ready";
+  return true;
+}
+
+function AuthStartupResolver() {
+  const pathname = usePathname();
+  const { status } = useAuth();
+  const { complete } = useAuthStartup();
+
+  useEffect(() => {
+    if (pathAcceptsStatus(pathname, status)) complete();
+  }, [complete, pathname, status]);
+
+  return null;
+}
+
 export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { complete } = useAuthStartup();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -352,6 +467,10 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (error) complete();
+  }, [complete, error]);
+
   if (!process.env.NEXT_PUBLIC_BLUX_APP_ID) {
     throw new Error("NEXT_PUBLIC_BLUX_APP_ID is required (see .env.example).");
   }
@@ -363,7 +482,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
     );
   }
   if (!config) {
-    return <SecureLoadingScreen label="Loading security settings…" />;
+    return null;
   }
 
   const selectedNetwork = networks.testnet;
@@ -379,7 +498,10 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
         appearance,
       }}
     >
-      <AuthBridge config={config}>{children}</AuthBridge>
+      <AuthBridge config={config}>
+        <AuthStartupResolver />
+        {children}
+      </AuthBridge>
     </BluxProvider>
   );
 }

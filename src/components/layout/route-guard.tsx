@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 import { SecureLoadingScreen } from '@/components/ui/states';
 import { useAuth, type AuthStatus } from '@/lib/blux';
+import { useAuthStartup } from '@/providers/auth-startup';
 
 type Mode = 'login' | 'onboarding' | 'app';
 
@@ -36,6 +37,7 @@ export function RouteGuard({
 }) {
   const router = useRouter();
   const { status, busyLabel } = useAuth();
+  const { pending: startupPending } = useAuthStartup();
   const allowed = ALLOWED[mode].includes(status);
   const destination = allowed ? null : HOME[status];
 
@@ -44,6 +46,7 @@ export function RouteGuard({
   }, [destination, router]);
 
   if (!allowed) {
+    if (startupPending) return null;
     // While signing in, tell the user what is actually happening (e.g.
     // "Approve the signature request to derive your BeSeen signing keypair…")
     // instead of a silent generic spinner.

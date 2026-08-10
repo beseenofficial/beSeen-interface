@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
-import { SecureLoadingScreen } from '@/components/ui/states';
+import { AuthStartupBoundary } from './auth-startup';
 import { ToastProvider } from './toast-provider';
 
 // Blux talks to wallet extensions and IndexedDB, so it must never run on
@@ -11,14 +11,16 @@ const BeSeenAuthProvider = dynamic(
   () => import('@/lib/blux').then((mod) => mod.BeSeenAuthProvider),
   {
     ssr: false,
-    loading: () => <SecureLoadingScreen label="Preparing secure sign-in…" />,
+    loading: () => null,
   },
 );
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <BeSeenAuthProvider>
-      <ToastProvider>{children}</ToastProvider>
-    </BeSeenAuthProvider>
+    <AuthStartupBoundary>
+      <BeSeenAuthProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </BeSeenAuthProvider>
+    </AuthStartupBoundary>
   );
 }
