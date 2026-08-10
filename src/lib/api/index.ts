@@ -1,5 +1,17 @@
 export { authApi, registrationErrorMessage } from './auth';
 export { broadcastApi } from './broadcasts';
+export {
+  claimMessengerBounty,
+  findMessengerConversationWithUser,
+  getMessengerConversation,
+  getMessengerConversationContext,
+  getMessengerMessages,
+  listMessengerConversations,
+  messengerApi,
+  markMessengerConversationRead,
+  sendMessengerMessage,
+} from './messenger';
+export type { MessengerConversationQuery, MessengerHistoryQuery } from './messenger';
 export { profileApi, profileUpdateErrorMessage } from './profiles';
 export type { ProfileUpdate } from './profiles';
 export { tokenApi } from './tokens';

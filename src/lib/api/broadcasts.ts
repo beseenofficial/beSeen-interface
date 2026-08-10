@@ -24,7 +24,7 @@ export const broadcastApi = {
     cursor?: string,
     signal?: AbortSignal,
   ): Promise<CursorPage<BroadcastRecipient>> {
-    const search = new URLSearchParams({ limit: '250' });
+    const search = new URLSearchParams({ limit: '50' });
     if (cursor) search.set('cursor', cursor);
     return (
       await apiRequest<{ recipients: CursorPage<BroadcastRecipient> }>(

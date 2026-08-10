@@ -17,6 +17,7 @@ const auth = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/api', () => ({
+  messengerApi: { findConversationWithUser: vi.fn() },
   profileApi: { public: mocks.profile },
   tokenApi: {
     followerCount: mocks.followerCount,
@@ -43,7 +44,11 @@ describe('public follower count', () => {
   });
 
   it('increments after a newly created 201 holding', async () => {
-    mocks.purchase.mockResolvedValue({ created: true, holding: {} });
+    mocks.purchase.mockResolvedValue({
+      created: true,
+      holding: {},
+      conversation: { id: '507f1f77bcf86cd799439011', created: true },
+    });
     render(<PublicProfilePage />);
     expect(await screen.findByText('4 followers')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /subscribe to broadcasts/i }));
@@ -52,7 +57,11 @@ describe('public follower count', () => {
   });
 
   it('does not increment when the idempotent purchase returns 200', async () => {
-    mocks.purchase.mockResolvedValue({ created: false, holding: {} });
+    mocks.purchase.mockResolvedValue({
+      created: false,
+      holding: {},
+      conversation: { id: '507f1f77bcf86cd799439011', created: false },
+    });
     render(<PublicProfilePage />);
     expect(await screen.findByText('4 followers')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /subscribe to broadcasts/i }));

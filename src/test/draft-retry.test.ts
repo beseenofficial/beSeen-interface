@@ -62,7 +62,10 @@ describe('interrupted encrypted draft retry', () => {
 
     await expect(publishEncryptedBroadcast('never sent as plaintext', user, keys)).rejects.toThrow(/connection dropped/i);
     expect(state.serverWrapped).toHaveLength(108);
-    await expect(publishEncryptedBroadcast('edited text is ignored for the retry', user, keys)).resolves.toMatchObject({ status: 'published' });
+    await expect(publishEncryptedBroadcast('edited text is ignored for the retry', user, keys)).resolves.toMatchObject({
+      status: 'published',
+      recipients: [{ userId: recipientRecord.userId, username: recipientRecord.username }],
+    });
     expect(api.uploadKeys).toHaveBeenCalledTimes(1);
     const finalizeBody = api.finalize.mock.calls[0][1];
     expect(finalizeBody).not.toHaveProperty('plaintext');

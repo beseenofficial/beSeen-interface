@@ -1,0 +1,95 @@
+// @vitest-environment node
+import sodium from 'libsodium-wrappers-sumo';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { bytesToBase64 } from '@/lib/encoding';
+import type { DerivedKeys, MessengerConversationContext, MessengerSentMessage } from '@/types';
+
+const storage = vi.hoisted(() => new Map<string, unknown>());
+const api = vi.hoisted(() => ({ context: vi.fn(), send: vi.fn() }));
+
+vi.mock('@/lib/secure-storage', () => ({
+  getSecureJson: vi.fn(async (id: string) => storage.get(id) ?? null),
+  setSecureJson: vi.fn(async (id: string, value: unknown) => void storage.set(id, structuredClone(value))),
+  deleteSecureRecord: vi.fn(async (id: string) => void storage.delete(id)),
+}));
+vi.mock('@/lib/api', () => ({
+  getMessengerConversationContext: api.context,
+  sendMessengerMessage: api.send,
+}));
+
+import {
+  createAndSendMessengerMessage,
+  loadPendingMessengerAttempt,
+  retryPendingMessengerMessage,
+} from '@/lib/messenger-workflow';
+
+let keys: DerivedKeys;
+let context: MessengerConversationContext;
+const conversationId = '507f1f77bcf86cd799439011';
+
+beforeAll(async () => {
+  await sodium.ready;
+  const signing = sodium.crypto_sign_keypair();
+  const encryption = sodium.crypto_box_keypair();
+  const recipientSigning = sodium.crypto_sign_keypair();
+  const recipientEncryption = sodium.crypto_box_keypair();
+  keys = {
+    signingPublicKey: new Uint8Array(signing.publicKey),
+    signingPrivateKey: new Uint8Array(signing.privateKey),
+    encryptionPublicKey: new Uint8Array(encryption.publicKey),
+    encryptionPrivateKey: new Uint8Array(encryption.privateKey),
+  };
+  context = {
+    conversationId,
+    viewer: {
+      id: '507f1f77bcf86cd799439012', username: 'sender', avatar: null, keyVersion: 1,
+      signingPublicKey: bytesToBase64(keys.signingPublicKey),
+      encryptionPublicKey: bytesToBase64(keys.encryptionPublicKey),
+    },
+    otherParticipant: {
+      id: '507f1f77bcf86cd799439013', username: 'recipient', avatar: null, keyVersion: 1,
+      signingPublicKey: bytesToBase64(recipientSigning.publicKey),
+      encryptionPublicKey: bytesToBase64(recipientEncryption.publicKey),
+    },
+  };
+});
+
+describe('Messenger unknown-result retry', () => {
+  beforeEach(() => {
+    storage.clear();
+    vi.clearAllMocks();
+    api.context.mockResolvedValue(context);
+  });
+
+  it('reuses the identical UUID and encrypted envelope', async () => {
+    const sent: unknown[] = [];
+    const response: MessengerSentMessage = {
+      id: '507f1f77bcf86cd799439020', conversationId, sequence: 1,
+      clientMessageId: '2f2b1762-f0f5-4b1b-8acd-70afcf043365',
+      senderId: context.viewer.id, recipientId: context.otherParticipant.id,
+      replyToMessageId: null, bounty: null, unlockedBounty: null,
+      createdAt: '2026-08-10T12:00:00.000Z',
+    };
+    api.send
+      .mockImplementationOnce(async (_conversationId: string, payload: unknown) => {
+        sent.push(structuredClone(payload));
+        throw new TypeError('network result unknown');
+      })
+      .mockImplementationOnce(async (_conversationId: string, payload: unknown) => {
+        sent.push(structuredClone(payload));
+        return { message: response, created: false };
+      });
+
+    await expect(createAndSendMessengerMessage({
+      conversationId,
+      plaintext: 'do not send plaintext',
+      keys,
+    })).rejects.toThrow(/unknown/i);
+    expect(await loadPendingMessengerAttempt(conversationId)).not.toBeNull();
+    await expect(retryPendingMessengerMessage(conversationId)).resolves.toMatchObject({ created: false });
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toEqual(sent[0]);
+    expect(JSON.stringify(sent[0])).not.toContain('do not send plaintext');
+    expect(await loadPendingMessengerAttempt(conversationId)).toBeNull();
+  });
+});

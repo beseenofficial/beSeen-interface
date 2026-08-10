@@ -21,9 +21,13 @@ describe('token purchase status', () => {
         holding: {
           tokenId: 'token', ownerId: 'owner', ownerUsername: 'alice', acquiredAt: '2026-01-01T00:00:00.000Z',
         },
+        conversation: { id: '507f1f77bcf86cd799439011', created },
       },
     });
-    await expect(tokenApi.purchase('alice')).resolves.toMatchObject({ created });
+    await expect(tokenApi.purchase('alice')).resolves.toMatchObject({
+      created,
+      conversation: { id: '507f1f77bcf86cd799439011', created },
+    });
     expect(requestWithStatus).toHaveBeenCalledWith('/v1/users/alice/token/purchase', {
       method: 'POST', auth: true,
     });

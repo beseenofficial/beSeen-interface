@@ -31,4 +31,19 @@ describe('recipient pagination', () => {
     expect(broadcastApi.recipients).toHaveBeenCalledTimes(1);
     expect(broadcastApi.recipients).toHaveBeenCalledWith('draft', 'cursor-2');
   });
+
+  it('appends pages and removes duplicate users by userId', async () => {
+    vi.mocked(broadcastApi.recipients).mockResolvedValue({
+      items: [recipient('b'), recipient('c')], nextCursor: null, hasMore: false,
+    });
+    const draft = {
+      id: 'draft', audience: { type: 'token_holders', count: 3 },
+      recipients: { items: [recipient('a'), recipient('b')], nextCursor: 'opaque-cursor', hasMore: true },
+    } as BroadcastDraft;
+
+    await expect(loadAllRecipients(draft)).resolves.toEqual([
+      recipient('a'), recipient('b'), recipient('c'),
+    ]);
+    expect(broadcastApi.recipients).toHaveBeenCalledWith('draft', 'opaque-cursor');
+  });
 });

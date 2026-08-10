@@ -82,6 +82,147 @@ export type TokenHolding = {
   acquiredAt: string;
 };
 
+export type TokenPurchaseConversation = {
+  id: string;
+  created: boolean;
+};
+
+export type MessengerParticipant = Pick<User, 'id' | 'username' | 'avatar'>;
+
+export type MessengerConversationLastMessage = {
+  sequence: number;
+  clientMessageId: string;
+  senderId: string;
+  createdAt: string;
+};
+
+export type MessengerConversationReadState = {
+  viewerReadSequence: number;
+  otherParticipantReadSequence: number;
+};
+
+export type MessengerConversation = {
+  id: string;
+  otherParticipant: MessengerParticipant;
+  unreadCount: number;
+  readState: MessengerConversationReadState;
+  lastMessage: MessengerConversationLastMessage | null;
+  lastMessageAt: string | null;
+  createdAt: string;
+};
+
+export type MessengerConversationPage = CursorPage<MessengerConversation>;
+
+export type MessengerContextParticipant = MessengerParticipant & {
+  keyVersion: number;
+  signingPublicKey: string;
+  encryptionPublicKey: string;
+};
+
+export type MessengerConversationContext = {
+  conversationId: string;
+  viewer: MessengerContextParticipant;
+  otherParticipant: MessengerContextParticipant;
+};
+
+export type MessengerBountyTerms = {
+  assetCode: string;
+  amount: string;
+  durationSeconds: number;
+};
+
+export type MessengerBounty = MessengerBountyTerms & {
+  id: string;
+  status: 'offered' | 'claimable' | 'claimed' | 'expired';
+  expiresAt: string;
+  replyMessageId: string | null;
+  claimableAt: string | null;
+  claimedAt: string | null;
+};
+
+export type MessengerMessageManifest = {
+  signatureVersion: 1;
+  encryptionVersion: 1;
+  contentSuite: 'XCHACHA20-POLY1305-IETF';
+  keyWrapSuite: 'X25519-XSALSA20-POLY1305-SEALEDBOX';
+  conversationId: string;
+  clientMessageId: string;
+  senderId: string;
+  recipientId: string;
+  senderKeyVersion: number;
+  recipientKeyVersion: number;
+  senderSigningPublicKey: string;
+  senderEncryptionPublicKey: string;
+  recipientEncryptionPublicKey: string;
+  contentCiphertext: string;
+  contentNonce: string;
+  senderEncryptedMessageKey: string;
+  recipientEncryptedMessageKey: string;
+  replyToMessageId: string | null;
+  bountyTerms: MessengerBountyTerms | null;
+};
+
+export type MessengerMessageHistoryItem = {
+  id: string;
+  sequence: number;
+  manifest: MessengerMessageManifest;
+  viewerKey: {
+    source: 'sender' | 'recipient';
+    keyVersion: number;
+    encryptionPublicKey: string;
+    encryptedMessageKey: string;
+  };
+  integrity: {
+    algorithm: 'Ed25519';
+    signingPublicKey: string;
+    signature: string;
+  };
+  delivery: { seenByRecipient: boolean };
+  bounty: MessengerBounty | null;
+  createdAt: string;
+};
+
+export type MessengerMessageHistoryPage = {
+  items: MessengerMessageHistoryItem[];
+  nextBeforeSequence: number | null;
+  hasMore: boolean;
+};
+
+export type MessengerSendMessagePayload = {
+  clientMessageId: string;
+  contentCiphertext: string;
+  contentNonce: string;
+  senderEncryptedMessageKey: string;
+  recipientEncryptedMessageKey: string;
+  replyToMessageId: string | null;
+  bounty: MessengerBountyTerms | null;
+  signature: string;
+};
+
+export type MessengerSentMessage = {
+  id: string;
+  conversationId: string;
+  sequence: number;
+  clientMessageId: string;
+  senderId: string;
+  recipientId: string;
+  replyToMessageId: string | null;
+  bounty: MessengerBounty | null;
+  unlockedBounty: MessengerBounty | null;
+  createdAt: string;
+};
+
+export type MessengerReadReceipt = {
+  conversationId: string;
+  readSequence: number;
+  unreadCount: number;
+};
+
+export type DecryptedMessengerMessage = MessengerMessageHistoryItem & {
+  plaintext: string | null;
+  state: 'decrypted' | 'invalid';
+};
+
 export type BroadcastRecipient = {
   userId: string;
   username: string;
@@ -90,6 +231,8 @@ export type BroadcastRecipient = {
   keyUploaded: boolean;
   encryptedBroadcastKey: string | null;
 };
+
+export type BroadcastRecipientSummary = Pick<BroadcastRecipient, 'userId' | 'username'>;
 
 export type CursorPage<T> = {
   items: T[];
@@ -135,6 +278,10 @@ export type PublishedBroadcast = {
   recipientKeysDigest: string;
   signature: string;
   publishedAt: string;
+};
+
+export type PublishedBroadcastResult = PublishedBroadcast & {
+  recipients: BroadcastRecipientSummary[];
 };
 
 export type BroadcastFeedItem = {

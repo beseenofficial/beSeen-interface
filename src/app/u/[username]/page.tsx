@@ -21,7 +21,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
 import { ErrorState, SecureLoadingScreen } from '@/components/ui/states';
-import { profileApi, tokenApi } from '@/lib/api';
+import { messengerApi, profileApi, tokenApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
 import type { PublicUser } from '@/types';
 
@@ -32,6 +32,7 @@ export default function PublicProfilePage() {
   const [followerCount, setFollowerCount] = useState(0);
   const [following, setFollowing] = useState(false);
   const [followingBusy, setFollowingBusy] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +66,7 @@ export default function PublicProfilePage() {
   useEffect(() => {
     let active = true;
     setFollowing(false);
+    setConversationId(null);
 
     if (!profile || !auth.user || auth.user.id === profile.id) {
       return () => {
@@ -74,9 +76,14 @@ export default function PublicProfilePage() {
 
     void tokenApi
       .mine()
-      .then((holdings) => {
+      .then(async (holdings) => {
         if (active) {
-          setFollowing(holdings.some((token) => token.owner.id === profile.id));
+          const ownsToken = holdings.some((token) => token.owner.id === profile.id);
+          setFollowing(ownsToken);
+          if (ownsToken) {
+            const conversation = await messengerApi.findConversationWithUser(profile.id);
+            if (active) setConversationId(conversation?.id ?? null);
+          }
         }
       })
       .catch((cause) => {
@@ -101,6 +108,7 @@ export default function PublicProfilePage() {
     try {
       const result = await tokenApi.purchase(profile.username);
       setFollowing(true);
+      setConversationId(result.conversation.id);
       if (result.created) setFollowerCount((count) => count + 1);
     } catch (cause) {
       setError(
@@ -158,6 +166,9 @@ export default function PublicProfilePage() {
       ? { href: '/dashboard', label: 'Go to dashboard', icon: LayoutDashboard }
       : { href: `/u/${auth.user.username}`, label: 'My profile', icon: UserRound };
   const SiteCtaIcon = siteCta.icon;
+  const messengerHref = conversationId
+    ? `/dashboard/messenger?conversation=${encodeURIComponent(conversationId)}`
+    : '/dashboard/messenger';
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-[#f6fafc] px-4 py-5 text-navy sm:px-7 lg:px-[clamp(42px,6.5vw,112px)] lg:py-[clamp(18px,3vh,36px)]">
@@ -261,12 +272,38 @@ export default function PublicProfilePage() {
             )}
 
             <div className="public-profile-actions mt-8 flex flex-wrap gap-5 max-sm:grid max-sm:grid-cols-1">
-              <Link
-                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
-                href={auth.user ? '/dashboard/messenger' : '/login'}
-              >
-                <Send size={20} aria-hidden="true" /> Send message
-              </Link>
+              {!auth.user ? (
+                <Link
+                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
+                  href="/login"
+                >
+                  <Send size={20} aria-hidden="true" /> Sign in to message
+                </Link>
+              ) : ownProfile ? (
+                <Link
+                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
+                  href="/dashboard/messenger"
+                >
+                  <Send size={20} aria-hidden="true" /> Open Messenger
+                </Link>
+              ) : following ? (
+                <Link
+                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
+                  href={messengerHref}
+                >
+                  <Send size={20} aria-hidden="true" /> Open conversation
+                </Link>
+              ) : (
+                <button
+                  className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-3 rounded-xl border-0 bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6] disabled:cursor-wait disabled:opacity-65"
+                  disabled={followingBusy}
+                  onClick={() => void follow()}
+                  type="button"
+                >
+                  <Send size={20} aria-hidden="true" />
+                  {followingBusy ? 'Preparing conversation…' : 'Purchase token to message'}
+                </button>
+              )}
 
               {!ownProfile && auth.user ? (
                 <button

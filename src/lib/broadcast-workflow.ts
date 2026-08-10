@@ -13,7 +13,7 @@ import type {
   BroadcastDraftListItem,
   BroadcastRecipient,
   DerivedKeys,
-  PublishedBroadcast,
+  PublishedBroadcastResult,
   User,
 } from '@/types';
 
@@ -39,17 +39,24 @@ async function composeAttemptId(userId: string): Promise<string> {
 }
 
 export async function loadAllRecipients(draft: BroadcastDraft): Promise<BroadcastRecipient[]> {
-  const all = [...draft.recipients.items];
+  const all = new Map<string, BroadcastRecipient>();
+  const append = (items: BroadcastRecipient[]) => {
+    for (const recipient of items) {
+      if (!all.has(recipient.userId)) all.set(recipient.userId, recipient);
+    }
+  };
+
   let page = draft.recipients;
+  append(page.items);
   while (page.hasMore) {
     if (!page.nextCursor) throw new Error('The recipient cursor is missing.');
     page = await broadcastApi.recipients(draft.id, page.nextCursor);
-    all.push(...page.items);
+    append(page.items);
   }
-  if (all.length !== draft.audience.count) {
+  if (all.size !== draft.audience.count) {
     throw new Error('The frozen audience does not match the draft.');
   }
-  return all;
+  return [...all.values()];
 }
 
 async function continueDraft(
@@ -57,7 +64,7 @@ async function continueDraft(
   state: StoredDraftCrypto,
   user: User,
   keys: DerivedKeys,
-): Promise<PublishedBroadcast> {
+): Promise<PublishedBroadcastResult> {
   const contentKey = base64ToBytes(state.contentKey, 32);
   try {
     const recipients = await loadAllRecipients(draft);
@@ -109,7 +116,10 @@ async function continueDraft(
       deleteSecureRecord(draftRecord(draft.id)),
       deleteSecureRecord(attemptRecord(user.id)),
     ]);
-    return published;
+    return {
+      ...published,
+      recipients: recipients.map(({ userId, username }) => ({ userId, username })),
+    };
   } finally {
     contentKey.fill(0);
   }
@@ -119,7 +129,7 @@ export async function publishEncryptedBroadcast(
   plaintext: string,
   user: User,
   keys: DerivedKeys,
-): Promise<PublishedBroadcast> {
+): Promise<PublishedBroadcastResult> {
   const clientBroadcastId = await composeAttemptId(user.id);
   const draft = await broadcastApi.createDraft(clientBroadcastId);
   const existing = await getSecureJson<StoredDraftCrypto>(draftRecord(draft.id));
