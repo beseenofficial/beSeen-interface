@@ -24,7 +24,7 @@ export function RecentBroadcasts({ broadcasts, loading = false }: RecentBroadcas
     <article className="overview-recent-card rounded-2xl border border-border bg-white p-6 max-sm:p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-[17px] font-semibold">Recent broadcasts</h2>
-        <Link className="text-sm font-semibold text-brand" href="/dashboard/broadcasts">View all</Link>
+        <Link className="text-sm font-semibold text-brand" href="/dashboard/messenger">View all</Link>
       </div>
       {loading ? (
         <div className="overview-recent-empty grid min-h-56 place-items-center text-secondary" role="status">
