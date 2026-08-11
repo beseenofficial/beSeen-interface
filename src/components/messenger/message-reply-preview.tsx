@@ -10,7 +10,7 @@ export function MessageReplyPreview({ workspace }: { workspace: MessengerWorkspa
     <AnimatePresence initial={false}>
       {replyTarget && (
         <motion.div
-          className="mx-auto mb-2 flex max-w-[860px] items-center gap-3 overflow-hidden rounded-xl border-l-2 border-brand bg-white px-3 py-2 text-xs text-secondary"
+          className="mx-auto mb-2 flex items-center gap-3 overflow-hidden rounded-xl border-l-2 border-brand bg-white px-3 py-2 text-xs text-secondary"
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
