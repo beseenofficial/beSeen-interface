@@ -3,7 +3,7 @@
 import { Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { OnboardingShell } from '@/components/layout/onboarding-shell';
-import { AvatarCropDialog } from '@/components/profile/avatar-crop-dialog';
+import { AvatarCropModal } from '@/components/profile/avatar-crop-dialog';
 import { AuraRipple } from '@/components/ui/aura-ripple';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -177,7 +177,7 @@ export default function OnboardingPage() {
   return (
     <OnboardingShell>
       {cropSourceFile && (
-        <AvatarCropDialog
+        <AvatarCropModal
           file={cropSourceFile}
           onCancel={cancelCrop}
           onConfirm={(file) => void applyCroppedAvatar(file)}

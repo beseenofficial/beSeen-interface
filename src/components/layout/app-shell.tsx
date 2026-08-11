@@ -2,7 +2,6 @@
 
 import { Menu, X } from "lucide-react";
 import {
-  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -10,22 +9,13 @@ import {
 import { useAuth } from "@/lib/blux";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { SecureLoadingScreen } from "@/components/ui/states";
+import { Modal } from "@/components/ui/modal";
 import { Navigation } from "./navigation";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
   const auth = useAuth();
-
-  useEffect(() => {
-    if (!open) return;
-    closeButton.current?.focus();
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", escape);
-    return () => window.removeEventListener("keydown", escape);
-  }, [open]);
 
   if (!auth.user || !auth.keys) {
     return <SecureLoadingScreen label="Preparing your secure workspace…" />;
@@ -54,31 +44,25 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Menu />
         </button>
       </header>
-      {open && (
-        <div
-          className="fixed inset-0 z-50 block bg-navy/[0.28]"
-          role="presentation"
-          onMouseDown={() => setOpen(false)}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        placement="left"
+        initialFocusRef={closeButton}
+        ariaLabel="Navigation"
+        overlayClassName="bg-navy/[0.28] backdrop-blur-none"
+        className="flex h-full w-[min(300px,88vw)] flex-col border-r border-border bg-white px-4.5 pb-5 pt-6 shadow-[12px_0_36px_rgb(11_11_63/12%)]"
+      >
+        <button
+          ref={closeButton}
+          className="absolute right-4.5 top-5 inline-flex size-10 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent hover:bg-subtle"
+          onClick={() => setOpen(false)}
+          aria-label="Close navigation"
         >
-          <aside
-            className="absolute inset-y-0 left-0 flex w-[min(300px,88vw)] animate-[drawer-in_220ms_ease_both] flex-col border-r border-border bg-white px-4.5 pb-5 pt-6"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button
-              ref={closeButton}
-              className="absolute right-4.5 top-5 inline-flex size-10 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent hover:bg-subtle"
-              onClick={() => setOpen(false)}
-              aria-label="Close navigation"
-            >
-              <X />
-            </button>
-            <Navigation close={() => setOpen(false)} onLogout={onLogout} />
-          </aside>
-        </div>
-      )}
+          <X />
+        </button>
+        <Navigation close={() => setOpen(false)} onLogout={onLogout} />
+      </Modal>
       <main className="min-h-screen overflow-x-hidden bg-ice">{children}</main>
     </div>
   );

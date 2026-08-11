@@ -3,11 +3,13 @@
 import { ImageIcon, X } from 'lucide-react';
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 
 const CROP_SIZE = 320;
 const OUTPUT_SIZE = 512;
@@ -37,9 +39,11 @@ function clampPosition(
   };
 }
 
-export function AvatarCropDialog({ file, onCancel, onConfirm }: Props) {
+export function AvatarCropModal({ file, onCancel, onConfirm }: Props) {
   const imageRef = useRef<HTMLImageElement>(null);
   const cropAreaRef = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
   const dragRef = useRef<{ pointerId: number; x: number; y: number; origin: Position } | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [imageUrl, setImageUrl] = useState('');
@@ -65,14 +69,6 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: Props) {
     observer.observe(cropArea);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel();
-    }
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [onCancel]);
 
   const baseScale = dimensions.width
     ? Math.max(cropSize / dimensions.width, cropSize / dimensions.height)
@@ -159,14 +155,20 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-navy/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="crop-title">
-      <section className="w-full max-w-115 rounded-3xl border border-white/80 bg-white p-5 shadow-[0_28px_90px_rgb(11_11_63/28%)] sm:p-7">
+    <Modal
+      open
+      onClose={onCancel}
+      closeOnBackdrop={false}
+      initialFocusRef={closeButton}
+      ariaLabelledBy={titleId}
+      className="w-full max-w-115 rounded-3xl border border-white/80 bg-white p-5 shadow-[0_28px_90px_rgb(11_11_63/28%)] sm:p-7"
+    >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 id="crop-title" className="text-2xl font-semibold">Crop your profile image</h2>
+            <h2 id={titleId} className="text-2xl font-semibold">Crop your profile image</h2>
             <p className="mt-2 text-sm text-secondary">Drag to reposition, then zoom until it looks right.</p>
           </div>
-          <button className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-border bg-white text-muted hover:bg-subtle" type="button" onClick={onCancel} aria-label="Close image cropper">
+          <button ref={closeButton} className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-border bg-white text-muted hover:bg-subtle" type="button" onClick={onCancel} aria-label="Close image cropper">
             <X size={19} aria-hidden="true" />
           </button>
         </div>
@@ -205,7 +207,6 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: Props) {
           <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
           <Button type="button" loading={saving} onClick={() => void saveCrop()}>Use this crop</Button>
         </div>
-      </section>
-    </div>
+    </Modal>
   );
 }
