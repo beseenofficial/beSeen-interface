@@ -198,7 +198,7 @@ export function ConversationSidebar({
                       </strong>
                       <span className="mt-1 block truncate text-xs text-muted">
                         {conversation.lastMessage
-                          ? 'Encrypted message'
+                          ? 'Message'
                           : 'Ready to chat'}
                       </span>
                     </span>

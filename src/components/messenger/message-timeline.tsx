@@ -101,7 +101,7 @@ function MessengerMessage({
           </p>
         ) : (
           <p className="flex items-center gap-2 text-sm text-muted">
-            <AlertCircle size={16} /> Unable to decrypt this message
+            <AlertCircle size={16} /> This message is unavailable
           </p>
         )}
         {message.bounty && (
@@ -247,8 +247,7 @@ export function MessageTimeline({
                         </p>
                       ) : (
                         <p className="flex items-center gap-2 text-sm text-muted">
-                          <AlertCircle size={16} /> Unable to decrypt this
-                          broadcast
+                          <AlertCircle size={16} /> This broadcast is unavailable
                         </p>
                       )}
                     </div>

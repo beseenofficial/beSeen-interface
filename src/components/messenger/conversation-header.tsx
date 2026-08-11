@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, ShieldCheck } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import type { MessengerWorkspaceState } from '@/components/messenger/use-messenger-workspace';
 
@@ -38,9 +38,7 @@ export function ConversationHeader({ workspace }: { workspace: MessengerWorkspac
         <h1 className="truncate text-base font-semibold transition hover:text-brand">
           {otherParticipant ? `@${otherParticipant.username}` : 'Loading conversation…'}
         </h1>
-        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
-          <ShieldCheck className="text-brand" size={13} /> Encrypted in browser
-        </p>
+        <p className="mt-1 text-[11px] text-muted">Direct message</p>
       </button>
     </header>
   );

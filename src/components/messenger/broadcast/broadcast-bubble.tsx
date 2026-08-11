@@ -36,7 +36,7 @@ export function BroadcastBubble({ item }: { item: DecryptedBroadcast }) {
           </p>
         ) : (
           <p className="flex items-center gap-2 text-sm text-muted">
-            <AlertCircle size={16} /> Unable to decrypt this broadcast
+            <AlertCircle size={16} /> This broadcast is unavailable
           </p>
         )}
         <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-[10px] text-muted">

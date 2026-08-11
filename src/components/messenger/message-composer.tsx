@@ -48,7 +48,7 @@ export function MessageComposer({
               event.target.style.height = `${Math.min(event.target.scrollHeight, 128)}px`;
             }}
             onKeyDown={handleMessageKeyDown}
-            placeholder="Write an encrypted message..."
+            placeholder="Write a message..."
             rows={1}
             value={draft}
           />
