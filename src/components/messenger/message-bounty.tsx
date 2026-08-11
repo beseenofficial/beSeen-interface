@@ -37,9 +37,9 @@ export function MessageBounty({
 }) {
   return (
     <div className="mt-3 max-w-full overflow-hidden rounded-2xl border border-border bg-white text-navy">
-      <div className="flex min-w-0 items-center gap-2.5 bg-lime/45 px-3.5 py-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 bg-lime/45 px-3.5 py-3">
         <Gift className="shrink-0" size={17} />
-        <strong className="min-w-0 flex-1 text-xs">Demo bounty · {bounty.amount} {bounty.assetCode}</strong>
+        <strong className="min-w-0 flex-1 text-xs">Bounty · {bounty.amount} {bounty.assetCode}</strong>
         <BountyBadge bounty={bounty} />
       </div>
       <div className="px-3.5 py-2.5">
@@ -53,7 +53,7 @@ export function MessageBounty({
           onClick={() => onClaim(bounty)}
           type="button"
         >
-          {claiming ? 'Claiming…' : 'Claim demo bounty'}
+          {claiming ? 'Claiming…' : 'Claim bounty'}
         </button>
       )}
     </div>

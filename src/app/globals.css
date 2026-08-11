@@ -123,6 +123,16 @@
   }
 }
 
+@media (max-width: 720px) {
+  .app-shell:has([data-mobile-chat-open="true"]) {
+    padding-top: 0;
+  }
+
+  .app-shell:has([data-mobile-chat-open="true"]) > .app-mobile-header {
+    display: none;
+  }
+}
+
 /* Keep the public profile fully visible on short desktop viewports. */
 @media (min-width: 1000px) and (max-height: 820px) {
   .public-profile-card {

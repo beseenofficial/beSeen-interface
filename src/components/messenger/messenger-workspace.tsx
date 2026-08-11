@@ -33,7 +33,8 @@ export function MessengerWorkspace({
 
   return (
     <section
-      className="grid h-svh min-h-[620px] min-w-0 grid-cols-[360px_minmax(0,1fr)] overflow-hidden bg-white max-[1200px]:grid-cols-[340px_minmax(0,1fr)] max-[900px]:h-[calc(100svh-68px)] max-[900px]:grid-cols-[300px_minmax(0,1fr)] max-[720px]:grid-cols-1"
+      className="grid h-full min-h-0 min-w-0 grid-cols-[360px_minmax(0,1fr)] overflow-hidden bg-white max-[1200px]:grid-cols-[340px_minmax(0,1fr)] max-[900px]:grid-cols-[300px_minmax(0,1fr)] max-[720px]:grid-cols-1"
+      data-mobile-chat-open={Boolean(activeConversationId || broadcastOpen)}
       aria-label="BeSeen Messenger"
     >
       <ConversationSidebar workspace={workspace} />

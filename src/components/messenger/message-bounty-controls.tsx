@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleDollarSign, Gift } from 'lucide-react';
+import { ArrowLeft, CircleDollarSign, Gift } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BountySelect } from '@/components/messenger/bounty-select';
 import type { MessengerWorkspaceState } from '@/components/messenger/use-messenger-workspace';
@@ -20,17 +20,17 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
     <AnimatePresence initial={false} mode="wait">
       {showBounty ? (
         <motion.div
-          className="col-start-3 row-start-1 flex min-w-0 justify-self-end gap-2 max-[1450px]:col-span-4 max-[1450px]:col-start-1 max-[1450px]:row-start-2 max-[1450px]:w-full max-[1450px]:justify-end max-[1450px]:overflow-x-auto"
+          className="col-start-3 row-start-1 flex min-w-0 justify-self-end gap-2 max-[1450px]:col-span-4 max-[1450px]:col-start-1 max-[1450px]:row-start-2 max-[1450px]:w-full max-[1450px]:justify-end max-sm:col-span-4 max-sm:col-start-1 max-sm:row-start-1 max-sm:grid max-sm:grid-cols-[1.15fr_.75fr_.85fr_40px] max-sm:gap-1.5 max-sm:overflow-visible"
           key="bounty-settings"
           initial={{ opacity: 0, x: 10, scale: 0.97 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: 8, scale: 0.98 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          aria-label="Demo reward settings"
+          aria-label="Bounty settings"
           id="bounty-settings"
         >
           <BountySelect
-            className="relative flex min-h-11 w-29 shrink-0 items-center rounded-xl border border-border bg-white pl-9 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35"
+            className="relative flex min-h-11 w-29 shrink-0 items-center rounded-xl border border-border bg-white pl-9 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35 max-sm:w-auto max-sm:min-w-0 max-sm:pl-8 max-sm:pr-5"
             icon={<CircleDollarSign className="absolute left-2.5 text-brand" size={20} aria-hidden="true" />}
             label="Bounty asset"
             options={[{ label: 'USDC', value: 'USDC' }]}
@@ -38,7 +38,7 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
             onChange={setBountyAsset}
           />
           <BountySelect
-            className="relative flex min-h-11 w-19 shrink-0 items-center rounded-xl border border-border bg-white px-3 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35"
+            className="relative flex min-h-11 w-19 shrink-0 items-center rounded-xl border border-border bg-white px-3 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35 max-sm:w-auto max-sm:min-w-0 max-sm:px-2 max-sm:pr-5"
             label="Bounty amount"
             options={[
               { label: '5', value: '5' },
@@ -49,7 +49,7 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
             onChange={setBountyAmount}
           />
           <BountySelect
-            className="relative flex min-h-11 w-21 shrink-0 items-center rounded-xl border border-border bg-white px-3 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35"
+            className="relative flex min-h-11 w-21 shrink-0 items-center rounded-xl border border-border bg-white px-3 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35 max-sm:w-auto max-sm:min-w-0 max-sm:px-2 max-sm:pr-5"
             label="Time to reply"
             options={[
               { label: '1h', value: '3600' },
@@ -60,11 +60,11 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
             value={bountyDuration}
             onChange={setBountyDuration}
           />
-          <button className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-brand/20 bg-info-bg text-brand transition hover:border-brand/40" onClick={() => setShowBounty(false)} aria-label="Remove bounty" type="button"><Gift size={19} /></button>
+          <button className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-brand/20 bg-info-bg text-brand transition hover:border-brand/40 max-sm:size-10 max-sm:self-center" onClick={() => setShowBounty(false)} aria-label="Cancel bounty" type="button"><ArrowLeft size={19} /></button>
         </motion.div>
       ) : (
         <motion.button
-          className="col-start-3 row-start-1 inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-white px-3.5 text-xs font-semibold text-navy transition hover:border-lime hover:bg-lime/15 max-sm:col-start-2 max-sm:row-start-2 max-sm:justify-self-end"
+          className="col-start-3 row-start-1 inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-white px-3.5 text-xs font-semibold text-navy transition hover:border-lime hover:bg-lime/15 max-sm:col-span-1 max-sm:col-start-3 max-sm:row-start-2 max-sm:mr-1.5 max-sm:min-h-8 max-sm:w-fit max-sm:rounded-full max-sm:border-warning/20 max-sm:bg-warning-bg max-sm:px-2.5 max-[360px]:size-8 max-[360px]:gap-0 max-[360px]:px-0"
           key="bounty-trigger"
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -73,9 +73,11 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
           onClick={() => setShowBounty(true)}
           aria-expanded="false"
           aria-controls="bounty-settings"
+          aria-label="Add bounty"
           type="button"
         >
-          <Gift className="text-warning" size={17} /> Demo bounty
+          <Gift className="shrink-0 text-warning" size={17} />
+          <span className="max-[360px]:sr-only">Add bounty</span>
         </motion.button>
       )}
     </AnimatePresence>

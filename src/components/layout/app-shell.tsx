@@ -6,6 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/blux";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { SecureLoadingScreen } from "@/components/ui/states";
@@ -16,6 +18,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
   const auth = useAuth();
+  const pathname = usePathname();
+  const isMessenger = pathname === "/dashboard/messenger";
 
   if (!auth.user || !auth.keys) {
     return <SecureLoadingScreen label="Preparing your secure workspace…" />;
@@ -28,12 +32,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-ice pl-58 max-[900px]:pl-0 max-[900px]:pt-17">
+    <div
+      className={cn(
+        "app-shell bg-ice pl-58 max-[900px]:pl-0 max-[900px]:pt-17",
+        isMessenger ? "h-dvh overflow-hidden" : "min-h-screen",
+      )}
+    >
       <aside className="fixed inset-y-0 left-0 z-20 flex w-58 flex-col border-r border-border bg-white px-3 pb-3 pt-7 max-[900px]:hidden">
         <Navigation onLogout={onLogout} />
       </aside>
-      <header className="fixed inset-x-0 top-0 z-30 hidden h-17 items-center justify-between border-b border-border bg-white px-5 max-[900px]:flex">
-        <BrandLogo className="origin-left scale-[0.86]" />
+      <header className="app-mobile-header fixed inset-x-0 top-0 z-30 hidden h-17 items-center justify-start gap-2 border-b border-border bg-white px-4 max-[900px]:flex">
         <button
           className="inline-flex size-10 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent hover:bg-subtle"
           onClick={() => setOpen(true)}
@@ -43,6 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <Menu />
         </button>
+        <BrandLogo className="origin-left scale-[0.86]" />
       </header>
       <Modal
         open={open}
@@ -63,7 +72,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
         <Navigation close={() => setOpen(false)} onLogout={onLogout} />
       </Modal>
-      <main className="min-h-screen overflow-x-hidden bg-ice">{children}</main>
+      <main
+        className={cn(
+          "overflow-x-hidden bg-ice",
+          isMessenger ? "h-full min-h-0 overflow-hidden" : "min-h-screen",
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }

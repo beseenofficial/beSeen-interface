@@ -19,11 +19,11 @@ export function MessageEmojiPicker({
   const close = useCallback(() => setShowEmojiPicker(false), [setShowEmojiPicker]);
 
   return (
-    <div className="relative col-start-1 row-start-1">
+    <div className="relative col-start-1 row-start-1 max-sm:row-start-2">
       <button
         ref={trigger}
         className={cn(
-          'grid size-11 cursor-pointer place-items-center rounded-xl border transition max-sm:size-10',
+          'grid size-11 cursor-pointer place-items-center rounded-xl border transition max-sm:size-11 max-sm:rounded-full max-sm:border-0 max-sm:bg-transparent',
           showEmojiPicker
             ? 'border-brand bg-info-bg text-brand'
             : 'border-border bg-white text-secondary hover:border-brand/40 hover:text-brand',
