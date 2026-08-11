@@ -5,15 +5,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { RecentBroadcasts, type BroadcastItem } from '@/components/dashboard/recent-broadcasts';
-import { RecentMessages } from '@/components/dashboard/recent-messages';
+import { RecentMessages, type RecentMessageItem } from '@/components/dashboard/recent-messages';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { LoadingState } from '@/components/ui/states';
-import { tokenApi } from '@/lib/api';
+import { messengerApi, tokenApi } from '@/lib/api';
 import { BROADCAST_REFRESH_INTERVAL_MS, loadCompleteBroadcastFeed, mergeBroadcastFeeds } from '@/lib/broadcast-feed';
 import { decryptFeedItem } from '@/lib/broadcast-crypto';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
+import { decryptMessengerMessage } from '@/lib/messenger-crypto';
 import { useToast } from '@/providers/toast-provider';
 
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
@@ -46,7 +47,10 @@ export default function OverviewPage() {
   const { user, keys, openWalletProfile } = useAuth();
   const { toast } = useToast();
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
+  const [messages, setMessages] = useState<RecentMessageItem[]>([]);
   const [broadcastsLoading, setBroadcastsLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(true);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [aurasOwned, setAurasOwned] = useState<number | null>(null);
   const refreshInFlight = useRef(false);
@@ -56,9 +60,10 @@ export default function OverviewPage() {
     refreshInFlight.current = true;
     if (includeStats) setBroadcastsLoading(true);
     try {
-      const [receivedResult, sentResult] = await Promise.allSettled([
+      const [receivedResult, sentResult, conversationsResult] = await Promise.allSettled([
         loadCompleteBroadcastFeed('received'),
         loadCompleteBroadcastFeed('sent'),
+        messengerApi.listConversations({ limit: 50 }),
       ]);
       const hasBroadcastFeed = receivedResult.status === 'fulfilled' || sentResult.status === 'fulfilled';
       if (hasBroadcastFeed) {
@@ -81,6 +86,43 @@ export default function OverviewPage() {
         setBroadcasts([]);
       }
 
+      if (conversationsResult.status === 'fulfilled') {
+        const conversations = conversationsResult.value.items;
+        setUnreadMessageCount(conversations.reduce((total, conversation) => total + conversation.unreadCount, 0));
+        const recentConversations = conversations
+          .filter((conversation) => conversation.lastMessage !== null)
+          .sort((left, right) => new Date(right.lastMessageAt ?? right.createdAt).getTime() - new Date(left.lastMessageAt ?? left.createdAt).getTime())
+          .slice(0, 4);
+        const recentMessages = await Promise.all(recentConversations.map(async (conversation): Promise<RecentMessageItem> => {
+          let content = 'Encrypted message';
+          try {
+            const history = await messengerApi.messages(conversation.id, { limit: 1 });
+            const latestItem = history.items.find((item) => item.sequence === conversation.lastMessage?.sequence) ?? history.items[0];
+            if (latestItem) {
+              const decrypted = await decryptMessengerMessage(latestItem, keys);
+              if (decrypted.state === 'decrypted' && decrypted.plaintext) {
+                content = decrypted.plaintext.replace(/\s+/g, ' ').trim();
+              }
+            }
+          } catch {
+            // Keep the conversation visible even if its preview cannot be decrypted.
+          }
+          return {
+            conversationId: conversation.id,
+            username: conversation.otherParticipant.username,
+            avatar: conversation.otherParticipant.avatar,
+            content,
+            timestamp: formatRelativeTime(conversation.lastMessageAt ?? conversation.createdAt),
+            unreadCount: conversation.unreadCount,
+            isOwn: conversation.lastMessage?.senderId === user.id,
+          };
+        }));
+        setMessages(recentMessages);
+      } else if (includeStats) {
+        setMessages([]);
+        setUnreadMessageCount(0);
+      }
+
       if (includeStats) {
         const [followerResult, tokensResult] = await Promise.allSettled([
           tokenApi.followerCount(user.username),
@@ -90,9 +132,16 @@ export default function OverviewPage() {
         setAurasOwned(tokensResult.status === 'fulfilled' ? tokensResult.value.length : null);
       }
     } catch {
-      if (includeStats) setBroadcasts([]);
+      if (includeStats) {
+        setBroadcasts([]);
+        setMessages([]);
+        setUnreadMessageCount(0);
+      }
     } finally {
-      if (includeStats) setBroadcastsLoading(false);
+      if (includeStats) {
+        setBroadcastsLoading(false);
+        setMessagesLoading(false);
+      }
       refreshInFlight.current = false;
     }
   }, [keys, user]);
@@ -147,7 +196,7 @@ export default function OverviewPage() {
           </span>
           <Copy className="shrink-0 text-navy" size={19} />
         </button>
-        <StatCard icon={MessageCircleMore} iconClass="bg-info-bg text-brand" label="Unread messages" value="0" hint="No messages received today" />
+        <StatCard icon={MessageCircleMore} iconClass="bg-info-bg text-brand" label="Unread messages" value={unreadMessageCount.toLocaleString()} hint={unreadMessageCount > 0 ? `${unreadMessageCount} waiting to be read` : 'You are all caught up'} />
         <StatCard icon={CircleDollarSign} iconClass="bg-success-bg text-emerald-600" label="Total earned" value="$0" hint="All-time earnings" />
       </section>
 
@@ -159,7 +208,7 @@ export default function OverviewPage() {
       </section>
 
       <section className="overview-recent mt-4 grid gap-4 lg:grid-cols-2">
-        <RecentMessages hasMessages={false} />
+        <RecentMessages messages={messages} loading={messagesLoading} />
         <RecentBroadcasts broadcasts={broadcasts} loading={broadcastsLoading} />
       </section>
     </DashboardPage>
