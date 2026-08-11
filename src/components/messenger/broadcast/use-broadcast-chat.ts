@@ -83,7 +83,11 @@ export function useBroadcastChat({ user, keys, onRecipientsLoaded }: UseBroadcas
       const published = await publishEncryptedBroadcast(content, user, keys);
       onRecipientsLoaded(published.id, published.recipients);
       setDraft('');
-      requestAnimationFrame(() => input.current?.focus());
+      requestAnimationFrame(() => {
+        if (!input.current) return;
+        input.current.style.height = 'auto';
+        input.current.focus();
+      });
       toast(
         'Broadcast sent',
         published.audience.count === 0
