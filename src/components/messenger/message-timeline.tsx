@@ -12,6 +12,7 @@ import {
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { MessageBounty } from '@/components/messenger/message-bounty';
+import { conversationBackgroundClassName } from '@/components/messenger/conversation-surface';
 import {
   MessageBubble,
   MessageBubbleAvatar,
@@ -160,7 +161,10 @@ export function MessageTimeline({
 
   return (
     <main
-      className="relative isolate min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto bg-[#F7F7F4] bg-[radial-gradient(circle_at_65%_40%,rgba(255,255,255,0.75)_0%,rgba(247,247,244,0)_55%)] px-6 py-5 before:pointer-events-none before:absolute before:-left-16 before:-top-16 before:z-0 before:size-[900px] before:bg-[url('/images/beseen_chat_background_rings.svg')] before:bg-contain before:bg-no-repeat before:opacity-[0.68] max-sm:px-3 max-sm:before:-left-12 max-sm:before:-top-12 max-sm:before:size-[620px] [&>*]:relative [&>*]:z-10"
+      className={cn(
+        conversationBackgroundClassName,
+        'min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-6 py-5 max-sm:px-3',
+      )}
       aria-live="polite"
     >
       {hasMoreMessages && (
