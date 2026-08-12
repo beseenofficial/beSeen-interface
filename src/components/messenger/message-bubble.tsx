@@ -22,14 +22,12 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        'min-w-0 max-w-[min(62%,560px)] rounded-2xl max-sm:max-w-[90%]',
-        padding === 'default' ? 'px-4 py-3' : 'overflow-hidden',
-        shadow === 'soft'
-          ? 'shadow-[0_8px_24px_rgba(40,30,70,0.06)]'
-          : 'shadow-[0px_2px_3px_rgba(40,30,70,0.04)]',
-        tone === 'outgoing' && 'rounded-br-md bg-info-bg text-navy',
-        tone === 'incoming' && 'rounded-bl-md bg-white text-navy',
-        tone === 'broadcast' && 'rounded-bl-md bg-info-bg text-navy',
+        'relative min-w-0 max-w-[min(54%,540px)] rounded-[13px] max-sm:max-w-[78%]',
+        padding === 'default' ? 'px-[18px] py-[10px]' : 'overflow-hidden',
+        shadow === 'soft' ? 'shadow-none' : 'shadow-none',
+        tone === 'outgoing' && 'bg-[#4F9EEF] text-white',
+        tone === 'incoming' && 'bg-[#F1F4F5] text-[#080B0D]',
+        tone === 'broadcast' && 'border border-brand/18 bg-[#F5F7FF] text-navy shadow-[0_8px_24px_rgba(16,69,245,0.07)]',
         className,
       )}
       {...props}
@@ -42,15 +40,26 @@ export function MessageBubble({
 export function MessageBubbleAvatar({
   avatar,
   outgoing,
+  visible = true,
   username,
 }: {
   avatar: string | null;
   outgoing: boolean;
+  visible?: boolean;
   username: string;
 }) {
+  if (!visible) {
+    return (
+      <span
+        className={cn('size-9 shrink-0 max-sm:hidden', outgoing && 'order-2')}
+        aria-hidden="true"
+      />
+    );
+  }
+
   return (
     <Avatar
-      className={cn('size-9', outgoing && 'order-2 min-[1440px]:order-first')}
+      className={cn('size-9 shrink-0 max-sm:hidden', outgoing && 'order-2')}
       username={username}
       src={avatar}
       size="sm"
