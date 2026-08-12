@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Outfit } from 'next/font/google';
+import { Inter, Outfit } from 'next/font/google';
 import { Providers } from '@/providers';
 import './globals.css';
 
@@ -7,6 +7,12 @@ const outfit = Outfit({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-outfit',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
 });
 
 const siteUrl =
@@ -120,7 +126,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${outfit.variable} ${outfit.className}`}>
+      <body className={`${outfit.variable} ${inter.variable} ${outfit.className}`}>
         <Providers>{children}</Providers>
       </body>
     </html>
