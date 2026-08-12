@@ -1,28 +1,21 @@
 'use client';
 
-import { Gift } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Gift, Sparkles } from 'lucide-react';
 import type { MessengerBounty } from '@/types';
 
-function BountyBadge({ bounty }: { bounty: MessengerBounty }) {
-  const tones = {
-    offered: 'border-lime/70 bg-lime/35 text-navy',
-    claimable: 'border-success/30 bg-success-bg text-success',
-    claimed: 'border-success/30 bg-success-bg text-success',
-    expired: 'border-border bg-subtle text-muted',
-  };
-  const labels = {
-    offered: 'Offered',
-    claimable: 'Claimable',
-    claimed: 'Claimed',
-    expired: 'Expired',
-  };
-  return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold', tones[bounty.status])}>
-      <Gift size={12} aria-hidden="true" /> {labels[bounty.status]}
-    </span>
-  );
-}
+const statusLabels: Record<MessengerBounty['status'], string> = {
+  offered: 'Bounty added',
+  claimable: 'Ready to claim',
+  claimed: 'Claimed',
+  expired: 'Expired',
+};
+
+const bountyDeadline = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+});
 
 export function MessageBounty({
   bounty,
@@ -35,26 +28,31 @@ export function MessageBounty({
   claiming: boolean;
   onClaim: (bounty: MessengerBounty) => void;
 }) {
+  const claimable = beneficiary && bounty.status === 'claimable';
+
   return (
-    <div className="mt-3 max-w-full overflow-hidden rounded-2xl border border-border bg-white text-navy">
-      <div className="flex min-w-0 flex-wrap items-center gap-2 bg-lime/45 px-3.5 py-3">
-        <Gift className="shrink-0" size={17} />
-        <strong className="min-w-0 flex-1 text-xs">Bounty · {bounty.amount} {bounty.assetCode}</strong>
-        <BountyBadge bounty={bounty} />
-      </div>
-      <div className="px-3.5 py-2.5">
-        <p className="text-[11px] leading-4 text-secondary">This is demo metadata only.</p>
-        <p className="mt-1 text-[10px] text-muted">No real payment or escrow will be made.</p>
-      </div>
-      {beneficiary && bounty.status === 'claimable' && (
+    <div className="mt-3 flex min-h-10 max-w-full items-center gap-2.5 rounded-[11px] bg-[#EEF655] px-2.5 py-1.5 text-navy shadow-[inset_0_0_0_1px_rgba(168,104,0,0.10)]">
+      <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-white/65">
+        <Gift size={13} strokeWidth={2} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <strong className="block truncate text-[11px] font-semibold leading-4">{statusLabels[bounty.status]}</strong>
+        <time className="block truncate text-[9px] leading-3 text-navy/60" dateTime={bounty.expiresAt}>
+          Deadline {bountyDeadline.format(new Date(bounty.expiresAt))}
+        </time>
+      </span>
+      {claimable ? (
         <button
-          className="mx-3.5 mb-3.5 flex min-h-10 w-[calc(100%-1.75rem)] cursor-pointer items-center justify-center rounded-xl bg-success px-3 text-xs font-semibold text-white transition hover:bg-[#10704f] disabled:opacity-50"
+          className="inline-flex min-h-6 shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-navy px-2.5 text-[10px] font-semibold text-white transition hover:bg-brand disabled:opacity-50"
           disabled={claiming}
           onClick={() => onClaim(bounty)}
           type="button"
         >
-          {claiming ? 'Claiming…' : 'Claim bounty'}
+          <Sparkles size={11} aria-hidden="true" />
+          {claiming ? 'Claiming…' : 'Claim'}
         </button>
+      ) : (
+        <span className="size-1.5 shrink-0 rounded-full bg-navy/45" aria-hidden="true" />
       )}
     </div>
   );

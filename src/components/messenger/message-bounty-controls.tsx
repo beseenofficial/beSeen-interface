@@ -2,10 +2,21 @@
 
 import { ArrowLeft, CircleDollarSign, Gift } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { BountySelect } from '@/components/messenger/bounty-select';
 import type { MessengerWorkspaceState } from '@/components/messenger/use-messenger-workspace';
 
 export function MessageBountyControls({ workspace }: { workspace: MessengerWorkspaceState }) {
+  const [mobile, setMobile] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 640px)');
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
   const {
     bountyAmount,
     bountyAsset,
@@ -20,12 +31,26 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
     <AnimatePresence initial={false} mode="wait">
       {showBounty ? (
         <motion.div
-          className="col-start-3 row-start-1 flex min-w-0 justify-self-end gap-2 max-[1450px]:col-span-4 max-[1450px]:col-start-1 max-[1450px]:row-start-2 max-[1450px]:w-full max-[1450px]:justify-end max-sm:col-span-4 max-sm:col-start-1 max-sm:row-start-1 max-sm:grid max-sm:grid-cols-[1.15fr_.75fr_.85fr_40px] max-sm:gap-1.5 max-sm:overflow-visible"
+          className="col-start-3 row-start-1 flex min-w-0 justify-self-end gap-2 max-[1450px]:col-span-4 max-[1450px]:col-start-1 max-[1450px]:row-start-2 max-[1450px]:w-full max-[1450px]:justify-end max-sm:col-span-2 max-sm:col-start-1 max-sm:row-start-1 max-sm:grid max-sm:grid-cols-[1.15fr_.75fr_.85fr_40px] max-sm:gap-1.5 max-sm:overflow-visible"
           key="bounty-settings"
-          initial={{ opacity: 0, x: 10, scale: 0.97 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: 8, scale: 0.98 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
+          initial={mobile
+            ? { opacity: 0, y: 8, scale: 0.985, filter: 'blur(6px)' }
+            : { opacity: 0, x: 10, scale: 0.97 }}
+          animate={mobile
+            ? { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }
+            : { opacity: 1, x: 0, scale: 1 }}
+          exit={mobile
+            ? {
+                opacity: 0,
+                y: 2,
+                scale: 0.995,
+                filter: 'blur(0px)',
+                transition: { duration: 0.12, ease: 'easeOut' },
+              }
+            : { opacity: 0, x: 8, scale: 0.98 }}
+          transition={mobile
+            ? { duration: 0.34, ease: [0.22, 1, 0.36, 1] }
+            : { duration: 0.2, ease: 'easeOut' }}
           aria-label="Bounty settings"
           id="bounty-settings"
         >
@@ -64,7 +89,7 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
         </motion.div>
       ) : (
         <motion.button
-          className="col-start-3 row-start-1 inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-white px-3.5 text-xs font-semibold text-navy transition hover:border-lime hover:bg-lime/15 max-sm:col-span-1 max-sm:col-start-3 max-sm:row-start-2 max-sm:mr-1.5 max-sm:min-h-8 max-sm:w-fit max-sm:rounded-full max-sm:border-warning/20 max-sm:bg-warning-bg max-sm:px-2.5 max-[360px]:size-8 max-[360px]:gap-0 max-[360px]:px-0"
+          className="col-start-3 row-start-1 inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-white px-3.5 text-xs font-semibold text-navy transition hover:border-lime hover:bg-lime/15 max-sm:hidden"
           key="bounty-trigger"
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
