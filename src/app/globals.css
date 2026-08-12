@@ -21,6 +21,7 @@
   --color-error-bg: #fdecef;
   --color-info-bg: #e9eeff;
   --font-sans: var(--font-outfit), "Avenir Next", "Segoe UI", sans-serif;
+  --font-message: var(--font-inter), "Segoe UI", sans-serif;
   --shadow-elevated: 0 12px 32px rgb(11 11 63 / 8%);
 }
 
@@ -121,6 +122,10 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+@utility font-message {
+  font-family: var(--font-message);
 }
 
 @media (max-width: 720px) {

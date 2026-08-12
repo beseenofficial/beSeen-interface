@@ -3,140 +3,21 @@
 import {
   AlertCircle,
   ArrowDown,
-  Check,
-  CheckCheck,
   LoaderCircle,
   MessageCircleMore,
   Radio,
-  Reply,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageBounty } from '@/components/messenger/message-bounty';
 import { conversationBackgroundClassName } from '@/components/messenger/conversation-surface';
-import {
-  MessageBubble,
-  MessageBubbleAvatar,
-} from '@/components/messenger/message-bubble';
+import { MessageDay, messageDayKey } from '@/components/messenger/message-day';
+import { MessageBubble } from '@/components/messenger/message-bubble';
+import { MessengerMessage } from '@/components/messenger/messenger-message';
 import { messengerTimeLabel } from '@/components/messenger/messenger-view-utils';
+import { UnreadMarker } from '@/components/messenger/unread-marker';
 import { cn } from '@/lib/utils';
 import type { MessengerWorkspaceState } from '@/components/messenger/use-messenger-workspace';
-import type { DecryptedMessengerMessage } from '@/types';
-
-function UnreadMarker({ count }: { count: number }) {
-  return (
-    <motion.div
-      className="flex w-full items-center gap-3 py-1"
-      initial={{ opacity: 0, scaleX: 0.94 }}
-      animate={{ opacity: 1, scaleX: 1 }}
-      transition={{ duration: 0.28 }}
-      role="separator"
-      aria-label={`${count} unread ${count === 1 ? 'message' : 'messages'}`}
-    >
-      <span className="h-px min-w-0 flex-1 bg-brand/35" />
-      <span className="shrink-0 text-[11px] font-semibold text-brand">
-        {count} unread {count === 1 ? 'message' : 'messages'}
-      </span>
-      <span className="h-px min-w-0 flex-1 bg-brand/35" />
-    </motion.div>
-  );
-}
-
-function MessengerMessage({
-  message,
-  reply,
-  outgoing,
-  beneficiary,
-  claimingBountyId,
-  senderAvatar,
-  senderUsername,
-  onReply,
-  onClaim,
-}: {
-  message: DecryptedMessengerMessage;
-  reply: DecryptedMessengerMessage | null;
-  outgoing: boolean;
-  beneficiary: boolean;
-  claimingBountyId: string | null;
-  senderAvatar: string | null;
-  senderUsername: string;
-  onReply: (message: DecryptedMessengerMessage) => void;
-  onClaim: MessengerWorkspaceState['claimBounty'];
-}) {
-  return (
-    <motion.article
-      className={cn(
-        'group col-span-full flex w-full min-w-0 items-start gap-3',
-        outgoing ? 'justify-end min-[1440px]:justify-start' : 'justify-start',
-      )}
-      initial={{ opacity: 0, y: 8, scale: 0.99 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.22, ease: 'easeOut' }}
-    >
-      <MessageBubbleAvatar
-        avatar={senderAvatar}
-        outgoing={outgoing}
-        username={senderUsername}
-      />
-      <MessageBubble tone={outgoing ? 'outgoing' : 'incoming'}>
-        {message.manifest.replyToMessageId && (
-          <div
-            className={cn(
-              'mb-2 rounded-xl border-l-2 px-3 py-2 text-xs',
-              outgoing
-                ? 'border-brand/60 bg-white/65 text-secondary'
-                : 'border-brand bg-info-bg text-secondary',
-            )}
-          >
-            <span className="block font-semibold">Reply</span>
-            <span className="mt-0.5 block truncate">
-              {reply?.state === 'decrypted'
-                ? reply.plaintext
-                : 'Earlier message'}
-            </span>
-          </div>
-        )}
-        {message.state === 'decrypted' ? (
-          <p className="max-w-full whitespace-pre-wrap break-words text-[15px] leading-6 [overflow-wrap:anywhere]">
-            {message.plaintext}
-          </p>
-        ) : (
-          <p className="flex items-center gap-2 text-sm text-muted">
-            <AlertCircle size={16} /> This message is unavailable
-          </p>
-        )}
-        {message.bounty && (
-          <MessageBounty
-            bounty={message.bounty}
-            beneficiary={beneficiary}
-            claiming={claimingBountyId === message.bounty.id}
-            onClaim={(bounty) => void onClaim(bounty)}
-          />
-        )}
-        <div className="mt-2 flex items-center justify-end gap-2 text-[10px] text-muted">
-          <button
-            className="mr-auto inline-flex cursor-pointer items-center gap-1 text-brand opacity-0 transition group-hover:opacity-100 focus:opacity-100"
-            onClick={() => onReply(message)}
-            type="button"
-          >
-            <Reply size={13} /> Reply
-          </button>
-          <time>{messengerTimeLabel(message.createdAt)}</time>
-          {outgoing && (
-            <span>{message.delivery.seenByRecipient ? 'Seen' : 'Sent'}</span>
-          )}
-          {outgoing &&
-            (message.delivery.seenByRecipient ? (
-              <CheckCheck size={15} aria-label="Seen" />
-            ) : (
-              <Check size={15} aria-label="Sent" />
-            ))}
-        </div>
-      </MessageBubble>
-    </motion.article>
-  );
-}
 
 export function MessageTimeline({
   workspace,
@@ -186,7 +67,7 @@ export function MessageTimeline({
       ref={timeline}
       className={cn(
         conversationBackgroundClassName,
-        'min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-6 py-5 max-sm:px-3',
+        'min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-6 py-5 max-sm:bg-white max-sm:bg-none max-sm:px-4 max-sm:py-4 max-sm:before:hidden',
       )}
       onScroll={updateLatestButton}
       aria-live="polite"
@@ -234,52 +115,75 @@ export function MessageTimeline({
           </div>
         </div>
       ) : (
-        <div className="grid w-full min-w-0 grid-cols-1 gap-3">
-          {timelineItems.map((item) => {
+        <div className="grid w-full min-w-0 grid-cols-1 gap-0">
+          {timelineItems.map((item, index) => {
+            const showDay =
+              index === 0 ||
+              messageDayKey(item.createdAt) !==
+                messageDayKey(timelineItems[index - 1].createdAt);
             if (item.kind === 'broadcast') {
               const broadcast = item.broadcast;
               return (
-                <motion.article
-                  className="flex w-full min-w-0 justify-start"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22 }}
-                  key={`broadcast-${broadcast.id}`}
-                >
-                  <MessageBubble padding="none" shadow="soft" tone="broadcast">
-                    <div className="flex min-w-0 items-center gap-2 border-b border-lilac bg-white px-4 py-3">
-                      <span className="grid size-8 place-items-center rounded-full bg-brand text-white">
-                        <Radio size={15} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <strong className="block text-xs">Broadcast</strong>
-                        <span className="block text-[10px] text-muted">
-                          Shared with followers
+                <div className="contents" key={`broadcast-${broadcast.id}`}>
+                  {showDay && <MessageDay value={item.createdAt} />}
+                  <motion.article
+                    className="mt-2 flex w-full min-w-0 justify-start"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22 }}
+                  >
+                    <MessageBubble
+                      padding="none"
+                      shadow="soft"
+                      tone="broadcast"
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5 border-b border-brand/12 bg-[#EDF1FF] px-4 py-3">
+                        <span className="grid size-8 place-items-center rounded-full bg-brand text-white shadow-[0_4px_12px_rgba(16,69,245,0.22)]">
+                          <Radio size={15} />
                         </span>
+                        <div className="min-w-0 flex-1">
+                          <strong className="block text-xs font-semibold text-brand">Broadcast</strong>
+                          <span className="block text-[10px] text-secondary">
+                            Shared with followers
+                          </span>
+                        </div>
+                        <time
+                          className="text-[10px] text-muted"
+                          dateTime={broadcast.publishedAt}
+                        >
+                          {messengerTimeLabel(broadcast.publishedAt)}
+                        </time>
                       </div>
-                      <time
-                        className="text-[10px] text-muted"
-                        dateTime={broadcast.publishedAt}
-                      >
-                        {messengerTimeLabel(broadcast.publishedAt)}
-                      </time>
-                    </div>
-                    <div className="px-4 py-3.5">
-                      {broadcast.state === 'decrypted' ? (
-                        <p className="max-w-full whitespace-pre-wrap break-words text-[15px] leading-6 [overflow-wrap:anywhere]">
-                          {broadcast.content}
-                        </p>
-                      ) : (
-                        <p className="flex items-center gap-2 text-sm text-muted">
-                          <AlertCircle size={16} /> This broadcast is unavailable
-                        </p>
-                      )}
-                    </div>
-                  </MessageBubble>
-                </motion.article>
+                      <div className="bg-white/65 px-4 py-3.5">
+                        {broadcast.state === 'decrypted' ? (
+                          <p className="font-message max-w-full whitespace-pre-wrap break-words text-[15px] leading-6 [overflow-wrap:anywhere]">
+                            {broadcast.content}
+                          </p>
+                        ) : (
+                          <p className="flex items-center gap-2 text-sm text-muted">
+                            <AlertCircle size={16} /> This broadcast is
+                            unavailable
+                          </p>
+                        )}
+                      </div>
+                    </MessageBubble>
+                  </motion.article>
+                </div>
               );
             }
             const message = item.message;
+            const previousItem = index > 0 ? timelineItems[index - 1] : null;
+            const previousMessage =
+              previousItem?.kind === 'message' ? previousItem.message : null;
+            const elapsedSincePrevious = previousItem
+              ? new Date(item.createdAt).getTime() -
+                new Date(previousItem.createdAt).getTime()
+              : Number.POSITIVE_INFINITY;
+            const groupStart =
+              showDay ||
+              !previousMessage ||
+              previousMessage.manifest.senderId !== message.manifest.senderId ||
+              elapsedSincePrevious >= 60 * 60 * 1000;
             const reply = message.manifest.replyToMessageId
               ? (messages.find(
                   (candidate) =>
@@ -288,6 +192,7 @@ export function MessageTimeline({
               : null;
             return (
               <div className="contents" key={message.id}>
+                {showDay && <MessageDay value={item.createdAt} />}
                 {message.id === unreadMessageId && unreadMarker && (
                   <UnreadMarker count={unreadMarker.count} />
                 )}
@@ -297,6 +202,7 @@ export function MessageTimeline({
                   outgoing={message.manifest.senderId === user.id}
                   beneficiary={message.manifest.recipientId === user.id}
                   claimingBountyId={claimingBountyId}
+                  groupStart={groupStart}
                   senderAvatar={
                     message.manifest.senderId === user.id
                       ? user.avatar
