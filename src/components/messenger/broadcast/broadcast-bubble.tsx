@@ -21,7 +21,7 @@ export function BroadcastBubble({ item }: { item: DecryptedBroadcast }) {
     <article
       className={cn(
         'flex w-full min-w-0 items-start gap-3',
-        own ? 'justify-end min-[1440px]:justify-start' : 'justify-start',
+        own ? 'justify-end' : 'justify-start',
       )}
     >
       <MessageBubbleAvatar
@@ -31,7 +31,7 @@ export function BroadcastBubble({ item }: { item: DecryptedBroadcast }) {
       />
       <MessageBubble tone={own ? 'outgoing' : 'incoming'}>
         {item.state === 'decrypted' ? (
-          <p className="max-w-full whitespace-pre-wrap break-words text-[15px] leading-6 [overflow-wrap:anywhere]">
+          <p className="font-message max-w-full whitespace-pre-wrap break-words text-[15px] leading-6 [overflow-wrap:anywhere]">
             {item.content}
           </p>
         ) : (
