@@ -122,6 +122,7 @@ export function useMessageComposer({
 
   function handleMessageKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+    if (window.matchMedia('(max-width: 640px)').matches) return;
     event.preventDefault();
     if (sending || hasPendingRetry || !draft.trim() || draftBytes > MAX_MESSENGER_BYTES) return;
     event.currentTarget.form?.requestSubmit();
