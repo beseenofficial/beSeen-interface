@@ -34,11 +34,11 @@ export function MessageComposer({
         onSubmit={sendMessage}
       >
         <span
-          className="hidden max-sm:col-start-2 max-sm:row-start-2 max-sm:block max-sm:min-h-12 max-sm:self-stretch max-sm:rounded-[26px] max-sm:bg-[#EFF3F4] max-sm:transition-colors max-sm:group-focus-within/composer:bg-[#E9EEF0]"
+          className="pointer-events-none hidden max-sm:col-start-2 max-sm:row-start-2 max-sm:block max-sm:min-h-12 max-sm:self-stretch max-sm:rounded-[26px] max-sm:bg-[#EFF3F4] max-sm:transition-colors max-sm:group-focus-within/composer:bg-[#E9EEF0]"
           aria-hidden="true"
         />
         <MessageEmojiPicker workspace={workspace} />
-        <label className="relative col-start-2 row-start-1 block min-w-0 max-sm:col-start-2 max-sm:row-start-2 max-sm:pr-12">
+        <label className="relative z-10 col-start-2 row-start-1 block min-w-0 max-sm:col-start-2 max-sm:row-start-2 max-sm:pr-12">
           <span className="sr-only">Write a message</span>
           <textarea
             ref={messageInput}
@@ -65,7 +65,7 @@ export function MessageComposer({
         <MessageBountyControls workspace={workspace} />
         <motion.button
           className={cn(
-            'col-start-4 row-start-1 inline-grid min-h-11 cursor-pointer place-items-center rounded-xl border-0 bg-brand px-0 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(16,69,245,0.24)] transition hover:bg-[#0c3bd6] disabled:cursor-not-allowed disabled:opacity-45 max-sm:col-start-2 max-sm:row-start-2 max-sm:mr-1 max-sm:size-10 max-sm:min-h-0 max-sm:justify-self-end max-sm:rounded-full max-sm:shadow-none',
+            'relative z-30 col-start-4 row-start-1 inline-grid min-h-11 cursor-pointer touch-manipulation place-items-center rounded-xl border-0 bg-brand px-0 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(16,69,245,0.24)] transition hover:bg-[#0c3bd6] disabled:cursor-not-allowed disabled:opacity-45 max-sm:col-start-2 max-sm:row-start-2 max-sm:mr-1 max-sm:size-10 max-sm:min-h-0 max-sm:justify-self-end max-sm:rounded-full max-sm:shadow-none',
           )}
           whileTap={{ scale: 0.97 }}
           disabled={
