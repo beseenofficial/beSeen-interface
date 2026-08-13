@@ -1,7 +1,7 @@
 'use client';
 
-import { AlertCircle, Check, CircleCheck, Reply } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { AlertCircle, Check, CheckCheck, Reply } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { MessageBounty } from '@/components/messenger/message-bounty';
 import {
   MessageBubble,
@@ -19,9 +19,11 @@ export function MessengerMessage({
   beneficiary,
   claimingBountyId,
   groupStart,
+  replyActionOpen,
   senderAvatar,
   senderUsername,
   onReply,
+  onToggleReplyAction,
   onClaim,
 }: {
   message: DecryptedMessengerMessage;
@@ -30,9 +32,11 @@ export function MessengerMessage({
   beneficiary: boolean;
   claimingBountyId: string | null;
   groupStart: boolean;
+  replyActionOpen: boolean;
   senderAvatar: string | null;
   senderUsername: string;
   onReply: (message: DecryptedMessengerMessage) => void;
+  onToggleReplyAction: (messageId: string) => void;
   onClaim: MessengerWorkspaceState['claimBounty'];
 }) {
   return (
@@ -52,21 +56,57 @@ export function MessengerMessage({
         visible={groupStart}
         username={senderUsername}
       />
-      <button
-        className={cn(
-          'mt-1 grid size-8 shrink-0 cursor-pointer place-items-center rounded-full border border-border bg-white text-secondary opacity-0 shadow-[0_3px_12px_rgba(11,11,63,0.06)] transition hover:border-brand/30 hover:text-brand group-hover:opacity-100 focus:opacity-100 max-sm:mt-1 max-sm:size-6 max-sm:border-0 max-sm:bg-[#F1F4F5] max-sm:opacity-100 max-sm:shadow-none',
-          outgoing ? 'order-0' : 'order-2',
-        )}
-        onClick={() => onReply(message)}
-        aria-label="Reply to message"
-        type="button"
-      >
-        <Reply size={13} />
-      </button>
       <MessageBubble
-        className={cn(outgoing && 'order-1')}
+        className={cn(
+          'group/bubble cursor-pointer max-sm:overflow-visible',
+          outgoing && 'order-1',
+        )}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest('button')) return;
+          if (window.matchMedia('(max-width: 640px)').matches) {
+            event.stopPropagation();
+            onToggleReplyAction(message.id);
+          }
+        }}
         tone={outgoing ? 'outgoing' : 'incoming'}
       >
+        <button
+          className={cn(
+            'absolute -top-3 z-20 hidden h-7 cursor-pointer items-center gap-1 rounded-full border border-border bg-white px-2.5 text-[10px] font-semibold text-brand opacity-0 shadow-[0_5px_16px_rgba(11,11,63,0.12)] transition duration-150 group-hover/bubble:opacity-100 focus:opacity-100 min-[641px]:inline-flex',
+            outgoing ? 'left-3' : 'right-3',
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            onReply(message);
+          }}
+          aria-label="Reply to message"
+          type="button"
+        >
+          <Reply size={12} strokeWidth={1.9} /> Reply
+        </button>
+        <AnimatePresence>
+          {replyActionOpen && (
+            <motion.button
+              className={cn(
+                'absolute -top-3 z-20 inline-flex h-7 cursor-pointer items-center gap-1 rounded-full border border-border/80 bg-white px-2.5 text-[10px] font-semibold text-brand shadow-[0_5px_16px_rgba(11,11,63,0.12)] min-[641px]:hidden',
+                outgoing ? 'left-3' : 'right-3',
+              )}
+              initial={{ opacity: 0, y: 4, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 2, scale: 0.96 }}
+              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onReply(message);
+                onToggleReplyAction(message.id);
+              }}
+              aria-label="Reply to message"
+              type="button"
+            >
+              <Reply size={12} strokeWidth={1.9} /> Reply
+            </motion.button>
+          )}
+        </AnimatePresence>
         {message.manifest.replyToMessageId && (
           <div
             className={cn(
@@ -115,7 +155,7 @@ export function MessengerMessage({
           <time>{messengerTimeLabel(message.createdAt)}</time>
           {outgoing &&
             (message.delivery.seenByRecipient ? (
-              <CircleCheck size={14} aria-label="Seen" />
+              <CheckCheck size={14} aria-label="Seen" />
             ) : (
               <Check size={14} aria-label="Sent" />
             ))}

@@ -39,7 +39,12 @@ export function BroadcastBubble({ item }: { item: DecryptedBroadcast }) {
             <AlertCircle size={16} /> This broadcast is unavailable
           </p>
         )}
-        <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-[10px] text-muted">
+        <div
+          className={cn(
+            'mt-2 flex flex-wrap items-center justify-end gap-2 text-[10px]',
+            own ? 'text-white/75' : 'text-[#5F6875]',
+          )}
+        >
           <time dateTime={item.publishedAt}>
             {broadcastTime.format(new Date(item.publishedAt))}
           </time>

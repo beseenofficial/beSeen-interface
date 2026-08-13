@@ -44,6 +44,7 @@ export function MessageTimeline({
 
   const timeline = useRef<HTMLElement>(null);
   const [showLatestButton, setShowLatestButton] = useState(false);
+  const [replyActionMessageId, setReplyActionMessageId] = useState<string | null>(null);
 
   const updateLatestButton = useCallback(() => {
     const element = timeline.current;
@@ -69,7 +70,11 @@ export function MessageTimeline({
         conversationBackgroundClassName,
         'min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-6 py-5 max-sm:bg-white max-sm:bg-none max-sm:px-4 max-sm:py-4 max-sm:before:hidden',
       )}
-      onScroll={updateLatestButton}
+      onClick={() => setReplyActionMessageId(null)}
+      onScroll={() => {
+        updateLatestButton();
+        setReplyActionMessageId(null);
+      }}
       aria-live="polite"
     >
       {hasMoreMessages && (
@@ -203,6 +208,7 @@ export function MessageTimeline({
                   beneficiary={message.manifest.recipientId === user.id}
                   claimingBountyId={claimingBountyId}
                   groupStart={groupStart}
+                  replyActionOpen={replyActionMessageId === message.id}
                   senderAvatar={
                     message.manifest.senderId === user.id
                       ? user.avatar
@@ -214,6 +220,11 @@ export function MessageTimeline({
                       : (otherParticipant?.username ?? 'Creator')
                   }
                   onReply={setReplyTarget}
+                  onToggleReplyAction={(messageId) =>
+                    setReplyActionMessageId((current) =>
+                      current === messageId ? null : messageId,
+                    )
+                  }
                   onClaim={claimBounty}
                 />
               </div>
