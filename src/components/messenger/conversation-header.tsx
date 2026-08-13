@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowLeft, CircleAlert } from 'lucide-react';
+import { CircleAlert } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
+import { MessengerHeader } from '@/components/messenger/messenger-header';
 import type { MessengerWorkspaceState } from '@/components/messenger/use-messenger-workspace';
 
 export function ConversationHeader({
@@ -13,16 +14,7 @@ export function ConversationHeader({
     workspace;
 
   return (
-    <header className="relative z-20 flex min-w-0 items-center gap-3 border-b border-border bg-white px-5 max-[720px]:gap-2 max-[720px]:border-b-0 max-[720px]:bg-white max-[720px]:px-3 max-[720px]:py-2">
-      <button
-        className="hidden size-11 shrink-0 cursor-pointer place-items-center rounded-full border border-border/70 bg-[#F1F4F5] text-navy transition hover:bg-[#E8EDEF] max-[720px]:grid"
-        onClick={() => setActiveConversationId(null)}
-        aria-label="Back to conversations"
-        type="button"
-      >
-        <ArrowLeft size={20} />
-      </button>
-
+    <MessengerHeader onBack={() => setActiveConversationId(null)}>
       {otherParticipant ? (
         <button
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left transition hover:opacity-85 max-[720px]:min-h-12 max-[720px]:gap-2.5 max-[720px]:rounded-2xl max-[720px]:border-0 max-[720px]:bg-transparent max-[720px]:px-2.5 max-[720px]:shadow-none max-[720px]:backdrop-blur-none"
@@ -54,6 +46,6 @@ export function ConversationHeader({
       ) : (
         <span className="h-12 min-w-0 flex-1 animate-pulse rounded-xl bg-disabled max-[720px]:rounded-2xl max-[720px]:bg-white/60 max-[720px]:shadow-[0_6px_20px_rgba(11,11,63,0.07)] max-[720px]:backdrop-blur-2xl" />
       )}
-    </header>
+    </MessengerHeader>
   );
 }
