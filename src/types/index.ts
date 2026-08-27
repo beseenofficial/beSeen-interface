@@ -7,6 +7,39 @@ export type User = {
 
 export type PublicUser = User;
 
+export type DiscoverUser = {
+  id: string;
+  username: string;
+  avatar: string | null;
+};
+
+export type DiscoverUsersResult = {
+  users: DiscoverUser[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type DiscoverUsersResponse = {
+  status: 'success';
+  message: string;
+  result: DiscoverUsersResult;
+};
+
+export type DiscoverUsersQuery = {
+  limit?: number;
+  cursor?: string;
+};
+
+export type UserActivity = {
+  creditedSeconds: number;
+  lastActiveAt: string;
+  isOnline: boolean;
+};
+
+export type UserActivityResult = {
+  activity: UserActivity;
+};
+
 export type UsernameAvailability = {
   username: string;
   available: boolean;

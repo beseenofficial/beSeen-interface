@@ -24,6 +24,7 @@ import {
   restoreSession,
 } from "@/lib/api";
 import { deriveAndSaveKeys, forgetKeys, loadKeys } from "@/lib/keys";
+import { useActivityHeartbeat } from "@/lib/use-activity-heartbeat";
 import type { AuthConfig, DerivedKeys, User } from "@/types";
 import { useAuthStartup } from "@/providers/auth-startup";
 
@@ -342,13 +343,14 @@ export function AuthBridge({
   ]);
 
   const logout = useCallback(async () => {
+    // Disable authenticated background work immediately, before the network logout settles.
+    setUser(null);
     try {
       await authApi.logout();
     } catch {
       await clearSession();
     }
     blux.logout();
-    setUser(null);
     setKeysForAddress((current) => {
       if (current) wipeKeys(current.keys);
       return null;
@@ -388,6 +390,8 @@ export function AuthBridge({
           : needsRegistration && keys
             ? "needs-username"
             : "sign-required";
+
+  useActivityHeartbeat(status === "ready" && user !== null);
 
   const value = useMemo<AuthContextValue>(
     () => ({

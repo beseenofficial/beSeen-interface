@@ -1,4 +1,5 @@
 export { authApi, registrationErrorMessage } from './auth';
+export { activityApi, recordUserActivity } from './activity';
 export { broadcastApi } from './broadcasts';
 export {
   claimMessengerBounty,
@@ -15,6 +16,7 @@ export type { MessengerConversationQuery, MessengerHistoryQuery } from './messen
 export { profileApi, profileUpdateErrorMessage } from './profiles';
 export type { ProfileUpdate } from './profiles';
 export { tokenApi } from './tokens';
+export { discoverUsers, usersApi } from './users';
 export {
   ApiError,
   API_BASE_URL,

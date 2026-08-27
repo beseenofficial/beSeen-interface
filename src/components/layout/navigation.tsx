@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  Compass,
   ExternalLink,
   HandCoins,
   LayoutDashboard,
@@ -21,6 +22,7 @@ import { useAuth } from "@/lib/blux";
 import { cn } from "@/lib/utils";
 
 const baseNavigationItems = [
+  { href: "/dashboard/discover", label: "Discover", icon: Compass },
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/messenger", label: "Messenger", icon: MessageCircleMore },
 ];

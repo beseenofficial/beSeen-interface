@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   restoreSession: vi.fn(),
   profileMe: vi.fn(),
   authLogin: vi.fn(),
+  recordActivity: vi.fn(),
   loadKeys: vi.fn(),
   deriveAndSaveKeys: vi.fn(),
 }));
@@ -45,8 +46,10 @@ vi.mock('@bluxcc/react', () => ({
 
 vi.mock('@/lib/api', () => ({
   ApiError: class ApiError extends Error {},
+  activityApi: { record: mocks.recordActivity },
   authApi: { login: mocks.authLogin, logout: vi.fn(), config: vi.fn() },
   clearSession: vi.fn(),
+  hasAccessToken: vi.fn(() => false),
   profileApi: { me: mocks.profileMe },
   restoreSession: mocks.restoreSession,
 }));

@@ -21,13 +21,23 @@ export function Avatar({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-peach font-bold text-navy",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-peach font-bold text-navy",
         sizes[size],
         className,
       )}
       aria-label={`${username || "Creator"} avatar`}
     >
-      {src ? <img className="size-full object-cover" src={src} alt="" /> : initials(username)}
+      {initials(username)}
+      {src && (
+        <img
+          className="absolute inset-0 size-full object-cover"
+          src={src}
+          alt=""
+          onError={(event) => {
+            event.currentTarget.hidden = true;
+          }}
+        />
+      )}
     </span>
   );
 }
