@@ -300,6 +300,18 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     }
   }
 
+  async function retryHistory() {
+    if (!activeConversationId || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      await refreshHistory(activeConversationId);
+    } catch (cause) {
+      setHistoryError(messengerError(cause));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   async function claimBounty(bounty: MessengerBounty) {
     if (claimingBountyId) return;
     setClaimingBountyId(bounty.id);
@@ -351,6 +363,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setBroadcastRecipientDetails,
     closeProfile,
     loadOlderMessages,
+    retryHistory,
     claimBounty,
   };
 }

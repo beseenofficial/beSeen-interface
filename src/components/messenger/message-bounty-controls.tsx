@@ -2,11 +2,15 @@
 
 import { Clock3, Gift, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BountySelect } from '@/components/messenger/bounty-select';
 import { UsdcLogo } from '@/components/messenger/usdc-logo';
 import type { MessengerWorkspaceState } from '@/components/messenger/use-messenger-workspace';
-import type { BountyDurationUnit } from '@/components/messenger/use-message-composer';
+import {
+  bountyDurationMultipliers,
+  validateBountyTerms,
+  type BountyDurationUnit,
+} from '@/components/messenger/use-message-composer';
 import { cn } from '@/lib/utils';
 
 const durationUnits: Array<{ label: string; shortLabel: string; value: BountyDurationUnit }> = [
@@ -16,16 +20,21 @@ const durationUnits: Array<{ label: string; shortLabel: string; value: BountyDur
 ];
 
 export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspaceState }) {
-  const panelRef = useRef<HTMLElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
   const [showValidation, setShowValidation] = useState(false);
+  const [draftAmount, setDraftAmount] = useState('10');
+  const [draftDurationValue, setDraftDurationValue] = useState('1');
+  const [draftDurationUnit, setDraftDurationUnit] = useState<BountyDurationUnit>('hour');
+  const [openedAt, setOpenedAt] = useState<number | null>(null);
   const {
     bountyAmount,
     bountyAsset,
     bountyDurationUnit,
     bountyDurationValue,
-    bountyError,
     bountyPanelOpen,
     demoUsdcBalance,
+    otherParticipant,
+    showBounty,
     setBountyAmount,
     setBountyDurationUnit,
     setBountyDurationValue,
@@ -33,44 +42,66 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
     setShowBounty,
   } = workspace;
 
+  const draftError = validateBountyTerms({
+    amount: draftAmount,
+    balance: demoUsdcBalance,
+    durationUnit: draftDurationUnit,
+    durationValue: draftDurationValue,
+  });
+  const draftSeconds = Number(draftDurationValue) * bountyDurationMultipliers[draftDurationUnit];
+  const deadline = openedAt && Number.isFinite(draftSeconds) && draftSeconds > 0
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(openedAt + draftSeconds * 1000)
+    : null;
+
+  const closePanel = useCallback(() => {
+    setBountyPanelOpen(false);
+    requestAnimationFrame(() => document.getElementById('bounty-settings-trigger')?.focus());
+  }, [setBountyPanelOpen]);
+
   useEffect(() => {
     if (!bountyPanelOpen) return;
+    setDraftAmount(bountyAmount);
+    setDraftDurationValue(bountyDurationValue);
+    setDraftDurationUnit(bountyDurationUnit);
+    setOpenedAt(Date.now());
     setShowValidation(false);
+    requestAnimationFrame(() => amountInputRef.current?.focus());
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setBountyPanelOpen(false);
+      if (event.key === 'Escape') closePanel();
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [bountyPanelOpen, setBountyPanelOpen]);
+  }, [bountyAmount, bountyDurationUnit, bountyDurationValue, bountyPanelOpen, closePanel]);
 
   return (
     <AnimatePresence initial={false}>
       {bountyPanelOpen && (
         <motion.section
-          ref={panelRef}
-          className="absolute bottom-[calc(100%-0.25rem)] left-1/2 z-50 max-h-[min(500px,calc(100svh-110px))] w-[min(calc(100%-24px),400px)] overflow-y-auto rounded-[20px] border border-[#DCE7EA] bg-[#FFFEFB] p-4 shadow-[0_20px_55px_rgba(11,11,63,0.20)]"
+          className="absolute bottom-[calc(100%-0.25rem)] left-1/2 z-50 max-h-[min(520px,calc(100svh-110px))] w-[min(calc(100%-24px),380px)] overflow-y-auto rounded-2xl bg-[#FFFEFB] p-4 shadow-[0_20px_55px_rgba(11,11,63,0.20)]"
           initial={{ opacity: 0, x: '-50%', y: 10, scale: 0.98 }}
           animate={{ opacity: 1, x: '-50%', y: 0, scale: 1 }}
           exit={{ opacity: 0, x: '-50%', y: 8, scale: 0.985 }}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           id="bounty-settings"
           role="dialog"
-          aria-label="Add bounty"
+          aria-modal="false"
+          aria-labelledby="bounty-settings-title"
+          aria-describedby="bounty-settings-description"
         >
           <div className="flex items-center gap-2.5">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#FFF1A8] text-[#9B6700]">
               <Gift size={16} strokeWidth={2} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-[16px] font-semibold tracking-[-0.02em] text-navy">Add bounty</h2>
-              <p className="truncate text-[10px] text-muted">Reward a reply before the deadline.</p>
+              <h2 className="text-[16px] font-semibold tracking-[-0.02em] text-navy" id="bounty-settings-title">{showBounty ? 'Edit reward' : 'Add a little reward'}</h2>
+              <p className="text-xs leading-4 text-secondary" id="bounty-settings-description">A friendly thank-you for a thoughtful reply.</p>
             </div>
             <span className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-[#EEF2FF] px-2.5 py-1.5 text-xs font-semibold text-brand">
               <UsdcLogo className="size-[18px]" /> {bountyAsset}
             </span>
             <button
-              className="grid size-8 cursor-pointer place-items-center rounded-full text-muted transition hover:bg-subtle hover:text-navy"
-              onClick={() => setBountyPanelOpen(false)}
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition hover:bg-subtle hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              onClick={closePanel}
               aria-label="Close bounty settings"
               type="button"
             >
@@ -79,28 +110,29 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
           </div>
 
           <div className="mt-4">
-            <label className="mb-1.5 block text-[11px] font-semibold text-secondary" htmlFor="bounty-amount">Amount</label>
+            <label className="mb-1.5 block text-xs font-semibold text-secondary" htmlFor="bounty-amount">Amount</label>
             <div className="flex min-h-11 items-center rounded-xl border border-border bg-white px-3 transition focus-within:border-brand/45 focus-within:ring-3 focus-within:ring-brand/10">
               <UsdcLogo className="size-5" />
               <input
+                ref={amountInputRef}
                 className="min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-semibold text-navy outline-none placeholder:font-normal placeholder:text-muted"
                 id="bounty-amount"
                 inputMode="decimal"
                 onChange={(event) => {
-                  setBountyAmount(event.target.value.replace(/[^0-9.]/g, ''));
+                  setDraftAmount(event.target.value.replace(/[^0-9.]/g, ''));
                   setShowValidation(true);
                 }}
                 placeholder="0.00"
                 type="text"
-                value={bountyAmount}
+                value={draftAmount}
               />
-              <span className="text-[11px] font-semibold text-secondary">{bountyAsset}</span>
+              <span className="text-xs font-semibold text-secondary">{bountyAsset}</span>
             </div>
-            <p className="mt-1.5 text-[9px] text-muted">Available: {demoUsdcBalance ?? 'loading'} demo USDC</p>
+            <p className="mt-1.5 text-xs text-secondary">Available: {demoUsdcBalance ?? 'loading…'} demo USDC</p>
           </div>
 
           <div className="mt-3.5">
-            <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" htmlFor="bounty-duration-value">
+            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-secondary" htmlFor="bounty-duration-value">
               <Clock3 size={13} aria-hidden="true" /> Time to reply
             </label>
             <div className="grid grid-cols-[minmax(0,1fr)_124px] gap-2 max-[380px]:grid-cols-[minmax(0,1fr)_112px]">
@@ -109,41 +141,61 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
                 id="bounty-duration-value"
                 inputMode="numeric"
                 onChange={(event) => {
-                  setBountyDurationValue(event.target.value);
+                  setDraftDurationValue(event.target.value.replace(/\D/g, ''));
                   setShowValidation(true);
                 }}
                 placeholder="1"
                 type="text"
-                value={bountyDurationValue}
+                value={draftDurationValue}
               />
               <BountySelect
                 className="relative flex min-h-11 w-full items-center rounded-xl border border-border bg-white px-3 pr-8 text-xs font-semibold text-navy transition focus-within:border-brand/45 focus-within:ring-3 focus-within:ring-brand/10"
                 label="Reply time unit"
                 onChange={(value) => {
-                  setBountyDurationUnit(value as BountyDurationUnit);
+                  setDraftDurationUnit(value as BountyDurationUnit);
                   setShowValidation(true);
                 }}
                 options={durationUnits.map((unit) => ({ label: unit.label, value: unit.value }))}
-                value={bountyDurationUnit}
+                value={draftDurationUnit}
               />
             </div>
           </div>
 
-          {showValidation && bountyError && <p className="mt-2.5 text-[11px] text-error" role="alert">{bountyError}</p>}
+          <div className="mt-3 rounded-xl bg-[#F5F7FF] px-3 py-2.5 text-xs leading-5 text-secondary">
+            <p><span className="font-semibold text-navy">For @{otherParticipant?.username ?? 'this person'}:</span> reply by {deadline ?? 'a valid deadline'}.</p>
+            <p>If there is no eligible reply, the demo reward returns automatically.</p>
+          </div>
+
+          {showValidation && draftError && <p className="mt-2.5 text-xs text-error" role="alert">{draftError}</p>}
 
           <button
             className="mt-4 inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(16,69,245,0.20)] transition hover:bg-[#0C3BD6] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={showValidation && Boolean(bountyError)}
+            disabled={showValidation && Boolean(draftError)}
             onClick={() => {
               setShowValidation(true);
-              if (bountyError) return;
+              if (draftError) return;
+              setBountyAmount(draftAmount);
+              setBountyDurationValue(draftDurationValue);
+              setBountyDurationUnit(draftDurationUnit);
               setShowBounty(true);
-              setBountyPanelOpen(false);
+              closePanel();
             }}
             type="button"
           >
-            <UsdcLogo className="size-5" /> Attach {bountyAmount || '0'} {bountyAsset}
+            <UsdcLogo className="size-5" /> {showBounty ? 'Update' : 'Attach'} {draftAmount || '0'} {bountyAsset}
           </button>
+          {showBounty && (
+            <button
+              className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-error transition hover:bg-error-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error"
+              onClick={() => {
+                setShowBounty(false);
+                closePanel();
+              }}
+              type="button"
+            >
+              Remove reward
+            </button>
+          )}
         </motion.section>
       )}
     </AnimatePresence>
@@ -165,8 +217,9 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
 
   return (
     <motion.button
+      id="bounty-settings-trigger"
       className={cn(
-        'col-start-3 row-start-1 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 text-[11px] font-semibold transition max-sm:hidden',
+        'col-start-3 row-start-1 inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-sm:hidden',
         showBounty || bountyPanelOpen
           ? 'border-[#E7C85B] bg-[#FFF7CC] text-navy'
           : 'border-border bg-white text-navy hover:border-[#E7C85B] hover:bg-[#FFF9DD]',

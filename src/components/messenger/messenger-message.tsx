@@ -60,7 +60,7 @@ export function MessengerMessage({
         padding={message.bounty ? 'none' : 'default'}
         className={cn(
           'group/bubble cursor-pointer',
-          message.bounty && 'min-w-[310px] max-w-[440px] overflow-hidden shadow-[0_9px_22px_rgba(26,61,177,0.11)] max-sm:min-w-0 max-sm:w-[82%]',
+          message.bounty && 'min-w-[310px] max-w-[440px] overflow-visible bg-transparent shadow-[0_9px_22px_rgba(26,61,177,0.11)] max-sm:min-w-0 max-sm:w-[82%]',
           !message.bounty && 'max-sm:overflow-visible',
           outgoing && 'order-1',
         )}
@@ -110,11 +110,11 @@ export function MessengerMessage({
             </motion.button>
           )}
         </AnimatePresence>
-        <div className={message.bounty ? 'px-[18px] pb-3 pt-3.5 max-sm:px-4 max-sm:pb-2.5 max-sm:pt-3' : undefined}>
+        <div className={message.bounty ? 'rounded-t-[18px] bg-[#2148F3] px-[18px] pb-3 pt-3.5 text-white max-sm:px-4 max-sm:pb-2.5 max-sm:pt-3' : undefined}>
           {message.manifest.replyToMessageId && (
             <div
               className={cn(
-                'mb-2 rounded-xl border-l-2 px-3 py-1.5 text-xs',
+                'mb-2 rounded-xl border px-3 py-1.5 text-xs',
                 outgoing
                   ? 'border-brand/60 bg-white/65 text-secondary'
                   : 'border-brand bg-info-bg text-secondary',
@@ -140,7 +140,7 @@ export function MessengerMessage({
             </p>
           )}
           {message.bounty && (
-            <div className="mt-1.5 flex items-center justify-end gap-1 text-[9px] leading-none text-white/75">
+            <div className="mt-1.5 flex items-center justify-end gap-1 text-[11px] leading-none text-white/85">
               <time>{messengerTimeLabel(message.createdAt)}</time>
               {outgoing && (message.delivery.seenByRecipient ? <CheckCheck size={13} aria-label="Seen" /> : <Check size={13} aria-label="Sent" />)}
             </div>

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { MessageBounty } from '@/components/messenger/message-bounty';
+import { durationLabel, MessageBounty } from '@/components/messenger/message-bounty';
 import type { MessengerBounty } from '@/types';
 
 const baseBounty: MessengerBounty = {
@@ -19,19 +19,25 @@ const baseBounty: MessengerBounty = {
 describe('message bounty display', () => {
   it('renders the attached bounty state from the visual spec', () => {
     render(<MessageBounty bounty={baseBounty} beneficiary={false} claiming={false} onClaim={vi.fn()} />);
-    expect(screen.getByText('Bounty')).toBeInTheDocument();
-    expect(screen.getByText('25 USDC reward attached')).toBeInTheDocument();
-    expect(screen.getByText('Time to reply')).toBeInTheDocument();
+    expect(screen.getByText('Reply reward')).toBeInTheDocument();
+    expect(screen.getByText('25 demo USDC')).toBeInTheDocument();
     expect(screen.getByText('1 day')).toBeInTheDocument();
+    expect(screen.getByText(/By /)).toBeInTheDocument();
   });
 
   it.each([
-    ['claimed', 'Claimed', 'Bounty earned'],
-    ['expired', 'Refunded', 'Bounty returned'],
+    ['claimed', 'Claimed', 'Thanks sent'],
+    ['expired', 'Returned', 'Back to sender'],
   ] as const)('renders the %s state', (status, heading, detail) => {
     render(<MessageBounty bounty={{ ...baseBounty, status }} beneficiary={false} claiming={false} onClaim={vi.fn()} />);
     expect(screen.getAllByText(heading).length).toBeGreaterThan(0);
     expect(screen.getByText(detail)).toBeInTheDocument();
+  });
+
+  it('does not round short reply windows into the wrong unit', () => {
+    expect(durationLabel(30 * 60)).toBe('30 minutes');
+    expect(durationLabel(90 * 60)).toBe('90 minutes');
+    expect(durationLabel(4 * 86400)).toBe('4 days');
   });
 
   it('keeps the claim action functional', async () => {

@@ -39,6 +39,7 @@ export function MessageTimeline({
     user,
     claimBounty,
     loadOlderMessages,
+    retryHistory,
     setReplyTarget,
   } = workspace;
 
@@ -68,15 +69,21 @@ export function MessageTimeline({
       ref={timeline}
       className={cn(
         conversationBackgroundClassName,
-        'min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-6 py-5 max-sm:bg-white max-sm:bg-none max-sm:px-4 max-sm:py-4 max-sm:before:hidden',
+        'relative min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-6 py-5 max-sm:bg-white max-sm:bg-none max-sm:px-4 max-sm:py-4 max-sm:before:hidden',
       )}
       onClick={() => setReplyActionMessageId(null)}
       onScroll={() => {
         updateLatestButton();
         setReplyActionMessageId(null);
       }}
-      aria-live="polite"
     >
+      {historyError && messages.length > 0 && (
+        <div className="sticky top-0 z-20 mx-auto mb-4 flex max-w-xl items-center gap-3 rounded-xl bg-error-bg px-3 py-2 text-xs text-error shadow-[0_8px_24px_rgba(11,11,63,0.10)]" role="alert">
+          <AlertCircle className="shrink-0" size={16} aria-hidden="true" />
+          <span className="min-w-0 flex-1">Some messages could not be refreshed. Your loaded messages are still here.</span>
+          <button className="min-h-11 shrink-0 rounded-lg px-3 font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-error" onClick={() => void retryHistory()} type="button">Reload</button>
+        </div>
+      )}
       {hasMoreMessages && (
         <div className="mb-5 text-center">
           <Button
@@ -105,6 +112,7 @@ export function MessageTimeline({
         >
           <AlertCircle className="mx-auto" />
           <p className="mt-2">{historyError}</p>
+          <button className="mt-3 min-h-11 rounded-xl px-4 font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-error" onClick={() => void retryHistory()} type="button">Reload messages</button>
         </div>
       ) : timelineItems.length === 0 ? (
         <div className="grid min-h-64 place-items-center text-center text-secondary">
@@ -233,11 +241,11 @@ export function MessageTimeline({
           <div ref={messageEnd} />
         </div>
       )}
-      <div className="pointer-events-none h-0">
+      <div className="pointer-events-none sticky bottom-2 z-30 ml-auto h-0 w-11">
         <AnimatePresence>
           {showLatestButton && (
             <motion.button
-              className="pointer-events-auto fixed bottom-24 right-4 z-30 grid size-11 cursor-pointer place-items-center rounded-full border border-white/70 bg-brand text-white shadow-[0_8px_24px_rgba(16,69,245,0.3)] transition hover:bg-[#0c3bd6] max-sm:bottom-20 max-sm:right-3"
+              className="pointer-events-auto grid size-11 cursor-pointer place-items-center rounded-full bg-brand text-white shadow-[0_8px_24px_rgba(16,69,245,0.3)] transition hover:bg-[#0c3bd6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               initial={{ opacity: 0, scale: 0.8, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85, y: 6 }}

@@ -44,11 +44,35 @@ type UseMessageComposerOptions = {
 
 export type BountyDurationUnit = 'minute' | 'hour' | 'day';
 
-const bountyDurationMultipliers: Record<BountyDurationUnit, number> = {
+export const bountyDurationMultipliers: Record<BountyDurationUnit, number> = {
   minute: 60,
   hour: 3600,
   day: 86400,
 };
+
+export function validateBountyTerms({
+  amount,
+  balance,
+  durationUnit,
+  durationValue,
+}: {
+  amount: string;
+  balance: string | undefined;
+  durationUnit: BountyDurationUnit;
+  durationValue: string;
+}) {
+  if (!isCanonicalDecimal(amount, 7) || /^0(?:\.0+)?$/.test(amount)) {
+    return 'Enter a positive amount with up to 7 decimal places.';
+  }
+  if (balance === undefined) return 'Your demo USDC balance is still loading. Try again in a moment.';
+  if (compareDecimalStrings(amount, balance) > 0) {
+    return `Choose an amount up to your ${balance} demo USDC balance.`;
+  }
+  if (!/^[1-9]\d*$/.test(durationValue)) return 'Enter a whole number greater than zero.';
+  const durationSeconds = Number(durationValue) * bountyDurationMultipliers[durationUnit];
+  if (durationSeconds > 30 * 86400) return 'Choose a reply window of 30 days or less.';
+  return null;
+}
 
 export function useMessageComposer({
   activeConversationId,
@@ -62,7 +86,7 @@ export function useMessageComposer({
   demoUsdcBalance,
   refreshCurrentUser,
 }: UseMessageComposerOptions) {
-  const [draft, setDraft] = useState('');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendErrorCode, setSendErrorCode] = useState<string | null>(null);
@@ -76,6 +100,21 @@ export function useMessageComposer({
   const [bountyDurationValue, setBountyDurationValue] = useState('1');
   const [bountyDurationUnit, setBountyDurationUnit] = useState<BountyDurationUnit>('hour');
   const messageInput = useRef<HTMLTextAreaElement>(null);
+  const draft = activeConversationId ? drafts[activeConversationId] ?? '' : '';
+  const setDraft: Dispatch<SetStateAction<string>> = useCallback((nextDraft) => {
+    if (!activeConversationId) return;
+    setDrafts((current) => {
+      const currentDraft = current[activeConversationId] ?? '';
+      const resolved = typeof nextDraft === 'function' ? nextDraft(currentDraft) : nextDraft;
+      if (resolved === currentDraft) return current;
+      if (!resolved) {
+        const next = { ...current };
+        delete next[activeConversationId];
+        return next;
+      }
+      return { ...current, [activeConversationId]: resolved };
+    });
+  }, [activeConversationId]);
 
   const afterSuccessfulSend = useCallback(
     async (message: Awaited<ReturnType<typeof retryPendingMessengerMessage>>['message']) => {
@@ -185,18 +224,13 @@ export function useMessageComposer({
   const draftBytes = utf8(draft).length;
   const bountyDurationSeconds = Number(bountyDurationValue) * bountyDurationMultipliers[bountyDurationUnit];
   const bountyDuration = String(bountyDurationSeconds);
-  const bountyError = showBounty || bountyPanelOpen
-    ? !isCanonicalDecimal(bountyAmount, 7) || /^0(?:\.0+)?$/.test(bountyAmount)
-      ? 'Enter a positive USDC amount with up to 7 decimal places.'
-      : demoUsdcBalance === undefined
-        ? 'Your demo USDC balance is still loading.'
-        : compareDecimalStrings(bountyAmount, demoUsdcBalance) > 0
-          ? 'Your demo USDC balance is not sufficient for this bounty.'
-          : !/^[1-9]\d*$/.test(bountyDurationValue)
-            ? 'Enter a positive whole number for the reply time.'
-            : bountyDurationSeconds > 30 * 86400
-              ? 'Reply time cannot be longer than 30 days.'
-              : null
+  const bountyError = showBounty
+    ? validateBountyTerms({
+        amount: bountyAmount,
+        balance: demoUsdcBalance,
+        durationUnit: bountyDurationUnit,
+        durationValue: bountyDurationValue,
+      })
     : null;
 
   return {

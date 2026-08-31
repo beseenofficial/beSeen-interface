@@ -20,11 +20,11 @@ vi.mock('@/lib/messenger-workflow', () => ({
 import { useMessageComposer } from '@/components/messenger/use-message-composer';
 import type { DecryptedMessengerMessage, MessengerConversation } from '@/types';
 
-function Harness({ balance, refresh }: { balance?: string; refresh: () => Promise<unknown> }) {
+function Harness({ activeConversationId = 'conversation', balance, refresh }: { activeConversationId?: string; balance?: string; refresh: () => Promise<unknown> }) {
   const [, setConversations] = useState<MessengerConversation[]>([]);
   const [, setMessages] = useState<DecryptedMessengerMessage[]>([]);
   const composer = useMessageComposer({
-    activeConversationId: 'conversation',
+    activeConversationId,
     keys: { signingPublicKey: new Uint8Array(), signingPrivateKey: new Uint8Array(), encryptionPublicKey: new Uint8Array(), encryptionPrivateKey: new Uint8Array() },
     setActiveConversationId: () => undefined,
     setConversations,
@@ -69,7 +69,7 @@ describe('message composer demo USDC bounty', () => {
     render(<Harness balance="9.9999999" refresh={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Draft'), 'encrypted later');
     await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
-    expect(screen.getByText('Your demo USDC balance is not sufficient for this bounty.')).toBeInTheDocument();
+    expect(screen.getByText('Choose an amount up to your 9.9999999 demo USDC balance.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(mocks.create).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Draft')).toHaveValue('encrypted later');
@@ -107,5 +107,16 @@ describe('message composer demo USDC bounty', () => {
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
       bounty: expect.objectContaining({ durationSeconds: 4 * 86400 }),
     }));
+  });
+
+  it('keeps a separate draft for each conversation', async () => {
+    const refresh = vi.fn();
+    const view = render(<Harness activeConversationId="first" balance="20" refresh={refresh} />);
+    await userEvent.type(screen.getByLabelText('Draft'), 'first draft');
+    view.rerender(<Harness activeConversationId="second" balance="20" refresh={refresh} />);
+    expect(screen.getByLabelText('Draft')).toHaveValue('');
+    await userEvent.type(screen.getByLabelText('Draft'), 'second draft');
+    view.rerender(<Harness activeConversationId="first" balance="20" refresh={refresh} />);
+    expect(screen.getByLabelText('Draft')).toHaveValue('first draft');
   });
 });
