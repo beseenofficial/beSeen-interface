@@ -124,6 +124,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setReplyTarget,
     setSendError,
     setShowBounty,
+    setBountyPanelOpen,
     setShowEmojiPicker,
   } = composer;
 
@@ -141,6 +142,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setHistoryError(null);
     setReplyTarget(null);
     setShowBounty(false);
+    setBountyPanelOpen(false);
     setShowEmojiPicker(false);
     setSendError(null);
     setMessages([]);
@@ -198,6 +200,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setReplyTarget,
     setSendError,
     setShowBounty,
+    setBountyPanelOpen,
     setShowEmojiPicker,
     toast,
   ]);

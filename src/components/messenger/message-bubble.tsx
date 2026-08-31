@@ -22,10 +22,10 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        'relative min-w-0 max-w-[min(54%,540px)] rounded-[13px] max-sm:max-w-[78%]',
-        padding === 'default' ? 'px-[18px] py-[10px]' : 'overflow-hidden',
+        'relative min-w-0 max-w-[min(50%,480px)] rounded-[18px] max-sm:max-w-[82%]',
+        padding === 'default' ? 'px-[14px] py-[8px]' : 'overflow-hidden',
         shadow === 'soft' ? 'shadow-none' : 'shadow-none',
-        tone === 'outgoing' && 'bg-[#4F9EEF] text-white',
+        tone === 'outgoing' && 'bg-[#2148F3] text-white',
         tone === 'incoming' && 'bg-[#F1F4F5] text-[#080B0D]',
         tone === 'broadcast' && 'border border-brand/18 bg-[#F5F7FF] text-navy shadow-[0_8px_24px_rgba(16,69,245,0.07)]',
         className,

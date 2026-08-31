@@ -42,6 +42,14 @@ type UseMessageComposerOptions = {
   refreshCurrentUser: () => Promise<unknown>;
 };
 
+export type BountyDurationUnit = 'minute' | 'hour' | 'day';
+
+const bountyDurationMultipliers: Record<BountyDurationUnit, number> = {
+  minute: 60,
+  hour: 3600,
+  day: 86400,
+};
+
 export function useMessageComposer({
   activeConversationId,
   keys,
@@ -61,10 +69,12 @@ export function useMessageComposer({
   const [hasPendingRetry, setHasPendingRetry] = useState(false);
   const [replyTarget, setReplyTarget] = useState<DecryptedMessengerMessage | null>(null);
   const [showBounty, setShowBounty] = useState(false);
+  const [bountyPanelOpen, setBountyPanelOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [bountyAsset, setBountyAsset] = useState<'USDC'>('USDC');
   const [bountyAmount, setBountyAmount] = useState('10');
-  const [bountyDuration, setBountyDuration] = useState('3600');
+  const [bountyDurationValue, setBountyDurationValue] = useState('1');
+  const [bountyDurationUnit, setBountyDurationUnit] = useState<BountyDurationUnit>('hour');
   const messageInput = useRef<HTMLTextAreaElement>(null);
 
   const afterSuccessfulSend = useCallback(
@@ -115,6 +125,7 @@ export function useMessageComposer({
       if (messageInput.current) messageInput.current.style.height = 'auto';
       setReplyTarget(null);
       setShowBounty(false);
+      setBountyPanelOpen(false);
       requestAnimationFrame(() => messageInput.current?.focus());
       await afterSuccessfulSend(result.message);
     } catch (cause) {
@@ -172,14 +183,20 @@ export function useMessageComposer({
   }
 
   const draftBytes = utf8(draft).length;
-  const bountyError = showBounty
+  const bountyDurationSeconds = Number(bountyDurationValue) * bountyDurationMultipliers[bountyDurationUnit];
+  const bountyDuration = String(bountyDurationSeconds);
+  const bountyError = showBounty || bountyPanelOpen
     ? !isCanonicalDecimal(bountyAmount, 7) || /^0(?:\.0+)?$/.test(bountyAmount)
       ? 'Enter a positive USDC amount with up to 7 decimal places.'
       : demoUsdcBalance === undefined
         ? 'Your demo USDC balance is still loading.'
         : compareDecimalStrings(bountyAmount, demoUsdcBalance) > 0
           ? 'Your demo USDC balance is not sufficient for this bounty.'
-          : null
+          : !/^[1-9]\d*$/.test(bountyDurationValue)
+            ? 'Enter a positive whole number for the reply time.'
+            : bountyDurationSeconds > 30 * 86400
+              ? 'Reply time cannot be longer than 30 days.'
+              : null
     : null;
 
   return {
@@ -190,10 +207,13 @@ export function useMessageComposer({
     hasPendingRetry,
     replyTarget,
     showBounty,
+    bountyPanelOpen,
     showEmojiPicker,
     bountyAsset,
     bountyAmount,
     bountyDuration,
+    bountyDurationValue,
+    bountyDurationUnit,
     bountyError,
     demoUsdcBalance,
     messageInput,
@@ -202,12 +222,28 @@ export function useMessageComposer({
     setHasPendingRetry,
     setReplyTarget,
     setShowBounty,
+    setBountyPanelOpen,
     setShowEmojiPicker,
     setBountyAsset: (asset: string) => {
       if (asset === 'USDC') setBountyAsset(asset);
     },
     setBountyAmount,
-    setBountyDuration,
+    setBountyDurationValue: (value: string) => setBountyDurationValue(value.replace(/\D/g, '')),
+    setBountyDurationUnit,
+    setBountyDuration: (seconds: string) => {
+      const duration = Number(seconds);
+      if (!Number.isFinite(duration) || duration <= 0) return;
+      if (duration % 86400 === 0) {
+        setBountyDurationValue(String(duration / 86400));
+        setBountyDurationUnit('day');
+      } else if (duration % 3600 === 0) {
+        setBountyDurationValue(String(duration / 3600));
+        setBountyDurationUnit('hour');
+      } else {
+        setBountyDurationValue(String(Math.max(1, Math.round(duration / 60))));
+        setBountyDurationUnit('minute');
+      }
+    },
     setSendError,
     sendMessage,
     handleMessageKeyDown,

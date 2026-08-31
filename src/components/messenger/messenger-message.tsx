@@ -57,8 +57,11 @@ export function MessengerMessage({
         username={senderUsername}
       />
       <MessageBubble
+        padding={message.bounty ? 'none' : 'default'}
         className={cn(
-          'group/bubble cursor-pointer max-sm:overflow-visible',
+          'group/bubble cursor-pointer',
+          message.bounty && 'min-w-[310px] max-w-[440px] overflow-hidden shadow-[0_9px_22px_rgba(26,61,177,0.11)] max-sm:min-w-0 max-sm:w-[82%]',
+          !message.bounty && 'max-sm:overflow-visible',
           outgoing && 'order-1',
         )}
         onClick={(event) => {
@@ -68,7 +71,7 @@ export function MessengerMessage({
             onToggleReplyAction(message.id);
           }
         }}
-        tone={outgoing ? 'outgoing' : 'incoming'}
+        tone={message.bounty || outgoing ? 'outgoing' : 'incoming'}
       >
         <button
           className={cn(
@@ -107,34 +110,42 @@ export function MessengerMessage({
             </motion.button>
           )}
         </AnimatePresence>
-        {message.manifest.replyToMessageId && (
-          <div
-            className={cn(
-              'mb-2 rounded-xl border-l-2 px-3 py-1.5 text-xs',
-              outgoing
-                ? 'border-brand/60 bg-white/65 text-secondary'
-                : 'border-brand bg-info-bg text-secondary',
-            )}
-          >
-            <span className="block font-semibold">Reply</span>
-            <span className="mt-0.5 block truncate">
-              {reply?.state === 'decrypted'
-                ? reply.plaintext
-                : 'Earlier message'}
-            </span>
-          </div>
-        )}
-        {message.state === 'decrypted' ? (
-          <p className="font-message max-w-full whitespace-pre-wrap break-words text-[16px] leading-[1.45] [overflow-wrap:anywhere]">
-            {message.plaintext}
-            <span className="inline-block w-20" aria-hidden="true" />
-          </p>
-        ) : (
-          <p className="flex items-center gap-2 text-sm text-muted">
-            <AlertCircle size={16} /> This message is unavailable
-            <span className="inline-block w-20" aria-hidden="true" />
-          </p>
-        )}
+        <div className={message.bounty ? 'px-[18px] pb-3 pt-3.5 max-sm:px-4 max-sm:pb-2.5 max-sm:pt-3' : undefined}>
+          {message.manifest.replyToMessageId && (
+            <div
+              className={cn(
+                'mb-2 rounded-xl border-l-2 px-3 py-1.5 text-xs',
+                outgoing
+                  ? 'border-brand/60 bg-white/65 text-secondary'
+                  : 'border-brand bg-info-bg text-secondary',
+              )}
+            >
+              <span className="block font-semibold">Reply</span>
+              <span className="mt-0.5 block truncate">
+                {reply?.state === 'decrypted'
+                  ? reply.plaintext
+                  : 'Earlier message'}
+              </span>
+            </div>
+          )}
+          {message.state === 'decrypted' ? (
+            <p className="font-message max-w-full whitespace-pre-wrap break-words text-[14px] leading-[1.4] [overflow-wrap:anywhere]">
+              {message.plaintext}
+              <span className="inline-block w-20" aria-hidden="true" />
+            </p>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-muted">
+              <AlertCircle size={16} /> This message is unavailable
+              <span className="inline-block w-20" aria-hidden="true" />
+            </p>
+          )}
+          {message.bounty && (
+            <div className="mt-1.5 flex items-center justify-end gap-1 text-[9px] leading-none text-white/75">
+              <time>{messengerTimeLabel(message.createdAt)}</time>
+              {outgoing && (message.delivery.seenByRecipient ? <CheckCheck size={13} aria-label="Seen" /> : <Check size={13} aria-label="Sent" />)}
+            </div>
+          )}
+        </div>
         {message.bounty && (
           <MessageBounty
             bounty={message.bounty}
@@ -146,9 +157,8 @@ export function MessengerMessage({
         <div
           className={cn(
             'flex items-center justify-end gap-1.5 text-[11px] leading-none text-[#080B0D]',
-            message.bounty
-              ? 'relative mt-2 min-h-4'
-              : 'absolute bottom-[11px] right-[20px]',
+            'absolute bottom-[11px] right-[20px]',
+            message.bounty && 'hidden',
             outgoing && 'text-white',
           )}
         >
