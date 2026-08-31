@@ -9,11 +9,12 @@ import { RecentMessages, type RecentMessageItem } from '@/components/dashboard/r
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { LoadingState } from '@/components/ui/states';
-import { messengerApi, tokenApi } from '@/lib/api';
+import { messengerApi, profileApi, tokenApi } from '@/lib/api';
 import { BROADCAST_REFRESH_INTERVAL_MS, loadCompleteBroadcastFeed, mergeBroadcastFeeds } from '@/lib/broadcast-feed';
 import { decryptFeedItem } from '@/lib/broadcast-crypto';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
+import { formatUsdc } from '@/lib/decimal';
 import { decryptMessengerMessage } from '@/lib/messenger-crypto';
 import { useToast } from '@/providers/toast-provider';
 
@@ -53,6 +54,7 @@ export default function OverviewPage() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [aurasOwned, setAurasOwned] = useState<number | null>(null);
+  const [lifetimeBounty, setLifetimeBounty] = useState<string | null>(null);
   const refreshInFlight = useRef(false);
 
   const loadDashboard = useCallback(async (includeStats = false) => {
@@ -124,12 +126,14 @@ export default function OverviewPage() {
       }
 
       if (includeStats) {
-        const [followerResult, tokensResult] = await Promise.allSettled([
-          tokenApi.followerCount(user.username),
+        const [followerResult, tokensResult, profileResult] = await Promise.allSettled([
+          profileApi.followCounts(user.username),
           tokenApi.mine(),
+          profileApi.public(user.username),
         ]);
-        setFollowerCount(followerResult.status === 'fulfilled' ? followerResult.value : null);
+        setFollowerCount(followerResult.status === 'fulfilled' ? followerResult.value.followerCount : null);
         setAurasOwned(tokensResult.status === 'fulfilled' ? tokensResult.value.length : null);
+        setLifetimeBounty(profileResult.status === 'fulfilled' ? profileResult.value.totalBountyReceivedUsdc : null);
       }
     } catch {
       if (includeStats) {
@@ -197,14 +201,14 @@ export default function OverviewPage() {
           <Copy className="shrink-0 text-navy" size={19} />
         </button>
         <StatCard icon={MessageCircleMore} iconClass="bg-info-bg text-brand" label="Unread messages" value={unreadMessageCount.toLocaleString()} hint={unreadMessageCount > 0 ? `${unreadMessageCount} waiting to be read` : 'You are all caught up'} />
-        <StatCard icon={CircleDollarSign} iconClass="bg-success-bg text-emerald-600" label="Total earned" value="$0" hint="All-time earnings" />
+        <StatCard icon={CircleDollarSign} iconClass="bg-success-bg text-emerald-600" label="Bounty earned" value={lifetimeBounty === null ? '—' : formatUsdc(lifetimeBounty)} hint="All-time claimed USDC bounties" />
       </section>
 
       <section className="overview-secondary mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Aura and wallet summary">
         <StatCard icon={UsersRound} iconClass="bg-info-bg text-brand" label="Aura holders" value={followerCount === null ? '—' : followerCount.toLocaleString()} hint="People holding your Aura" />
         <StatCard icon={Sparkles} iconClass="bg-[#f0eaff] text-[#7047e8]" label="Auras owned" value={aurasOwned === null ? '—' : aurasOwned.toLocaleString()} hint="Auras you own" />
         <StatCard icon={Tag} iconClass="bg-[#fff0ea] text-[#ff6b3d]" label="Your Aura price" value="—" hint="Pricing is not available yet" />
-        <StatCard icon={WalletCards} iconClass="bg-[#e5f7ff] text-[#16a8dc]" label="Wallet balance" value="Open" hint="View available balance" onClick={openWalletProfile} />
+        <StatCard icon={WalletCards} iconClass="bg-[#e5f7ff] text-[#167fa8]" label="Demo USDC balance" value={user.demoUsdcBalance === undefined ? '—' : formatUsdc(user.demoUsdcBalance)} hint="Available for message bounties" onClick={openWalletProfile} />
       </section>
 
       <section className="overview-recent mt-4 grid gap-4 lg:grid-cols-2">
