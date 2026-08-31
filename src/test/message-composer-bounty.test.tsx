@@ -40,6 +40,12 @@ function Harness({ balance, refresh }: { balance?: string; refresh: () => Promis
       <textarea aria-label="Draft" value={composer.draft} onChange={(event) => composer.setDraft(event.target.value)} />
       <button type="button" onClick={() => composer.setShowBounty(true)}>Add bounty</button>
       <input aria-label="Amount" value={composer.bountyAmount} onChange={(event) => composer.setBountyAmount(event.target.value)} />
+      <input aria-label="Duration value" value={composer.bountyDurationValue} onChange={(event) => composer.setBountyDurationValue(event.target.value)} />
+      <select aria-label="Duration unit" value={composer.bountyDurationUnit} onChange={(event) => composer.setBountyDurationUnit(event.target.value as 'minute' | 'hour' | 'day')}>
+        <option value="minute">Minutes</option>
+        <option value="hour">Hours</option>
+        <option value="day">Days</option>
+      </select>
       {composer.sendError && <p>{composer.sendError}</p>}
       {composer.bountyError && <p>{composer.bountyError}</p>}
       <button type="submit">Send</button>
@@ -87,5 +93,19 @@ describe('message composer demo USDC bounty', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
     await userEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it('converts the entered reply time and unit to seconds', async () => {
+    mocks.create.mockResolvedValueOnce({ message: sentMessage, created: true });
+    render(<Harness balance="100" refresh={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText('Draft'), 'reply in four days');
+    await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
+    await userEvent.clear(screen.getByLabelText('Duration value'));
+    await userEvent.type(screen.getByLabelText('Duration value'), '4');
+    await userEvent.selectOptions(screen.getByLabelText('Duration unit'), 'day');
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      bounty: expect.objectContaining({ durationSeconds: 4 * 86400 }),
+    }));
   });
 });
