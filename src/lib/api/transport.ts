@@ -49,6 +49,7 @@ export async function parseEnvelope<T>(response: Response): Promise<T> {
 }
 
 const REFRESH_RECORD = 'session:refresh-token';
+export const SESSION_CLEARED_EVENT = 'beseen:session-cleared';
 let accessToken: string | null = null;
 let refreshPromise: Promise<void> | null = null;
 
@@ -65,6 +66,7 @@ export async function storeSession(tokens: AuthTokens): Promise<void> {
 export async function clearSession(): Promise<void> {
   accessToken = null;
   await deleteSecureRecord(REFRESH_RECORD);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_CLEARED_EVENT));
 }
 
 export function hasAccessToken(): boolean {

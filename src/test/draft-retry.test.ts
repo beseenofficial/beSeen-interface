@@ -33,7 +33,7 @@ describe('interrupted encrypted draft retry', () => {
       signingPublicKey: new Uint8Array(signing.publicKey), signingPrivateKey: new Uint8Array(signing.privateKey),
       encryptionPublicKey: new Uint8Array(encryption.publicKey), encryptionPrivateKey: new Uint8Array(encryption.privateKey),
     };
-    const user: User = { id: '507f1f77bcf86cd799439010', username: 'sender', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' };
+    const user: User = { id: '507f1f77bcf86cd799439010', username: 'sender', avatar: null, bio: null, verification: { isVerified: false, grantedAt: null, expiresAt: null }, demoUsdcBalance: '20', createdAt: '2026-01-01T00:00:00.000Z' };
     const recipientRecord: BroadcastRecipient = {
       userId: '507f1f77bcf86cd799439011', username: 'viewer', keyVersion: 1,
       encryptionPublicKey: sodium.to_base64(recipient.publicKey, sodium.base64_variants.ORIGINAL),

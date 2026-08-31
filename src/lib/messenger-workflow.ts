@@ -1,4 +1,4 @@
-import { getMessengerConversationContext, sendMessengerMessage } from '@/lib/api';
+import { ApiError, getMessengerConversationContext, sendMessengerMessage } from '@/lib/api';
 import { createMessengerEnvelope } from '@/lib/messenger-crypto';
 import { deleteSecureRecord, getSecureJson, setSecureJson } from '@/lib/secure-storage';
 import type {
@@ -32,9 +32,22 @@ async function deliverAttempt(attempt: PendingMessengerAttempt): Promise<{
   message: MessengerSentMessage;
   created: boolean;
 }> {
-  const result = await sendMessengerMessage(attempt.conversationId, attempt.payload);
-  await discardPendingMessengerAttempt(attempt.conversationId);
-  return result;
+  try {
+    const result = await sendMessengerMessage(attempt.conversationId, attempt.payload);
+    await discardPendingMessengerAttempt(attempt.conversationId);
+    return result;
+  } catch (cause) {
+    if (
+      cause instanceof ApiError &&
+      cause.status === 409 &&
+      cause.code === 'INSUFFICIENT_DEMO_USDC_BALANCE'
+    ) {
+      // This is a definitive rejection, not an unknown network result. Keep the
+      // visible plaintext draft, but discard the encrypted retry record.
+      await discardPendingMessengerAttempt(attempt.conversationId);
+    }
+    throw cause;
+  }
 }
 
 export async function createAndSendMessengerMessage(input: {

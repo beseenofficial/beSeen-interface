@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     ApiError: MockApiError,
     hasAccessToken: vi.fn(() => true),
     record: vi.fn(),
+    clearSession: vi.fn(),
   };
 });
 
@@ -22,6 +23,7 @@ vi.mock('@/lib/api', () => ({
   activityApi: { record: mocks.record },
   ApiError: mocks.ApiError,
   hasAccessToken: mocks.hasAccessToken,
+  clearSession: mocks.clearSession,
 }));
 
 import {
@@ -50,6 +52,7 @@ describe('authenticated activity heartbeat', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     setVisibility('visible');
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     mocks.hasAccessToken.mockReturnValue(true);
     mocks.record.mockResolvedValue({ creditedSeconds: 60, lastActiveAt: '', isOnline: true });
   });
@@ -89,6 +92,31 @@ describe('authenticated activity heartbeat', () => {
 
     setVisibility('visible');
     fireEvent(document, new Event('visibilitychange'));
+    expect(mocks.record).toHaveBeenCalledTimes(2);
+  });
+
+  it('pauses while unfocused and resumes once without duplicate intervals', async () => {
+    render(<HeartbeatHarness enabled />);
+    expect(mocks.record).toHaveBeenCalledTimes(1);
+    fireEvent(window, new Event('blur'));
+    await vi.advanceTimersByTimeAsync(ACTIVITY_HEARTBEAT_INTERVAL_MS * 2);
+    expect(mocks.record).toHaveBeenCalledTimes(1);
+    fireEvent(window, new Event('focus'));
+    fireEvent(window, new Event('focus'));
+    expect(mocks.record).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(ACTIVITY_HEARTBEAT_INTERVAL_MS);
+    expect(mocks.record).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not send while offline and resumes when connectivity returns', async () => {
+    render(<HeartbeatHarness enabled />);
+    expect(mocks.record).toHaveBeenCalledTimes(1);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    fireEvent(window, new Event('offline'));
+    await vi.advanceTimersByTimeAsync(ACTIVITY_HEARTBEAT_INTERVAL_MS * 2);
+    expect(mocks.record).toHaveBeenCalledTimes(1);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    fireEvent(window, new Event('online'));
     expect(mocks.record).toHaveBeenCalledTimes(2);
   });
 
@@ -146,6 +174,7 @@ describe('authenticated activity heartbeat', () => {
 
     await vi.advanceTimersByTimeAsync(ACTIVITY_HEARTBEAT_INTERVAL_MS * 3);
     expect(mocks.record).toHaveBeenCalledTimes(1);
+    expect(mocks.clearSession).toHaveBeenCalledOnce();
   });
 
   it('backs off safely after a 429', async () => {

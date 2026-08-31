@@ -5,7 +5,12 @@ import { bytesToBase64 } from '@/lib/encoding';
 import type { DerivedKeys, MessengerConversationContext, MessengerSentMessage } from '@/types';
 
 const storage = vi.hoisted(() => new Map<string, unknown>());
-const api = vi.hoisted(() => ({ context: vi.fn(), send: vi.fn() }));
+const api = vi.hoisted(() => {
+  class ApiError extends Error {
+    constructor(message: string, public status: number, public code: string) { super(message); }
+  }
+  return { context: vi.fn(), send: vi.fn(), ApiError };
+});
 
 vi.mock('@/lib/secure-storage', () => ({
   getSecureJson: vi.fn(async (id: string) => storage.get(id) ?? null),
@@ -15,6 +20,7 @@ vi.mock('@/lib/secure-storage', () => ({
 vi.mock('@/lib/api', () => ({
   getMessengerConversationContext: api.context,
   sendMessengerMessage: api.send,
+  ApiError: api.ApiError,
 }));
 
 import {
@@ -90,6 +96,19 @@ describe('Messenger unknown-result retry', () => {
     expect(sent).toHaveLength(2);
     expect(sent[1]).toEqual(sent[0]);
     expect(JSON.stringify(sent[0])).not.toContain('do not send plaintext');
+    expect(await loadPendingMessengerAttempt(conversationId)).toBeNull();
+  });
+
+  it('discards only the encrypted retry record after a definitive insufficient-balance 409', async () => {
+    api.send.mockRejectedValueOnce(
+      new api.ApiError('insufficient', 409, 'INSUFFICIENT_DEMO_USDC_BALANCE'),
+    );
+    await expect(createAndSendMessengerMessage({
+      conversationId,
+      plaintext: 'keep this visible draft',
+      keys,
+      bounty: { assetCode: 'USDC', amount: '10', durationSeconds: 3600 },
+    })).rejects.toMatchObject({ code: 'INSUFFICIENT_DEMO_USDC_BALANCE' });
     expect(await loadPendingMessengerAttempt(conversationId)).toBeNull();
   });
 });
