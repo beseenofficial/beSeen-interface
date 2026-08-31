@@ -21,12 +21,11 @@ export const MESSENGER_CONTENT_SUITE = 'XCHACHA20-POLY1305-IETF' as const;
 export const MESSENGER_KEY_WRAP_SUITE =
   'X25519-XSALSA20-POLY1305-SEALEDBOX' as const;
 
-const ASSET_CODE = /^[A-Z0-9]{1,12}$/;
-const CANONICAL_AMOUNT = /^(?:0|[1-9]\d{0,11})(?:\.\d{1,7})?$/;
+const CANONICAL_AMOUNT = /^(?:0|[1-9]\d*)(?:\.\d{1,7})?$/;
 
 export function validateMessengerBountyTerms(terms: MessengerBountyTerms): void {
-  if (!ASSET_CODE.test(terms.assetCode)) {
-    throw new Error('Use 1–12 uppercase letters or numbers for the reward currency.');
+  if (terms.assetCode !== 'USDC') {
+    throw new Error('Message bounties support demo USDC only.');
   }
   if (!CANONICAL_AMOUNT.test(terms.amount) || /^0(?:\.0+)?$/.test(terms.amount)) {
     throw new Error('Enter a valid reward amount with up to 7 decimal places.');
