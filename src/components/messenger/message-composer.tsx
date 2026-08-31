@@ -18,6 +18,7 @@ export function MessageComposer({
   const {
     draft,
     draftBytes,
+    bountyError,
     hasPendingRetry,
     messageInput,
     sending,
@@ -73,6 +74,7 @@ export function MessageComposer({
             hasPendingRetry ||
             !draft.trim() ||
             draftBytes > MAX_MESSENGER_BYTES
+            || Boolean(bountyError)
           }
           aria-label="Send message"
           type="submit"

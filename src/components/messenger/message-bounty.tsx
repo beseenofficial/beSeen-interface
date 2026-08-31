@@ -4,10 +4,10 @@ import { Gift, Sparkles } from 'lucide-react';
 import type { MessengerBounty } from '@/types';
 
 const statusLabels: Record<MessengerBounty['status'], string> = {
-  offered: 'Bounty added',
-  claimable: 'Ready to claim',
-  claimed: 'Claimed',
-  expired: 'Expired',
+  offered: 'Waiting for an eligible reply',
+  claimable: 'Available for you to claim',
+  claimed: 'Successfully received',
+  expired: 'Expired · no longer claimable',
 };
 
 const bountyDeadline = new Intl.DateTimeFormat('en-GB', {
@@ -36,7 +36,7 @@ export function MessageBounty({
         <Gift size={13} strokeWidth={2} aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
-        <strong className="block truncate text-[11px] font-semibold leading-4">{statusLabels[bounty.status]}</strong>
+        <strong className="block truncate text-[11px] font-semibold leading-4">{bounty.amount} {bounty.assetCode} · {statusLabels[bounty.status]}</strong>
         <time className="block truncate text-[9px] leading-3 text-navy/60" dateTime={bounty.expiresAt}>
           Deadline {bountyDeadline.format(new Date(bounty.expiresAt))}
         </time>

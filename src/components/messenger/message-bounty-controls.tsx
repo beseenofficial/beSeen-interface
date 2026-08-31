@@ -21,6 +21,8 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
     bountyAmount,
     bountyAsset,
     bountyDuration,
+    bountyError,
+    demoUsdcBalance,
     showBounty,
     setBountyAmount,
     setBountyAsset,
@@ -62,17 +64,18 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
             value={bountyAsset}
             onChange={setBountyAsset}
           />
-          <BountySelect
-            className="relative flex min-h-11 w-19 shrink-0 items-center rounded-xl border border-border bg-white px-3 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35 max-sm:w-auto max-sm:min-w-0 max-sm:px-2 max-sm:pr-5"
-            label="Bounty amount"
-            options={[
-              { label: '5', value: '5' },
-              { label: '10', value: '10' },
-              { label: '25', value: '25' },
-            ]}
-            value={bountyAmount}
-            onChange={setBountyAmount}
-          />
+          <label className="relative flex min-h-11 w-24 shrink-0 items-center rounded-xl border border-border bg-white px-3 text-xs font-semibold text-navy transition focus-within:border-brand/35 max-sm:w-auto max-sm:min-w-0 max-sm:px-2">
+            <span className="sr-only">Bounty amount in USDC</span>
+            <input
+              className="min-w-0 w-full border-0 bg-transparent outline-none"
+              inputMode="decimal"
+              maxLength={24}
+              value={bountyAmount}
+              onChange={(event) => setBountyAmount(event.target.value.trim())}
+              aria-invalid={bountyError ? true : undefined}
+              aria-describedby="bounty-balance"
+            />
+          </label>
           <BountySelect
             className="relative flex min-h-11 w-21 shrink-0 items-center rounded-xl border border-border bg-white px-3 pr-7 text-xs font-semibold text-navy transition focus-within:border-brand/35 max-sm:w-auto max-sm:min-w-0 max-sm:px-2 max-sm:pr-5"
             label="Time to reply"
@@ -86,6 +89,7 @@ export function MessageBountyControls({ workspace }: { workspace: MessengerWorks
             onChange={setBountyDuration}
           />
           <button className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-brand/20 bg-info-bg text-brand transition hover:border-brand/40 max-sm:size-10 max-sm:self-center" onClick={() => setShowBounty(false)} aria-label="Cancel bounty" type="button"><ArrowLeft size={19} /></button>
+          <span className="sr-only" id="bounty-balance">Available demo balance: {demoUsdcBalance ?? 'loading'} USDC</span>
         </motion.div>
       ) : (
         <motion.button

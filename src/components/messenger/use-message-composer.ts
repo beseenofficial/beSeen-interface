@@ -20,6 +20,8 @@ import {
   retryPendingMessengerMessage,
 } from '@/lib/messenger-workflow';
 import { utf8 } from '@/lib/encoding';
+import { compareDecimalStrings, isCanonicalDecimal } from '@/lib/decimal';
+import { invalidateData } from '@/lib/data-invalidation';
 import type {
   DecryptedMessengerMessage,
   DerivedKeys,
@@ -36,6 +38,8 @@ type UseMessageComposerOptions = {
   refreshHistory: (conversationId: string) => Promise<void>;
   refreshConversationList: () => Promise<void>;
   toast: (title: string, message?: string) => void;
+  demoUsdcBalance: string | undefined;
+  refreshCurrentUser: () => Promise<unknown>;
 };
 
 export function useMessageComposer({
@@ -47,6 +51,8 @@ export function useMessageComposer({
   refreshHistory,
   refreshConversationList,
   toast,
+  demoUsdcBalance,
+  refreshCurrentUser,
 }: UseMessageComposerOptions) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -56,7 +62,7 @@ export function useMessageComposer({
   const [replyTarget, setReplyTarget] = useState<DecryptedMessengerMessage | null>(null);
   const [showBounty, setShowBounty] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [bountyAsset, setBountyAsset] = useState('USDC');
+  const [bountyAsset, setBountyAsset] = useState<'USDC'>('USDC');
   const [bountyAmount, setBountyAmount] = useState('10');
   const [bountyDuration, setBountyDuration] = useState('3600');
   const messageInput = useRef<HTMLTextAreaElement>(null);
@@ -70,22 +76,30 @@ export function useMessageComposer({
         setMessages((current) => applyUnlockedBounty(current, message.unlockedBounty!));
         toast('Reward unlocked', 'The other person can now collect this demo reward.');
       }
+      if (message.bounty) {
+        await refreshCurrentUser().catch(() => undefined);
+      }
       if (activeConversationId) {
+        invalidateData({ resource: 'conversations', conversationId: activeConversationId });
         await Promise.allSettled([
           refreshHistory(activeConversationId),
           refreshConversationList(),
         ]);
       }
     },
-    [activeConversationId, refreshConversationList, refreshHistory, setMessages, toast],
+    [activeConversationId, refreshConversationList, refreshCurrentUser, refreshHistory, setMessages, toast],
   );
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     if (!activeConversationId || sending || hasPendingRetry || !draft.trim()) return;
-    setSending(true);
     setSendError(null);
     setSendErrorCode(null);
+    if (showBounty && bountyError) {
+      setSendError(bountyError);
+      return;
+    }
+    setSending(true);
     const bounty: MessengerBountyTerms | null = showBounty
       ? { assetCode: bountyAsset, amount: bountyAmount, durationSeconds: Number(bountyDuration) }
       : null;
@@ -158,6 +172,15 @@ export function useMessageComposer({
   }
 
   const draftBytes = utf8(draft).length;
+  const bountyError = showBounty
+    ? !isCanonicalDecimal(bountyAmount, 7) || /^0(?:\.0+)?$/.test(bountyAmount)
+      ? 'Enter a positive USDC amount with up to 7 decimal places.'
+      : demoUsdcBalance === undefined
+        ? 'Your demo USDC balance is still loading.'
+        : compareDecimalStrings(bountyAmount, demoUsdcBalance) > 0
+          ? 'Your demo USDC balance is not sufficient for this bounty.'
+          : null
+    : null;
 
   return {
     draft,
@@ -171,6 +194,8 @@ export function useMessageComposer({
     bountyAsset,
     bountyAmount,
     bountyDuration,
+    bountyError,
+    demoUsdcBalance,
     messageInput,
     draftBytes,
     setDraft,
@@ -178,7 +203,9 @@ export function useMessageComposer({
     setReplyTarget,
     setShowBounty,
     setShowEmojiPicker,
-    setBountyAsset,
+    setBountyAsset: (asset: string) => {
+      if (asset === 'USDC') setBountyAsset(asset);
+    },
     setBountyAmount,
     setBountyDuration,
     setSendError,

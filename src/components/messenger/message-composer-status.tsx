@@ -13,6 +13,9 @@ export function MessageComposerStatus({ workspace }: { workspace: MessengerWorks
     sendError,
     sendErrorCode,
     sending,
+    showBounty,
+    bountyError,
+    demoUsdcBalance,
   } = workspace;
   return (
     <>
@@ -26,6 +29,11 @@ export function MessageComposerStatus({ workspace }: { workspace: MessengerWorks
         </div>
       )}
       {sendError && !hasPendingRetry && <p className="mb-2 text-xs text-error" role="alert">{sendError}</p>}
+      {showBounty && (
+        <p className={bountyError ? 'mb-2 text-xs text-error' : 'mb-2 text-xs text-muted'} role={bountyError ? 'alert' : undefined}>
+          {bountyError ?? `Available: ${demoUsdcBalance} demo USDC`}
+        </p>
+      )}
     </>
   );
 }
