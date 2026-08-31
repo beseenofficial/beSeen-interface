@@ -14,8 +14,8 @@ describe('Discover page', () => {
     mocks.discover
       .mockResolvedValueOnce({
         users: [
-          { id: 'a', username: 'alice', avatar: null },
-          { id: 'b', username: 'bob', avatar: null },
+          { id: 'a', username: 'alice', avatar: null, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
+          { id: 'b', username: 'bob', avatar: null, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
         ],
         nextCursor: 'cursor-2',
         hasMore: true,
@@ -31,6 +31,7 @@ describe('Discover page', () => {
 
     render(<DiscoverPage />);
     expect(await screen.findByText('@alice')).toBeInTheDocument();
+    expect(screen.getByLabelText('Verified account')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
 
     expect(await screen.findByText('@carol')).toBeInTheDocument();

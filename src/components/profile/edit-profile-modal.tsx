@@ -6,12 +6,14 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar';
+import { BIO_MAX_CODE_POINTS, bioCodePointLength, bioValidationError } from '@/lib/profile-validation';
 import type { User } from '@/types';
 
 type EditProfileModalProps = {
   open: boolean;
   user: User;
   username: string;
+  bio: string;
   visibleAvatar: string | null;
   avatarFile: File | null;
   saving: boolean;
@@ -21,6 +23,7 @@ type EditProfileModalProps = {
   onClose: () => void;
   onSave: () => void;
   onUsernameChange: (username: string) => void;
+  onBioChange: (bio: string) => void;
   onSelectAvatar: (file: File) => Promise<void>;
   onRemoveAvatar: () => void;
 };
@@ -29,6 +32,7 @@ export function EditProfileModal({
   open,
   user,
   username,
+  bio,
   visibleAvatar,
   avatarFile,
   saving,
@@ -38,11 +42,14 @@ export function EditProfileModal({
   onClose,
   onSave,
   onUsernameChange,
+  onBioChange,
   onSelectAvatar,
   onRemoveAvatar,
 }: EditProfileModalProps) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  const bioError = bioValidationError(bio);
+  const bioLength = bioCodePointLength(bio.trim());
 
   const chooseAvatar = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -63,7 +70,7 @@ export function EditProfileModal({
         <header className="flex min-h-17 min-w-0 items-center gap-2 border-b border-border px-3 min-[380px]:gap-4 min-[380px]:px-5">
           <button ref={closeButton} className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-subtle" type="button" onClick={onClose} aria-label="Close profile editor"><X size={20} /></button>
           <h2 id={titleId} className="min-w-0 flex-1 truncate text-lg font-semibold min-[380px]:text-xl">Edit profile</h2>
-          <Button className="min-h-10 shrink-0 rounded-full px-4 min-[380px]:px-5" type="submit" loading={saving} disabled={avatarValidating || Boolean(avatarError)}>Save</Button>
+          <Button className="min-h-10 shrink-0 rounded-full px-4 min-[380px]:px-5" type="submit" loading={saving} disabled={avatarValidating || Boolean(avatarError) || Boolean(bioError)}>Save</Button>
         </header>
 
         <div className="max-h-[calc(100svh-5.75rem)] overflow-y-auto px-4 py-6 min-[380px]:px-5 sm:max-h-[calc(100svh-7rem)] sm:px-6 sm:py-7">
@@ -84,7 +91,23 @@ export function EditProfileModal({
               <span className="text-muted">@</span>
               <input className="min-w-0 flex-1 border-0 bg-transparent px-1 outline-none" value={username} minLength={3} maxLength={30} pattern="[A-Za-z][A-Za-z0-9]{2,29}" onChange={(event) => onUsernameChange(event.target.value.replace(/[^a-z0-9]/gi, '').replace(/^[0-9]+/, '').toLowerCase().slice(0, 30))} />
             </div>
-            <small className="font-normal text-muted">English letters and numbers Â· must start with a letter</small>
+            <small className="font-normal text-muted">English letters and numbers · must start with a letter</small>
+          </label>
+
+          <label className="mt-5 grid gap-2 text-sm font-semibold">
+            Bio
+            <input
+              className="min-h-13 rounded-xl border border-border bg-white px-4 outline-none focus:border-brand focus:ring-3 focus:ring-brand/10"
+              value={bio}
+              onChange={(event) => onBioChange(event.target.value)}
+              aria-invalid={bioError ? true : undefined}
+              aria-describedby="profile-bio-help"
+              placeholder="What are you building?"
+            />
+            <span id="profile-bio-help" className="flex justify-between gap-3 font-normal">
+              <small className={bioError ? 'text-error' : 'text-muted'}>{bioError ?? 'Single line · optional'}</small>
+              <small className={bioLength > BIO_MAX_CODE_POINTS ? 'tabular-nums text-error' : 'tabular-nums text-muted'}>{bioLength}/{BIO_MAX_CODE_POINTS}</small>
+            </span>
           </label>
 
           <label className="mt-5 grid gap-2 text-sm font-semibold">
@@ -96,7 +119,7 @@ export function EditProfileModal({
             </span>
           </label>
 
-          {avatarValidating && <p className="mt-3 text-sm text-muted">Checking profile imageâ€¦</p>}
+          {avatarValidating && <p className="mt-3 text-sm text-muted">Checking profile image…</p>}
           {avatarError && <p className="mt-3 text-sm text-error" role="alert">{avatarError}</p>}
           {error && <p className="mt-4 rounded-xl bg-error-bg p-3 text-sm text-error" role="alert">{error}</p>}
         </div>

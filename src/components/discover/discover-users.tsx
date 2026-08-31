@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Avatar } from "@/components/ui/avatar";
+import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { usersApi } from "@/lib/api";
@@ -39,8 +40,8 @@ function DiscoverCard({ user }: { user: DiscoverUser }) {
       href={`/u/${encodeURIComponent(user.username)}`}
     >
       <Avatar className="size-24 text-[26px] ring-4 ring-ice" username={user.username} src={user.avatar} size="xl" />
-      <strong className="mt-5 max-w-full truncate text-[17px] font-semibold transition-colors group-hover:text-brand">
-        @{user.username}
+      <strong className="mt-5 flex max-w-full items-center gap-1 truncate text-[17px] font-semibold transition-colors group-hover:text-brand">
+        <span className="truncate">@{user.username}</span><VerificationBadge verification={user.verification} size={17} />
       </strong>
       <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-secondary transition-colors group-hover:text-brand">
         View profile <ArrowRight size={14} aria-hidden />

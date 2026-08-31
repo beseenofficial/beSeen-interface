@@ -21,6 +21,7 @@ const auth: AuthContextValue = {
   logout: vi.fn(async () => {}),
   forgetPrivateKeys: vi.fn(async () => {}),
   setUser: vi.fn(),
+  refreshUser: vi.fn(),
   openWalletProfile: vi.fn(),
   fundWallet: vi.fn(),
 };
