@@ -1,16 +1,15 @@
 'use client';
 
 import {
-  BadgeCheck,
   CalendarDays,
   Check,
+  CircleDollarSign,
   LayoutDashboard,
   LogIn,
   MessageCircleMore,
   RadioTower,
   Send,
   Share2,
-  Users,
   UserRound,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -18,50 +17,90 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Avatar } from '@/components/ui/avatar';
+import { VerificationBadge } from '@/components/ui/verification-badge';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
 import { ErrorState, SecureLoadingScreen } from '@/components/ui/states';
-import { messengerApi, profileApi, tokenApi } from '@/lib/api';
+import { ApiError, messengerApi, profileApi, tokenApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
-import type { PublicUser } from '@/types';
+import { invalidateData, subscribeToInvalidation } from '@/lib/data-invalidation';
+import { formatUsdc } from '@/lib/decimal';
+import type { FollowCounts, PublicUser } from '@/types';
 
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
   const auth = useAuth();
   const [profile, setProfile] = useState<PublicUser | null>(null);
-  const [followerCount, setFollowerCount] = useState(0);
+  const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
   const [following, setFollowing] = useState(false);
   const [followingBusy, setFollowingBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [countsLoading, setCountsLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [countsError, setCountsError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const formatCount = (value: number | undefined) => value === undefined ? '—' : value.toLocaleString();
 
   const loadProfile = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setProfileLoading(true);
+    setProfileError(null);
     try {
-      const [loadedProfile, count] = await Promise.all([
-        profileApi.public(username),
-        tokenApi.followerCount(username),
-      ]);
+      let loadedProfile = await profileApi.public(username);
+      if (
+        loadedProfile.broadcastCount === undefined ||
+        loadedProfile.messageCount === undefined ||
+        loadedProfile.totalBountyReceivedUsdc === undefined
+      ) {
+        loadedProfile = await profileApi.public(username);
+      }
       setProfile(loadedProfile);
-      setFollowerCount(count);
     } catch (cause) {
       setProfile(null);
-      setError(
-        cause instanceof Error
+      setProfileError(
+        cause instanceof ApiError && (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
+          ? 'This BeSeen profile does not exist.'
+          : cause instanceof Error
           ? cause.message
           : 'This BeSeen profile could not be loaded.',
       );
     } finally {
-      setLoading(false);
+      setProfileLoading(false);
+    }
+  }, [username]);
+
+  const loadFollowCounts = useCallback(async () => {
+    setCountsLoading(true);
+    setCountsError(null);
+    try {
+      setFollowCounts(await profileApi.followCounts(username));
+    } catch (cause) {
+      setFollowCounts(null);
+      setCountsError(
+        cause instanceof ApiError && (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
+          ? 'Follow counts are unavailable because this user was not found.'
+          : 'Follow counts could not be loaded.',
+      );
+    } finally {
+      setCountsLoading(false);
     }
   }, [username]);
 
   useEffect(() => {
-    void loadProfile();
-  }, [loadProfile]);
+    void Promise.allSettled([loadProfile(), loadFollowCounts()]);
+  }, [loadFollowCounts, loadProfile]);
+
+  useEffect(
+    () =>
+      subscribeToInvalidation((detail) => {
+        if (!detail.username || detail.username === username) {
+          if (detail.resource === 'follow-counts') void loadFollowCounts();
+          if (detail.resource === 'public-profile') void loadProfile();
+        }
+      }),
+    [loadFollowCounts, loadProfile, username],
+  );
 
   useEffect(() => {
     let active = true;
@@ -88,7 +127,7 @@ export default function PublicProfilePage() {
       })
       .catch((cause) => {
         if (active) {
-          setError(
+          setActionError(
             cause instanceof Error
               ? cause.message
               : 'Your subscription status could not be loaded.',
@@ -104,14 +143,16 @@ export default function PublicProfilePage() {
   async function follow() {
     if (!profile || !auth.user || followingBusy) return;
     setFollowingBusy(true);
-    setError(null);
+    setActionError(null);
     try {
       const result = await tokenApi.purchase(profile.username);
       setFollowing(true);
       setConversationId(result.conversation.id);
-      if (result.created) setFollowerCount((count) => count + 1);
+      invalidateData({ resource: 'follow-counts', username: profile.username });
+      invalidateData({ resource: 'owned-tokens' });
+      invalidateData({ resource: 'conversations' });
     } catch (cause) {
-      setError(
+      setActionError(
         cause instanceof Error
           ? cause.message
           : 'This profile could not be followed.',
@@ -136,17 +177,17 @@ export default function PublicProfilePage() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
-  if (loading) {
+  if (profileLoading) {
     return <SecureLoadingScreen label="Loading public profile…" />;
   }
-  if (error && !profile) {
+  if (profileError && !profile) {
     return (
       <main className="min-h-svh bg-ice p-6">
         <div className="mx-auto max-w-[1480px]">
           <Link href="/login" aria-label="Go to BeSeen sign in">
             <BrandLogo />
           </Link>
-          <ErrorState message={error} retry={() => void loadProfile()} />
+          <ErrorState message={profileError} retry={() => void loadProfile()} />
         </div>
       </main>
     );
@@ -236,38 +277,40 @@ export default function PublicProfilePage() {
               <h1 className="min-w-0 break-all text-[clamp(38px,4.7vw,61px)] font-semibold tracking-[-0.05em]">
                 @{profile.username}
               </h1>
-              <BadgeCheck
-                className="text-brand"
-                size={28}
-                aria-label="Verified BeSeen profile"
-              />
+              <VerificationBadge verification={profile.verification} size={28} />
             </div>
 
-            <p className="public-profile-tagline mt-3 text-[18px] font-semibold text-secondary max-sm:text-base">
-              Building in public. Creating value.
-            </p>
-
-            <p className="public-profile-followers mt-7 flex flex-wrap items-center gap-3 text-[17px] font-semibold text-secondary">
-              <Users size={20} aria-hidden="true" />
-              <span>
-                {followerCount} follower{followerCount === 1 ? '' : 's'}
-              </span>
-              <span className="text-muted" aria-hidden="true">
-                •
-              </span>
-              <span>0 following</span>
-            </p>
-
-            <div className="public-profile-bio mt-8 max-w-[800px] border-t border-border pt-7 text-[16px] leading-7 text-secondary">
-              <p>
-                Exploring ideas, building products, and sharing the journey.
+            {profile.bio?.trim() ? (
+              <p className="public-profile-tagline mt-3 max-w-[65ch] break-words text-[18px] font-medium text-secondary max-sm:text-base">
+                {profile.bio}
               </p>
-              <p>DM if you&apos;re building something interesting.</p>
-            </div>
+            ) : null}
 
-            {error && (
+            <dl className="public-profile-followers mt-7 grid max-w-155 grid-cols-3 overflow-hidden rounded-2xl border border-border bg-white/75 text-center">
+              <div className="min-w-0 px-3 py-4">
+                <dt className="text-xs text-muted">Followers</dt>
+                <dd className="mt-1 text-xl font-semibold tabular-nums">{countsLoading ? '—' : followCounts?.followerCount.toLocaleString() ?? '—'}</dd>
+              </div>
+              <div className="min-w-0 border-x border-border px-3 py-4">
+                <dt className="text-xs text-muted">Following</dt>
+                <dd className="mt-1 text-xl font-semibold tabular-nums">{countsLoading ? '—' : followCounts?.followingCount.toLocaleString() ?? '—'}</dd>
+              </div>
+              <div className="min-w-0 px-3 py-4">
+                <dt className="text-xs text-muted">Broadcasts</dt>
+                <dd className="mt-1 text-xl font-semibold tabular-nums">{formatCount(profile.broadcastCount)}</dd>
+              </div>
+            </dl>
+
+            {countsError && (
+              <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-error" role="alert">
+                {countsError}
+                <button className="font-semibold underline underline-offset-3" onClick={() => void loadFollowCounts()} type="button">Retry</button>
+              </p>
+            )}
+
+            {actionError && (
               <p className="mt-4 text-sm text-error" role="alert">
-                {error}
+                {actionError}
               </p>
             )}
 
@@ -316,7 +359,7 @@ export default function PublicProfilePage() {
                   {followingBusy ? 'Subscribing…' : followingLabel}
                 </button>
               ) : ownProfile ? (
-                <OwnProfileEditor onUpdated={setProfile} />
+                <OwnProfileEditor onUpdated={() => void loadProfile()} />
               ) : (
                 <Link
                   className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-border bg-white px-7 text-[16px] font-semibold transition hover:-translate-y-px hover:bg-subtle"
@@ -347,20 +390,34 @@ export default function PublicProfilePage() {
               </dl>
             </section>
 
-            <section className="public-profile-stats grid grid-cols-2 divide-x divide-border rounded-[20px] border border-border/90 bg-white/76 px-5 py-7 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:px-2">
+            <section className="public-profile-stats grid grid-cols-2 rounded-[20px] border border-border/90 bg-white/76 p-2 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md">
               <div className="grid justify-items-center gap-2 px-3 text-center">
                 <span className="grid size-10 place-items-center rounded-full bg-info-bg text-brand">
                   <MessageCircleMore size={20} aria-hidden="true" />
                 </span>
-                <strong className="text-xl">0</strong>
-                <span className="text-xs text-muted">Messages sent</span>
+                <strong className="text-xl tabular-nums">{formatCount(profile.messageCount)}</strong>
+                <span className="text-xs text-muted">Total messages</span>
               </div>
               <div className="grid justify-items-center gap-2 px-3 text-center">
-                <span className="grid size-10 place-items-center rounded-full bg-aqua/20 text-[#20b9c6]">
-                  <RadioTower size={20} aria-hidden="true" />
+                <span className="grid size-10 place-items-center rounded-full bg-info-bg text-brand">
+                  <Send size={20} aria-hidden="true" />
                 </span>
-                <strong className="text-xl">0</strong>
-                <span className="text-xs text-muted">Broadcasts</span>
+                <strong className="text-xl tabular-nums">{formatCount(profile.sentMessageCount)}</strong>
+                <span className="text-xs text-muted">Sent messages</span>
+              </div>
+              <div className="mt-2 grid justify-items-center gap-2 border-t border-border px-3 pt-4 text-center">
+                <span className="grid size-10 place-items-center rounded-full bg-aqua/20 text-[#168d99]">
+                  <MessageCircleMore size={20} aria-hidden="true" />
+                </span>
+                <strong className="text-xl tabular-nums">{formatCount(profile.receivedMessageCount)}</strong>
+                <span className="text-xs text-muted">Received messages</span>
+              </div>
+              <div className="mt-2 grid justify-items-center gap-2 border-t border-border px-3 pt-4 text-center">
+                <span className="grid size-10 place-items-center rounded-full bg-success-bg text-success">
+                  <CircleDollarSign size={20} aria-hidden="true" />
+                </span>
+                <strong className="max-w-full break-words text-base tabular-nums">{profile.totalBountyReceivedUsdc === undefined ? '—' : formatUsdc(profile.totalBountyReceivedUsdc)}</strong>
+                <span className="text-xs text-muted">Bounty earned</span>
               </div>
             </section>
           </aside>

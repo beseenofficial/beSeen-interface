@@ -2,7 +2,7 @@
 
 import { ArrowUp, LoaderCircle, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { MessageBountyControls } from '@/components/messenger/message-bounty-controls';
+import { MessageBountyControls, MessageBountyPanel } from '@/components/messenger/message-bounty-controls';
 import { MessageComposerStatus } from '@/components/messenger/message-composer-status';
 import { MessageEmojiPicker } from '@/components/messenger/message-emoji-picker';
 import { MessageReplyPreview } from '@/components/messenger/message-reply-preview';
@@ -18,6 +18,7 @@ export function MessageComposer({
   const {
     draft,
     draftBytes,
+    bountyError,
     hasPendingRetry,
     messageInput,
     sending,
@@ -26,11 +27,14 @@ export function MessageComposer({
     setDraft,
   } = workspace;
   return (
-    <footer className="relative z-20 min-w-0 max-w-full overflow-x-hidden border-t border-white/75 bg-white/68 px-4 py-2.5 shadow-[0_-12px_32px_rgba(11,11,63,0.05)] backdrop-blur-2xl backdrop-saturate-150 max-sm:border-t-0 max-sm:bg-white max-sm:px-3 max-sm:pt-2 max-sm:shadow-none max-sm:backdrop-blur-none max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      <MessageComposerStatus workspace={workspace} />
-      <MessageReplyPreview workspace={workspace} />
+    <footer className="relative z-20 min-w-0 max-w-full bg-white px-4 pb-4 pt-2 max-sm:border-t-0 max-sm:px-3 max-sm:pt-2 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <MessageBountyPanel workspace={workspace} />
+      <div className="mx-auto w-full max-w-[820px] px-2">
+        <MessageComposerStatus workspace={workspace} />
+        <MessageReplyPreview workspace={workspace} />
+      </div>
       <form
-        className="group/composer mx-auto grid w-full grid-cols-[44px_minmax(0,1fr)_auto_48px] items-end gap-2 rounded-2xl transition max-sm:grid-cols-[56px_minmax(0,1fr)] max-sm:items-center max-sm:gap-x-2 max-sm:gap-y-1.5"
+        className="group/composer mx-auto grid w-[min(100%,820px)] grid-cols-[42px_minmax(0,1fr)_auto_46px] items-end gap-2 rounded-[22px] border border-white/80 bg-white/92 p-2 shadow-[0_14px_38px_rgba(11,11,63,0.14)] backdrop-blur-xl transition max-sm:w-full max-sm:grid-cols-[56px_minmax(0,1fr)] max-sm:items-center max-sm:gap-x-2 max-sm:gap-y-1.5 max-sm:rounded-2xl max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-none"
         onSubmit={sendMessage}
       >
         <span
@@ -73,6 +77,7 @@ export function MessageComposer({
             hasPendingRetry ||
             !draft.trim() ||
             draftBytes > MAX_MESSENGER_BYTES
+            || Boolean(bountyError)
           }
           aria-label="Send message"
           type="submit"

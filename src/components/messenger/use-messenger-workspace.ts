@@ -30,6 +30,8 @@ import {
   mergeMessengerTimeline,
 } from '@/lib/messenger-state';
 import { loadPendingMessengerAttempt } from '@/lib/messenger-workflow';
+import { useAuth } from '@/lib/blux';
+import { invalidateData } from '@/lib/data-invalidation';
 import { useToast } from '@/providers/toast-provider';
 import type {
   BroadcastRecipientSummary,
@@ -43,6 +45,7 @@ import type {
 
 export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   const { toast } = useToast();
+  const { refreshUser } = useAuth();
   const conversationList = useConversationList();
   const {
     activeConversation,
@@ -68,6 +71,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   const broadcastRefreshInFlight = useRef(false);
   const messageEnd = useRef<HTMLDivElement>(null);
   const readBatcher = useRef<ReturnType<typeof createReadCursorBatcher> | null>(null);
+  const refreshedExpiredBounties = useRef(new Set<string>());
 
   const closeProfile = useCallback(() => setProfileUsername(null), []);
 
@@ -112,12 +116,15 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     refreshHistory,
     refreshConversationList,
     toast,
+    demoUsdcBalance: user.demoUsdcBalance,
+    refreshCurrentUser: refreshUser,
   });
   const {
     setHasPendingRetry,
     setReplyTarget,
     setSendError,
     setShowBounty,
+    setBountyPanelOpen,
     setShowEmojiPicker,
   } = composer;
 
@@ -135,6 +142,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setHistoryError(null);
     setReplyTarget(null);
     setShowBounty(false);
+    setBountyPanelOpen(false);
     setShowEmojiPicker(false);
     setSendError(null);
     setMessages([]);
@@ -192,6 +200,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setReplyTarget,
     setSendError,
     setShowBounty,
+    setBountyPanelOpen,
     setShowEmojiPicker,
     toast,
   ]);
@@ -255,6 +264,18 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   }, [historyLoading, messages]);
 
   useEffect(() => {
+    const newlyExpired = messages.filter(
+      (message) =>
+        message.bounty?.status === 'expired' &&
+        message.manifest.senderId === user.id &&
+        !refreshedExpiredBounties.current.has(message.bounty.id),
+    );
+    if (newlyExpired.length === 0) return;
+    newlyExpired.forEach((message) => refreshedExpiredBounties.current.add(message.bounty!.id));
+    void refreshUser().catch(() => undefined);
+  }, [messages, refreshUser, user.id]);
+
+  useEffect(() => {
     if (!historyLoading && !loadingOlder) {
       messageEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
@@ -279,11 +300,32 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     }
   }
 
+  async function retryHistory() {
+    if (!activeConversationId || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      await refreshHistory(activeConversationId);
+    } catch (cause) {
+      setHistoryError(messengerError(cause));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   async function claimBounty(bounty: MessengerBounty) {
+    if (claimingBountyId) return;
     setClaimingBountyId(bounty.id);
     try {
       const result = await messengerApi.claimBounty(bounty.id);
       setMessages((current) => applyClaimedBounty(current, result.bounty));
+      invalidateData({ resource: 'conversations', conversationId: activeConversationId ?? undefined });
+      if (result.bounty.status === 'claimed') {
+        const beneficiary = messages.find((message) => message.bounty?.id === bounty.id)?.manifest.recipientId;
+        if (beneficiary === user.id) {
+          invalidateData({ resource: 'public-profile', username: user.username });
+        }
+      }
+      await refreshUser().catch(() => undefined);
       toast(
         result.claimedNow ? 'Demo bounty claimed' : 'Demo bounty already claimed',
         'This is a demo reward. No real funds were moved.',
@@ -321,6 +363,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setBroadcastRecipientDetails,
     closeProfile,
     loadOlderMessages,
+    retryHistory,
     claimBounty,
   };
 }

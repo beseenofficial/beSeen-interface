@@ -1,18 +1,19 @@
 import { apiRequest } from '@/lib/api/transport';
 import { avatarApiErrorMessage } from '@/lib/avatar';
-import type { PublicUser, User, UsernameAvailability } from '@/types';
+import type { CurrentUserProfile, FollowCounts, PublicUserProfile, UsernameAvailability } from '@/types';
 
 export type ProfileUpdate = {
   username?: string;
+  bio?: string | null;
   avatarFile?: File;
   removeAvatar?: true;
 };
 
 export const profileApi = {
-  async me(signal?: AbortSignal): Promise<User> {
-    return (await apiRequest<{ user: User }>('/v1/users/me', { auth: true, signal })).user;
+  async me(signal?: AbortSignal): Promise<CurrentUserProfile> {
+    return (await apiRequest<{ user: CurrentUserProfile }>('/v1/users/me', { auth: true, signal })).user;
   },
-  async update(changes: ProfileUpdate): Promise<User> {
+  async update(changes: ProfileUpdate): Promise<CurrentUserProfile> {
     const { avatarFile, ...payload } = changes;
     if (avatarFile && payload.removeAvatar) {
       throw new Error('An avatar cannot be uploaded and removed in the same update.');
@@ -29,17 +30,23 @@ export const profileApi = {
       : payload;
 
     return (
-      await apiRequest<{ user: User }>('/v1/users/me', {
+      await apiRequest<{ user: CurrentUserProfile }>('/v1/users/me', {
         method: 'PATCH',
         body,
         auth: true,
       })
     ).user;
   },
-  async public(username: string, signal?: AbortSignal): Promise<PublicUser> {
+  async public(username: string, signal?: AbortSignal): Promise<PublicUserProfile> {
     return (
-      await apiRequest<{ user: PublicUser }>(`/v1/users/${encodeURIComponent(username)}`, { signal })
+      await apiRequest<{ user: PublicUserProfile }>(`/v1/users/${encodeURIComponent(username)}`, { signal })
     ).user;
+  },
+  async followCounts(username: string, signal?: AbortSignal): Promise<FollowCounts> {
+    return apiRequest<FollowCounts>(
+      `/v1/users/${encodeURIComponent(username)}/follow-counts`,
+      { signal },
+    );
   },
   keys(username: string, signal?: AbortSignal) {
     return apiRequest<{

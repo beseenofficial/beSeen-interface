@@ -8,7 +8,9 @@ import { EditProfileModal } from '@/components/profile/edit-profile-modal';
 import { profileApi, profileUpdateErrorMessage, validateUsername } from '@/lib/api';
 import type { ProfileUpdate } from '@/lib/api';
 import { validateAvatar } from '@/lib/avatar';
+import { invalidateData } from '@/lib/data-invalidation';
 import { useAuth } from '@/lib/blux';
+import { bioValidationError, normalizeBio } from '@/lib/profile-validation';
 import type { User } from '@/types';
 import { useToast } from '@/providers/toast-provider';
 
@@ -19,6 +21,7 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
   const user = auth.user;
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState('');
+  const [bio, setBio] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [cropSourceFile, setCropSourceFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
@@ -50,6 +53,7 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
   function startEditing() {
     clearPreview();
     setUsername(user!.username);
+    setBio(user!.bio ?? '');
     setRemoveAvatar(false);
     setAvatarError(null);
     setError(null);
@@ -106,7 +110,12 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
     if (saveInProgress.current || avatarValidating || avatarError) return;
     setError(null);
     if (!validateUsername(username)) {
-      setError('Use 3â€“30 English letters or numbers, starting with a letter.');
+      setError('Use 3–30 English letters or numbers, starting with a letter.');
+      return;
+    }
+    const bioError = bioValidationError(bio);
+    if (bioError) {
+      setError(bioError);
       return;
     }
     saveInProgress.current = true;
@@ -114,6 +123,8 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
     try {
       const changes: ProfileUpdate = {};
       if (username !== user!.username) changes.username = username;
+      const normalizedBio = normalizeBio(bio);
+      if (normalizedBio !== (user!.bio ?? null)) changes.bio = normalizedBio;
       if (avatarFile) changes.avatarFile = avatarFile;
       else if (removeAvatar) changes.removeAvatar = true;
       if (Object.keys(changes).length === 0) {
@@ -123,6 +134,12 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
       const updated = await profileApi.update(changes);
       clearPreview();
       auth.setUser(updated);
+      invalidateData({ resource: 'current-user' });
+      invalidateData({ resource: 'public-profile', username: user!.username });
+      if (updated.username !== user!.username) {
+        invalidateData({ resource: 'public-profile', username: updated.username });
+        invalidateData({ resource: 'follow-counts', username: updated.username });
+      }
       onUpdated(updated);
       setOpen(false);
       toast('Profile updated', 'Your latest changes are now live.');
@@ -147,6 +164,7 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
         open={open}
         user={user}
         username={username}
+        bio={bio}
         visibleAvatar={visibleAvatar}
         avatarFile={avatarFile}
         saving={saving}
@@ -156,6 +174,7 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
         onClose={cancelEditing}
         onSave={() => void save()}
         onUsernameChange={setUsername}
+        onBioChange={setBio}
         onSelectAvatar={selectAvatar}
         onRemoveAvatar={removeProfileAvatar}
       />

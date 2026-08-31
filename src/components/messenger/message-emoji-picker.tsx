@@ -17,9 +17,10 @@ export function MessageEmojiPicker({
   const {
     hasPendingRetry,
     showBounty,
+    bountyPanelOpen,
     showEmojiPicker,
     insertEmoji,
-    setShowBounty,
+    setBountyPanelOpen,
     setShowEmojiPicker,
   } = workspace;
   const close = useCallback(
@@ -49,12 +50,12 @@ export function MessageEmojiPicker({
         <button
           className={cn(
             'grid size-12 cursor-pointer place-items-center rounded-full border-0 bg-[#EFF3F4] text-navy transition hover:bg-[#EEF655] focus:bg-[#EEF655]',
-            showBounty && 'bg-[#EEF655] text-warning',
+            (showBounty || bountyPanelOpen) && 'bg-[#FFF1A8] text-warning',
           )}
           disabled={hasPendingRetry}
-          onClick={() => setShowBounty((current) => !current)}
+          onClick={() => setBountyPanelOpen((current) => !current)}
           aria-label="Add a bounty to this message"
-          aria-expanded={showBounty}
+          aria-expanded={bountyPanelOpen}
           aria-controls="bounty-settings"
           type="button"
         >

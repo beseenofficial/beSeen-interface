@@ -3,10 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   discover: vi.fn(),
+  publicProfile: vi.fn(),
   auth: { status: 'signed-out' },
 }));
 
-vi.mock('@/lib/api', () => ({ usersApi: { discover: mocks.discover } }));
+vi.mock('@/lib/api', () => ({
+  profileApi: { public: mocks.publicProfile },
+  usersApi: { discover: mocks.discover },
+}));
 vi.mock('@/lib/blux', () => ({ useAuth: () => mocks.auth }));
 
 import PublicDiscoverPage from '@/app/discover/page';

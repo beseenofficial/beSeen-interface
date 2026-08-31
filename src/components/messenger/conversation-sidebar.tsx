@@ -25,6 +25,7 @@ export function ConversationSidebar({
     loadingMoreConversations,
     search,
     totalUnread,
+    user,
     loadMoreConversations,
     refreshConversationList,
     setActiveConversationId,
@@ -69,7 +70,7 @@ export function ConversationSidebar({
           {(['all', 'unread'] as const).map((value) => (
             <button
               className={cn(
-                'min-h-8 cursor-pointer rounded-lg px-4 text-xs font-semibold capitalize transition',
+                'min-h-11 cursor-pointer rounded-lg px-4 text-xs font-semibold capitalize transition focus-visible:outline-2 focus-visible:outline-brand',
                 filter === value
                   ? 'bg-info-bg text-brand'
                   : 'text-secondary hover:text-brand',
@@ -84,21 +85,22 @@ export function ConversationSidebar({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2.5" aria-live="polite">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
         <ul className="mb-1 grid gap-1">
           <li>
             <button
               className={cn(
-                'grid min-h-16 w-full cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-left transition',
+                'grid min-h-16 w-full cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand',
                 broadcastOpen
-                  ? 'border-brand bg-info-bg'
-                  : 'border-transparent hover:bg-white',
+                  ? 'bg-info-bg shadow-[inset_0_0_0_1px_rgba(16,69,245,0.14)]'
+                  : 'hover:bg-white',
               )}
               onClick={() => {
                 setActiveConversationId(null);
                 setBroadcastOpen(true);
               }}
               type="button"
+              aria-current={broadcastOpen ? 'page' : undefined}
             >
               <span className="grid size-10 place-items-center rounded-full bg-info-bg text-brand">
                 <Radio size={18} aria-hidden="true" />
@@ -126,6 +128,7 @@ export function ConversationSidebar({
             role="status"
           >
             <LoaderCircle className="animate-spin" size={24} />
+            <span className="sr-only">Loading conversations…</span>
           </div>
         ) : listError && conversations.length === 0 ? (
           <div
@@ -146,11 +149,23 @@ export function ConversationSidebar({
             <div>
               <Inbox className="mx-auto text-brand" size={24} />
               <p className="mt-3 text-sm font-semibold text-navy">
-                No direct messages yet
+                {search || filter !== 'all' ? 'No matching conversations' : 'No direct messages yet'}
               </p>
               <p className="mt-1 text-xs">
-                Get a creator&apos;s token to start chatting.
+                {search || filter !== 'all' ? 'Try another search or show all messages.' : 'Get a creator\'s token to start chatting.'}
               </p>
+              {(search || filter !== 'all') && (
+                <button
+                  className="mt-3 min-h-11 rounded-xl px-4 text-xs font-semibold text-brand hover:bg-info-bg focus-visible:outline-2 focus-visible:outline-brand"
+                  onClick={() => {
+                    setSearch('');
+                    setFilter('all');
+                  }}
+                  type="button"
+                >
+                  Clear search and filters
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -164,27 +179,19 @@ export function ConversationSidebar({
                   transition={{ duration: 0.2 }}
                   key={conversation.id}
                 >
-                  <div
+                  <button
                     className={cn(
-                      'grid min-h-16 w-full cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-left transition',
+                      'grid min-h-16 w-full cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand',
                       selected && !broadcastOpen
-                        ? 'border-brand bg-info-bg'
-                        : 'border-transparent hover:bg-white',
+                        ? 'bg-info-bg shadow-[inset_0_0_0_1px_rgba(16,69,245,0.14)]'
+                        : 'hover:bg-white',
                     )}
                     onClick={() => {
                       setBroadcastOpen(false);
                       setActiveConversationId(conversation.id);
                     }}
-                    onKeyDown={(event) => {
-                      if (event.target !== event.currentTarget) return;
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        setBroadcastOpen(false);
-                        setActiveConversationId(conversation.id);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
+                    aria-current={selected && !broadcastOpen ? 'page' : undefined}
+                    type="button"
                   >
                     <Avatar
                       username={conversation.otherParticipant.username}
@@ -197,12 +204,16 @@ export function ConversationSidebar({
                         @{conversation.otherParticipant.username}
                       </strong>
                       <span className="mt-1 block truncate text-xs text-muted">
-                        {conversation.lastMessage
-                          ? 'Message'
-                          : 'Ready to chat'}
+                        {conversation.unreadCount > 0
+                          ? 'New message'
+                          : conversation.lastMessage?.senderId === user.id
+                            ? 'You sent a message'
+                            : conversation.lastMessage
+                              ? 'Last message received'
+                              : 'Ready to chat'}
                       </span>
                     </span>
-                    <span className="grid justify-items-end gap-1 text-[10px] text-muted">
+                    <span className="grid justify-items-end gap-1 text-[11px] text-muted">
                       <time>
                         {messengerTimeLabel(
                           conversation.lastMessageAt ?? conversation.createdAt,
@@ -214,7 +225,7 @@ export function ConversationSidebar({
                         </span>
                       )}
                     </span>
-                  </div>
+                  </button>
                 </motion.li>
               );
             })}

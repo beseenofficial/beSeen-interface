@@ -31,13 +31,5 @@ export const tokenApi = {
     return (await apiRequest<{ tokens: UserToken[] }>('/v1/users/me/tokens', { auth: true, signal }))
       .tokens;
   },
-  async followerCount(username: string, signal?: AbortSignal): Promise<number> {
-    return (
-      await apiRequest<{ followerCount: number }>(
-        `/v1/users/${encodeURIComponent(username)}/followers/count`,
-        { signal },
-      )
-    ).followerCount;
-  },
 };
 

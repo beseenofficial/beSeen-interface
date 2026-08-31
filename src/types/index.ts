@@ -1,16 +1,44 @@
-export type User = {
+export type UserVerification = {
+  isVerified: boolean;
+  grantedAt: string | null;
+  expiresAt: string | null;
+};
+
+export type BaseUser = {
   id: string;
   username: string;
   avatar: string | null;
+  bio: string | null;
+  verification: UserVerification;
   createdAt: string;
 };
 
-export type PublicUser = User;
+export type PublicUserProfile = BaseUser & {
+  broadcastCount: number;
+  sentMessageCount: number;
+  receivedMessageCount: number;
+  messageCount: number;
+  totalBountyReceivedUsdc: string;
+};
+
+export type CurrentUserProfile = BaseUser & {
+  demoUsdcBalance: string;
+};
+
+export type FollowCounts = {
+  user: { id: string; username: string };
+  followerCount: number;
+  followingCount: number;
+};
+
+export type User = CurrentUserProfile;
+export type PublicUser = PublicUserProfile;
 
 export type DiscoverUser = {
   id: string;
   username: string;
   avatar: string | null;
+  verification: UserVerification;
 };
 
 export type DiscoverUsersResult = {
@@ -159,7 +187,7 @@ export type MessengerConversationContext = {
 };
 
 export type MessengerBountyTerms = {
-  assetCode: string;
+  assetCode: 'USDC';
   amount: string;
   durationSeconds: number;
 };

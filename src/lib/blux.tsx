@@ -20,10 +20,13 @@ import {
   ApiError,
   authApi,
   clearSession,
+  hasAccessToken,
   profileApi,
   restoreSession,
+  SESSION_CLEARED_EVENT,
 } from "@/lib/api";
 import { deriveAndSaveKeys, forgetKeys, loadKeys } from "@/lib/keys";
+import { invalidateAuthenticatedData, subscribeToInvalidation } from '@/lib/data-invalidation';
 import { useActivityHeartbeat } from "@/lib/use-activity-heartbeat";
 import type { AuthConfig, DerivedKeys, User } from "@/types";
 import { useAuthStartup } from "@/providers/auth-startup";
@@ -48,6 +51,7 @@ export type AuthContextValue = {
   logout: () => Promise<void>;
   forgetPrivateKeys: () => Promise<void>;
   setUser: (user: User) => void;
+  refreshUser: () => Promise<User | null>;
   openWalletProfile: () => void;
   fundWallet: () => void;
 };
@@ -171,6 +175,7 @@ export function AuthBridge({
     string | null
   >(null);
   const inFlight = useRef(false);
+  const retriedMissingBalance = useRef(false);
   const activeBluxIdentity = useRef({
     address,
     isAuthenticated: blux.isAuthenticated,
@@ -274,6 +279,7 @@ export function AuthBridge({
         derived = null;
         setUser(authenticated);
         setNeedsRegistration(false);
+        invalidateAuthenticatedData();
       } catch (cause) {
         if (cause instanceof ApiError && cause.code === "ACCOUNT_UNAVAILABLE") {
           setKeysForAddress({ address, keys: readyKeys });
@@ -316,6 +322,35 @@ export function AuthBridge({
       throw cause;
     }
   }, [blux]);
+
+  const refreshUser = useCallback(async (): Promise<User | null> => {
+    if (!hasAccessToken()) return null;
+    const refreshed = await profileApi.me();
+    setUser(refreshed);
+    return refreshed;
+  }, []);
+
+  useEffect(() => {
+    const handleSessionCleared = () => setUser(null);
+    window.addEventListener(SESSION_CLEARED_EVENT, handleSessionCleared);
+    return () => window.removeEventListener(SESSION_CLEARED_EVENT, handleSessionCleared);
+  }, []);
+
+  useEffect(
+    () =>
+      subscribeToInvalidation((detail) => {
+        if (detail.resource === 'current-user' && user) {
+          void refreshUser().catch(() => undefined);
+        }
+      }),
+    [refreshUser, user],
+  );
+
+  useEffect(() => {
+    if (!user || user.demoUsdcBalance !== undefined || retriedMissingBalance.current) return;
+    retriedMissingBalance.current = true;
+    void refreshUser().catch(() => undefined);
+  }, [refreshUser, user]);
 
   useEffect(() => {
     if (
@@ -407,6 +442,7 @@ export function AuthBridge({
       logout,
       forgetPrivateKeys,
       setUser,
+      refreshUser,
       openWalletProfile: () => blux.profile(),
       fundWallet: () => blux.fundMe(),
     }),
@@ -422,6 +458,7 @@ export function AuthBridge({
       completeSignIn,
       logout,
       forgetPrivateKeys,
+      refreshUser,
       blux,
     ],
   );

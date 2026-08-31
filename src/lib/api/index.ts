@@ -24,6 +24,7 @@ export {
   clearSession,
   hasAccessToken,
   parseEnvelope,
+  SESSION_CLEARED_EVENT,
   restoreSession,
   storeSession,
 } from './transport';

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { activityApi, ApiError, hasAccessToken } from "@/lib/api";
+import { activityApi, ApiError, clearSession, hasAccessToken } from "@/lib/api";
 
 export const ACTIVITY_HEARTBEAT_INTERVAL_MS = 60_000;
 export const ACTIVITY_RATE_LIMIT_BACKOFF_MS = 120_000;
@@ -13,6 +13,7 @@ export function useActivityHeartbeat(enabled: boolean): void {
 
   useEffect(() => {
     let active = false;
+    let focused = true;
     let disposed = false;
     let interval: number | null = null;
 
@@ -59,6 +60,7 @@ export function useActivityHeartbeat(enabled: boolean): void {
           } else if (cause instanceof ApiError && cause.status === 401) {
             // The shared transport has already attempted one refresh and one retry.
             unauthorized.current = true;
+            void clearSession();
           }
           // Presence is best-effort; other failures remain intentionally silent.
         })
@@ -74,6 +76,8 @@ export function useActivityHeartbeat(enabled: boolean): void {
         disposed ||
         active ||
         document.visibilityState !== "visible" ||
+        !focused ||
+        navigator.onLine === false ||
         !hasAccessToken()
       ) {
         return;
@@ -89,7 +93,16 @@ export function useActivityHeartbeat(enabled: boolean): void {
     };
     const handlePageHide = () => stopCycle();
     const handlePageShow = () => startCycle();
-    const handleFocus = () => startCycle();
+    const handleFocus = () => {
+      focused = true;
+      startCycle();
+    };
+    const handleBlur = () => {
+      focused = false;
+      stopCycle();
+    };
+    const handleOnline = () => startCycle();
+    const handleOffline = () => stopCycle();
 
     if (!enabled) {
       unauthorized.current = false;
@@ -102,6 +115,9 @@ export function useActivityHeartbeat(enabled: boolean): void {
     window.addEventListener("pagehide", handlePageHide);
     window.addEventListener("pageshow", handlePageShow);
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     startCycle();
 
     return () => {
@@ -111,6 +127,9 @@ export function useActivityHeartbeat(enabled: boolean): void {
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("pageshow", handlePageShow);
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [enabled]);
 }

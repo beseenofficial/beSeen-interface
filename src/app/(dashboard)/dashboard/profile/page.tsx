@@ -1,32 +1,42 @@
 'use client';
 
-import { BadgeCheck, CalendarDays, ExternalLink, MessageCircleMore, RadioTower, Users } from 'lucide-react';
+import { CalendarDays, CircleDollarSign, ExternalLink, MessageCircleMore, RadioTower } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
 import { Avatar } from '@/components/ui/avatar';
 import { LoadingState } from '@/components/ui/states';
-import { tokenApi } from '@/lib/api';
+import { VerificationBadge } from '@/components/ui/verification-badge';
+import { profileApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
+import { formatUsdc } from '@/lib/decimal';
+import type { FollowCounts, PublicUserProfile } from '@/types';
 
 export default function ProfilePage() {
   const auth = useAuth();
   const user = auth.user;
-  const [followerCount, setFollowerCount] = useState(0);
+  const [profile, setProfile] = useState<PublicUserProfile | null>(null);
+  const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    setStatsLoading(true);
+    const [profileResult, countsResult] = await Promise.allSettled([
+      profileApi.public(user.username),
+      profileApi.followCounts(user.username),
+    ]);
+    setProfile(profileResult.status === 'fulfilled' ? profileResult.value : null);
+    setFollowCounts(countsResult.status === 'fulfilled' ? countsResult.value : null);
+    setStatsLoading(false);
+  }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    let active = true;
-    void tokenApi.followerCount(user.username).then((count) => {
-      if (active) setFollowerCount(count);
-    }).catch(() => {
-      if (active) setFollowerCount(0);
-    });
-    return () => { active = false; };
-  }, [user]);
+    void loadProfile();
+  }, [loadProfile]);
 
   if (!user || !auth.keys) {
     return <LoadingState label="Preparing your profile…" />;
@@ -43,7 +53,7 @@ export default function ProfilePage() {
         eyebrow="Your account"
         title="Profile"
         description="Preview and edit the profile people see on BeSeen."
-        action={<OwnProfileEditor onUpdated={() => undefined} />}
+        action={<OwnProfileEditor onUpdated={() => void loadProfile()} />}
       />
 
       <section className="overflow-hidden rounded-3xl border border-border bg-white shadow-elevated">
@@ -68,19 +78,14 @@ export default function ProfilePage() {
 
               <div className="mt-5 flex min-w-0 items-start gap-2">
                 <h3 className="min-w-0 break-all text-[clamp(30px,4vw,43px)] font-semibold tracking-[-0.045em]">@{user.username}</h3>
-                <BadgeCheck className="shrink-0 text-brand" size={23} aria-label="Verified BeSeen profile" />
+                <VerificationBadge verification={user.verification} size={23} />
               </div>
-              <p className="mt-2 text-sm font-semibold text-secondary sm:text-base">Building in public. Creating value.</p>
-              <p className="mt-5 flex flex-wrap items-center gap-2 text-sm font-semibold text-secondary">
-                <Users size={17} aria-hidden="true" />
-                {followerCount} follower{followerCount === 1 ? '' : 's'}
-                <span className="text-muted" aria-hidden="true">·</span>
-                0 following
-              </p>
-              <div className="mt-6 border-t border-border pt-5 text-sm leading-6 text-secondary">
-                <p>Exploring ideas, building products, and sharing the journey.</p>
-                <p>DM if you&apos;re building something interesting.</p>
-              </div>
+              {user.bio?.trim() ? <p className="mt-2 break-words text-sm font-medium text-secondary sm:text-base">{user.bio}</p> : null}
+              <dl className="mt-5 grid grid-cols-3 overflow-hidden rounded-xl border border-border bg-white text-center">
+                <div className="px-2 py-3"><dt className="text-[11px] text-muted">Followers</dt><dd className="mt-1 font-semibold tabular-nums">{statsLoading ? '—' : followCounts?.followerCount.toLocaleString() ?? '—'}</dd></div>
+                <div className="border-x border-border px-2 py-3"><dt className="text-[11px] text-muted">Following</dt><dd className="mt-1 font-semibold tabular-nums">{statsLoading ? '—' : followCounts?.followingCount.toLocaleString() ?? '—'}</dd></div>
+                <div className="px-2 py-3"><dt className="text-[11px] text-muted">Broadcasts</dt><dd className="mt-1 font-semibold tabular-nums">{statsLoading ? '—' : profile?.broadcastCount.toLocaleString() ?? '—'}</dd></div>
+              </dl>
             </div>
 
             <aside className="relative z-10 grid min-w-0 content-end gap-4 border-t border-border/70 bg-white/55 p-4 backdrop-blur-sm min-[380px]:p-5 sm:p-6 lg:border-l lg:border-t-0">
@@ -93,18 +98,22 @@ export default function ProfilePage() {
                     <strong className="text-sm">{joined}</strong>
                   </div>
                 </div>
+                <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+                  <CircleDollarSign className="text-success" size={20} aria-hidden="true" />
+                  <div><span className="block text-xs text-muted">Demo USDC balance</span><strong className="text-sm tabular-nums">{user.demoUsdcBalance === undefined ? 'Loading…' : formatUsdc(user.demoUsdcBalance)}</strong></div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 divide-x divide-border rounded-2xl border border-border bg-white/85 px-3 py-5">
                 <div className="grid justify-items-center gap-1.5 text-center">
                   <MessageCircleMore className="text-brand" size={20} aria-hidden="true" />
-                  <strong>0</strong>
-                  <span className="text-[11px] text-muted">Messages</span>
+                  <strong className="tabular-nums">{statsLoading ? '—' : profile?.messageCount.toLocaleString() ?? '—'}</strong>
+                  <span className="text-[11px] text-muted">Total messages</span>
                 </div>
                 <div className="grid justify-items-center gap-1.5 text-center">
                   <RadioTower className="text-[#20aab8]" size={20} aria-hidden="true" />
-                  <strong>0</strong>
-                  <span className="text-[11px] text-muted">Broadcasts</span>
+                  <strong className="tabular-nums">{statsLoading || profile?.totalBountyReceivedUsdc === undefined ? '—' : formatUsdc(profile.totalBountyReceivedUsdc)}</strong>
+                  <span className="text-[11px] text-muted">Bounty earned</span>
                 </div>
               </div>
             </aside>

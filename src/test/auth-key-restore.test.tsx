@@ -8,6 +8,9 @@ const user: User = {
   id: 'user-id',
   username: 'alice',
   avatar: null,
+  bio: null,
+  verification: { isVerified: false, grantedAt: null, expiresAt: null },
+  demoUsdcBalance: '20',
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 const keys: DerivedKeys = {
@@ -52,6 +55,7 @@ vi.mock('@/lib/api', () => ({
   hasAccessToken: vi.fn(() => false),
   profileApi: { me: mocks.profileMe },
   restoreSession: mocks.restoreSession,
+  SESSION_CLEARED_EVENT: 'beseen:session-cleared',
 }));
 
 vi.mock('@/lib/keys', () => ({

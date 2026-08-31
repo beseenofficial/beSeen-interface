@@ -17,6 +17,7 @@ import {
 import { AVATAR_ALLOWED_TYPES, validateAvatar } from '@/lib/avatar';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
+import { invalidateAuthenticatedData } from '@/lib/data-invalidation';
 import { useToast } from '@/providers/toast-provider';
 
 type Availability = 'idle' | 'checking' | 'available' | 'unavailable';
@@ -157,6 +158,7 @@ export default function OnboardingPage() {
         keys: auth.keys,
       });
       auth.setUser(user);
+      invalidateAuthenticatedData();
       toast(
         'Your BeSeen profile is live',
         `${APP_URL}/u/${user.username} is ready to share.`,

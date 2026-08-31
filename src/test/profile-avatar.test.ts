@@ -11,6 +11,9 @@ const updatedUser: User = {
   id: '507f1f77bcf86cd799439011',
   username: 'updated_user',
   avatar: 'https://images.beseen.fi/avatars/user/updated.webp',
+  bio: null,
+  verification: { isVerified: false, grantedAt: null, expiresAt: null },
+  demoUsdcBalance: '20',
   createdAt: '2026-07-31T00:00:00.000Z',
 };
 
@@ -58,6 +61,16 @@ describe('profile avatar transport', () => {
     expect(formData.get('avatar')).toBe(avatar);
   });
 
+  it('includes bio in the JSON-stringified multipart payload', async () => {
+    const avatar = new File(['image'], 'new-avatar.jpeg', { type: 'image/jpeg' });
+    const { profileApi } = await import('@/lib/api/profiles');
+    await profileApi.update({ bio: 'Building private social tools', avatarFile: avatar });
+    const formData = requestFromFetch().body as FormData;
+    expect(JSON.parse(String(formData.get('payload')))).toEqual({
+      bio: 'Building private social tools',
+    });
+  });
+
   it('supports an avatar-only multipart update without an empty payload field', async () => {
     const avatar = new File(['image'], 'new-avatar.webp', { type: 'image/webp' });
     const { profileApi } = await import('@/lib/api/profiles');
@@ -84,6 +97,24 @@ describe('profile avatar transport', () => {
     const request = requestFromFetch();
     expect(request.body).toBe(JSON.stringify({ username: 'updated_user' }));
     expect(new Headers(request.headers).get('Content-Type')).toBe('application/json');
+  });
+
+  it('clears bio explicitly with JSON null', async () => {
+    const { profileApi } = await import('@/lib/api/profiles');
+    await profileApi.update({ bio: null });
+    expect(requestFromFetch().body).toBe(JSON.stringify({ bio: null }));
+  });
+
+  it('uses the combined follower and following count endpoint', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      status: 'success', message: 'Follow counts retrieved', result: {
+        user: { id: updatedUser.id, username: updatedUser.username },
+        followerCount: 4, followingCount: 2,
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const { profileApi } = await import('@/lib/api/profiles');
+    await expect(profileApi.followCounts('updated_user')).resolves.toMatchObject({ followerCount: 4, followingCount: 2 });
+    expect(vi.mocked(fetch).mock.calls[0][0]).toContain('/v1/users/updated_user/follow-counts');
   });
 
   it('does not send conflicting upload and removal instructions', async () => {
