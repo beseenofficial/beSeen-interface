@@ -10,7 +10,7 @@
   --color-peach: #ffb7a5;
   --color-lilac: #c8beff;
   --color-secondary: #505775;
-  --color-muted: #7c849e;
+  --color-muted: #626b87;
   --color-disabled: #e8eef1;
   --color-subtle: #f7fafb;
   --color-success: #137e58;
@@ -122,6 +122,26 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.discover-hero {
+  isolation: isolate;
+  box-shadow: 0 22px 55px rgb(7 16 49 / 18%);
+}
+
+.discover-rail {
+  scrollbar-color: #aeb9dc transparent;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+
+.discover-rail::-webkit-scrollbar { height: 6px; }
+.discover-rail::-webkit-scrollbar-track { background: transparent; }
+.discover-rail::-webkit-scrollbar-thumb { border-radius: 999px; background: #aeb9dc; }
+
+::selection {
+  background: #1045f5;
+  color: white;
 }
 
 @utility font-message {

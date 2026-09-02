@@ -32,8 +32,8 @@ describe('Discover page', () => {
     mocks.discover
       .mockResolvedValueOnce({
         users: [
-          { id: 'a', username: 'alice', avatar: null, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
-          { id: 'b', username: 'bob', avatar: null, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
+          { id: 'a', username: 'alice', avatar: null, bio: 'Building thoughtful communities.', followerCount: 1_250, followingCount: 24, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
+          { id: 'b', username: 'bob', avatar: null, bio: null, followerCount: 0, followingCount: 0, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
         ],
         nextCursor: 'cursor-2',
         hasMore: true,
@@ -50,8 +50,14 @@ describe('Discover page', () => {
     render(<DiscoverPage />);
     expect(await screen.findByText('@alice')).toBeInTheDocument();
     expect(screen.getByLabelText('Verified account')).toBeInTheDocument();
-    expect(await screen.findByText('alice creates thoughtful broadcasts.')).toBeInTheDocument();
-    expect(screen.getAllByText('25 USDC').length).toBeGreaterThan(0);
+    expect(screen.getByText('Building thoughtful communities.')).toBeInTheDocument();
+    expect(screen.getByText('1.2K Aura')).toBeInTheDocument();
+    expect(screen.getByText('0 Aura')).toBeInTheDocument();
+    expect(screen.queryByText('BeSeen profile')).toBeNull();
+    expect(screen.queryByText('24')).toBeNull();
+    expect(screen.queryByText('25 USDC')).toBeNull();
+    expect(await screen.findByRole('heading', { name: 'Verified' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View alice in Verified' })).toBeInTheDocument();
 
     expect(await screen.findByText('@carol')).toBeInTheDocument();
     expect(screen.getAllByText('@bob')).toHaveLength(1);
@@ -87,7 +93,7 @@ describe('Discover page', () => {
     expect(screen.getByText('@alice')).toBeInTheDocument();
   });
 
-  it('searches loaded profiles and filters verified people', async () => {
+  it('searches loaded profiles without exposing filter controls', async () => {
     mocks.discover.mockResolvedValueOnce({
       users: [
         { id: 'a', username: 'alice', avatar: null, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
@@ -104,8 +110,33 @@ describe('Discover page', () => {
     expect(screen.queryByText('@alice')).toBeNull();
 
     await userEvent.clear(screen.getByRole('searchbox', { name: 'Search people' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Verified' }));
     expect(screen.getByText('@alice')).toBeInTheDocument();
-    expect(screen.queryByText('@bob')).toBeNull();
+    expect(screen.getByText('@bob')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Verified' })).toBeNull();
+  });
+
+  it('continues through paginated results while searching', async () => {
+    mocks.discover
+      .mockResolvedValueOnce({
+        users: [{ id: 'a', username: 'alice', avatar: null }],
+        nextCursor: 'cursor-2',
+        hasMore: true,
+      })
+      .mockResolvedValueOnce({
+        users: [{ id: 'b', username: 'bob', avatar: null }],
+        nextCursor: null,
+        hasMore: false,
+      });
+
+    render(<DiscoverPage />);
+    await screen.findByText('@alice');
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search people' }), 'bob');
+
+    expect(await screen.findByText('@bob')).toBeInTheDocument();
+    expect(mocks.discover).toHaveBeenNthCalledWith(
+      2,
+      { limit: 20, cursor: 'cursor-2' },
+      expect.any(AbortSignal),
+    );
   });
 });

@@ -1,130 +1,21 @@
 "use client";
 
-import { AlertCircle, ArrowRight, BadgeCheck, CircleDollarSign, Radio, Search, UsersRound } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, Search, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Avatar } from "@/components/ui/avatar";
-import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { profileApi, usersApi } from "@/lib/api";
-import { formatUsdc } from '@/lib/decimal';
 import type { DiscoverUser, PublicUserProfile } from "@/types";
+import { appendUniqueUsers } from './append-unique-users';
+import { DiscoverCard } from './discover-card';
+import { DiscoverSkeleton } from './discover-skeleton';
+import { DiscoveryRail } from './discovery-rail';
 
 const DISCOVER_PAGE_SIZE = 20;
 const INITIAL_SKELETON_COUNT = 8;
 const discoverProfileCache = new Map<string, PublicUserProfile>();
 
-function appendUniqueUsers(current: DiscoverUser[], incoming: DiscoverUser[]): DiscoverUser[] {
-  const usersById = new Map(current.map((user) => [user.id, user]));
-  incoming.forEach((user) => usersById.set(user.id, user));
-  return Array.from(usersById.values());
-}
-
-function DiscoverSkeleton() {
-  return (
-    <div
-      className="min-h-[320px] animate-pulse rounded-2xl bg-white p-5"
-      aria-hidden="true"
-    >
-      <div className="flex items-center gap-3">
-        <span className="size-16 rounded-full bg-disabled" />
-        <span className="h-4 w-28 rounded bg-disabled" />
-      </div>
-      <span className="mt-5 block h-3 w-full rounded bg-disabled/70" />
-      <span className="mt-2 block h-3 w-4/5 rounded bg-disabled/70" />
-      <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-4">
-        <span className="h-10 rounded bg-disabled/70" />
-        <span className="h-10 rounded bg-disabled/70" />
-      </div>
-      <span className="mt-5 block h-11 rounded-xl bg-disabled" />
-    </div>
-  );
-}
-
-function DiscoverCard({ user }: { user: DiscoverUser }) {
-  const cardRef = useRef<HTMLAnchorElement>(null);
-  const cachedProfile = discoverProfileCache.get(user.username) ?? null;
-  const [profile, setProfile] = useState<PublicUserProfile | null>(cachedProfile);
-  const [detailsLoading, setDetailsLoading] = useState(!cachedProfile);
-
-  useEffect(() => {
-    const cached = discoverProfileCache.get(user.username);
-    if (cached) return;
-    const card = cardRef.current;
-    if (!card) return;
-    const controller = new AbortController();
-    let requested = false;
-    const loadProfile = () => {
-      if (requested) return;
-      requested = true;
-      void profileApi.public(user.username, controller.signal)
-        .then((result) => {
-          discoverProfileCache.set(user.username, result);
-          setProfile(result);
-        })
-        .catch(() => undefined)
-        .finally(() => setDetailsLoading(false));
-    };
-    if (!('IntersectionObserver' in window)) {
-      loadProfile();
-      return () => controller.abort();
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        observer.disconnect();
-        loadProfile();
-      },
-      { rootMargin: '240px' },
-    );
-    observer.observe(card);
-    return () => {
-      observer.disconnect();
-      controller.abort();
-    };
-  }, [user.username]);
-
-  return (
-    <Link
-      ref={cardRef}
-      className="group flex min-h-[320px] min-w-0 flex-col rounded-2xl bg-white p-5"
-      href={`/u/${encodeURIComponent(user.username)}`}
-      aria-label={`View @${user.username}'s profile`}
-    >
-      <div className="flex min-w-0 items-center gap-3.5">
-        <Avatar className="size-16 shrink-0 text-xl ring-4 ring-ice" username={user.username} src={user.avatar} size="lg" />
-        <div className="min-w-0">
-          <strong className="flex max-w-full items-center gap-1 text-[17px] font-semibold transition-colors group-hover:text-brand">
-            <span className="truncate">@{user.username}</span><VerificationBadge verification={user.verification} size={17} />
-          </strong>
-          <span className="mt-1 block text-xs text-secondary">BeSeen creator</span>
-        </div>
-      </div>
-
-      <p className="mt-5 min-h-10 line-clamp-2 text-sm leading-5 text-secondary">
-        {profile?.bio?.trim() || (detailsLoading ? 'Loading profile details…' : 'Open their profile to learn more about them.')}
-      </p>
-
-      <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4">
-        <div className="min-w-0">
-          <dt className="flex items-center gap-1.5 text-[11px] text-muted"><Radio size={13} aria-hidden="true" /> Broadcasts</dt>
-          <dd className="mt-1 text-sm font-semibold tabular-nums">{detailsLoading ? '—' : (profile?.broadcastCount.toLocaleString() ?? '—')}</dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="flex items-center gap-1.5 text-[11px] text-muted"><CircleDollarSign size={13} aria-hidden="true" /> Earned</dt>
-          <dd className="mt-1 truncate text-sm font-semibold tabular-nums">{detailsLoading || profile?.totalBountyReceivedUsdc === undefined ? '—' : formatUsdc(profile.totalBountyReceivedUsdc)}</dd>
-        </div>
-      </dl>
-
-      <span className="mt-auto flex min-h-11 w-full items-center justify-between rounded-xl bg-info-bg px-4 text-sm font-semibold text-brand transition-colors group-hover:bg-brand group-hover:text-white">
-        View profile <ArrowRight size={16} aria-hidden="true" />
-      </span>
-    </Link>
-  );
-}
-
-export function DiscoverUsers() {
+export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
   const [users, setUsers] = useState<DiscoverUser[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -133,7 +24,7 @@ export function DiscoverUsers() {
   const [paginationLoading, setPaginationLoading] = useState(false);
   const [paginationError, setPaginationError] = useState(false);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'verified'>('all');
+  const [profiles, setProfiles] = useState<Map<string, PublicUserProfile>>(() => new Map(discoverProfileCache));
   const initialRequest = useRef<AbortController | null>(null);
   const paginationRequest = useRef<AbortController | null>(null);
   const paginationPending = useRef(false);
@@ -168,6 +59,20 @@ export function DiscoverUsers() {
       paginationRequest.current?.abort();
     };
   }, [loadInitialUsers]);
+
+  useEffect(() => {
+    const missingUsers = users.filter((user) => !discoverProfileCache.has(user.username));
+    if (missingUsers.length === 0) return;
+    const controller = new AbortController();
+    void Promise.allSettled(
+      missingUsers.map(async (user) => {
+        const profile = await profileApi.public(user.username, controller.signal);
+        discoverProfileCache.set(user.username, profile);
+        setProfiles((current) => new Map(current).set(user.username, profile));
+      }),
+    );
+    return () => controller.abort();
+  }, [users]);
 
   const loadMoreUsers = useCallback(async () => {
     if (!hasMore || !nextCursor || paginationPending.current) return;
@@ -214,68 +119,82 @@ export function DiscoverUsers() {
 
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const visibleUsers = users.filter((user) => {
-    if (filter === 'verified' && !user.verification?.isVerified) return false;
     return !normalizedSearch || user.username.toLocaleLowerCase().includes(normalizedSearch);
   });
+  const verified = users
+    .filter((user) => user.verification?.isVerified)
+    .map((user) => profiles.get(user.username))
+    .filter((profile): profile is PublicUserProfile => profile !== undefined);
+
+  useEffect(() => {
+    if (!normalizedSearch || initialLoading || initialError || visibleUsers.length > 0 || !hasMore || paginationError) return;
+    void loadMoreUsers();
+  }, [hasMore, initialError, initialLoading, loadMoreUsers, normalizedSearch, paginationError, visibleUsers.length]);
 
   return (
     <>
-      <header className="relative mb-5 overflow-hidden rounded-2xl bg-navy px-6 py-7 text-white shadow-[0_14px_36px_rgba(11,11,63,0.11)] max-sm:px-5 max-sm:py-6">
-        <div className="relative z-10 flex items-center justify-between gap-8 max-sm:items-start">
-          <div className="max-w-2xl">
-            <h1 className="max-w-xl text-[clamp(32px,4.2vw,54px)] font-semibold leading-[0.98] tracking-[-0.04em]">
-              Discover people worth reaching
+      <span className="hidden" aria-hidden="true" dangerouslySetInnerHTML={{ __html: '<!-- THESIS: A public identity directory that makes finding a person feel immediate; it refuses the generic dashboard-card grid. OWN-WORLD: deep network navy, electric blue, bright paper, square portraits, signal dots, and compact trust metadata. STORY: search the open network, recognize a person, inspect honest signals, open their profile to begin a conversation. FIRST VIEWPORT: a dark identity field with a dominant search control, concise promise, trust note, and the people directory beginning immediately below. FORM: open network directory, grounded candidate 3, seed 7756175b. FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance -->' }} />
+
+      <header className={`discover-hero relative -mt-9 mb-6 min-h-[420px] overflow-hidden bg-[#071031] text-white max-sm:-mt-6 ${fullBleed ? 'left-1/2 w-[100dvw] -translate-x-1/2' : '-mx-10 max-[1100px]:-mx-5 max-sm:-mx-4'}`}>
+        <img className="absolute inset-0 size-full object-cover" src="/brand/discover-blend.svg" alt="" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,16,49,0.94)_0%,rgba(7,16,49,0.82)_48%,rgba(7,16,49,0.7)_100%)]" aria-hidden="true" />
+        <div className="relative z-10 mx-auto w-full max-w-[1480px] px-10 py-9 max-[1100px]:px-5 max-sm:px-4 max-sm:py-7">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)] lg:items-end">
+          <div>
+            <h1 className="max-w-3xl text-[clamp(40px,6vw,76px)] font-semibold leading-[0.92] tracking-[-0.04em]">
+              Find the person.<br /><span className="text-aqua">Start the conversation.</span>
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-white/75">
-              Explore what people create, the conversations they inspire, and the rewards they have earned.
+            <p className="mt-5 max-w-2xl text-[15px] leading-6 text-[#cbd3ef]">
+              BeSeen is an open network of public identities. Search anyone by username, check their signals, and reach the right profile.
             </p>
           </div>
-          <div className="grid size-24 shrink-0 place-items-center rounded-2xl bg-lime text-navy shadow-[0_10px_24px_rgba(0,0,0,0.12)] max-sm:size-16 max-sm:rounded-xl">
-            <UsersRound size={42} strokeWidth={1.8} aria-hidden="true" className="max-sm:size-8" />
+          <div className="rounded-2xl bg-[#071031]/85 p-4 ring-1 ring-white/20">
+            <span className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="text-lime" size={18} aria-hidden="true" /> Open to everyone</span>
+            <p className="mt-2 text-xs leading-5 text-[#aeb9dc]">Browse without signing in. Your next step stays clear and under your control.</p>
           </div>
         </div>
-      </header>
 
-      {!initialLoading && !initialError && users.length > 0 && (
-        <div className="mb-5 flex min-w-0 items-center gap-3 rounded-2xl bg-white p-2.5 shadow-[0_6px_18px_rgba(11,11,63,0.045)] max-sm:flex-col max-sm:items-stretch">
-          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl bg-subtle px-3.5 text-secondary transition focus-within:bg-white focus-within:ring-2 focus-within:ring-brand/20">
+        <div className="mt-8 rounded-2xl bg-white p-2">
+          <label className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 text-secondary transition focus-within:bg-[#f5f7ff]">
             <Search size={17} aria-hidden="true" />
             <span className="sr-only">Search people</span>
             <input
-              className="min-w-0 flex-1 border-0 bg-transparent text-sm text-navy outline-none placeholder:text-muted"
+              className="min-w-0 flex-1 border-0 bg-transparent text-base text-navy caret-brand outline-none placeholder:text-muted"
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by username"
+              placeholder="Search a username"
               type="search"
               value={search}
+              disabled={initialLoading || initialError}
             />
           </label>
-          <div className="flex shrink-0 items-center gap-1 rounded-xl bg-subtle p-1" aria-label="Discover filters">
-            <button
-              className={`min-h-10 flex-1 rounded-lg px-3 text-xs font-semibold transition ${filter === 'all' ? 'bg-white text-brand shadow-[0_2px_7px_rgba(11,11,63,0.06)]' : 'text-secondary hover:text-navy'}`}
-              onClick={() => setFilter('all')}
-              type="button"
-              aria-pressed={filter === 'all'}
-            >
-              All
-            </button>
-            <button
-              className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition ${filter === 'verified' ? 'bg-white text-brand shadow-[0_2px_7px_rgba(11,11,63,0.06)]' : 'text-secondary hover:text-navy'}`}
-              onClick={() => setFilter('verified')}
-              type="button"
-              aria-pressed={filter === 'verified'}
-            >
-              <BadgeCheck size={15} aria-hidden="true" /> Verified
-            </button>
+        </div>
+        </div>
+      </header>
+
+      {!initialLoading && !initialError && !normalizedSearch && users.length > 0 && (
+        <div className="mb-9">
+          <DiscoveryRail
+            title="Verified"
+            description="Profiles with a verified BeSeen identity."
+            people={verified}
+            detail={() => 'Verified identity'}
+          />
+        </div>
+      )}
+
+      {!initialLoading && !initialError && users.length > 0 && (
+        <div className="mb-4 flex items-end justify-between gap-4 px-1">
+          <div>
+            <h2 className="text-2xl font-semibold">People on BeSeen</h2>
+            <p className="mt-1 text-sm text-secondary">Public profiles across the open network.</p>
           </div>
-          <span className="shrink-0 px-2 text-xs font-semibold tabular-nums text-secondary" aria-live="polite">
-            {visibleUsers.length} shown
-          </span>
+          <span className="hidden text-xs font-semibold text-secondary sm:block">Select a person to view their profile</span>
         </div>
       )}
 
       {initialLoading ? (
         <div
-          className="grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+          className="grid grid-cols-1 gap-4 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3"
           aria-label="Loading people"
           role="status"
         >
@@ -302,6 +221,23 @@ export function DiscoverUsers() {
             message="New BeSeen profiles will appear here as they become available."
           />
         </section>
+      ) : visibleUsers.length === 0 && paginationLoading ? (
+        <section className="grid min-h-64 place-items-center rounded-2xl bg-white p-8 text-center" role="status">
+          <div>
+            <Search className="mx-auto animate-pulse text-brand" size={28} aria-hidden="true" />
+            <h2 className="mt-4 text-xl font-semibold">Searching the network…</h2>
+            <p className="mt-2 text-sm text-secondary">Looking beyond the people already loaded.</p>
+          </div>
+        </section>
+      ) : visibleUsers.length === 0 && paginationError ? (
+        <section className="grid min-h-64 place-items-center rounded-2xl bg-white p-8 text-center" role="alert">
+          <div>
+            <AlertCircle className="mx-auto text-error" size={28} aria-hidden="true" />
+            <h2 className="mt-4 text-xl font-semibold">Search stopped early</h2>
+            <p className="mt-2 text-sm text-secondary">We couldn&apos;t check everyone on the network.</p>
+            <Button className="mt-5" onClick={() => void loadMoreUsers()}>Continue search</Button>
+          </div>
+        </section>
       ) : visibleUsers.length === 0 ? (
         <section className="grid min-h-64 place-items-center rounded-2xl bg-white p-8 text-center">
           <div>
@@ -312,7 +248,6 @@ export function DiscoverUsers() {
               className="mt-5 min-h-11 rounded-xl bg-info-bg px-4 text-sm font-semibold text-brand transition hover:bg-brand hover:text-white"
               onClick={() => {
                 setSearch('');
-                setFilter('all');
               }}
               type="button"
             >
@@ -323,7 +258,7 @@ export function DiscoverUsers() {
       ) : (
         <>
           <section
-            className="grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+            className="discover-grid grid grid-cols-1 gap-4 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3"
             aria-label="People on BeSeen"
           >
             {visibleUsers.map((user) => <DiscoverCard key={user.id} user={user} />)}

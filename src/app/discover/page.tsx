@@ -18,11 +18,11 @@ export const metadata: Metadata = {
 
 export default function PublicDiscoverPage() {
   return (
-    <div className="min-h-svh bg-ice">
+    <div className="min-h-svh overflow-x-clip bg-white">
       <PublicDiscoverHeader />
       <main>
         <DashboardPage className="mx-auto max-w-[1480px]">
-          <DiscoverUsers />
+          <DiscoverUsers fullBleed />
         </DashboardPage>
       </main>
     </div>
