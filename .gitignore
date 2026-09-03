@@ -66,3 +66,4 @@ yarn-error.log*
 .pnpm-store/v11/index.db-wal
 .pnpm-store/v11/index.db
 design-qa.md
+.impeccable

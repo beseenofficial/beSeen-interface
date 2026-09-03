@@ -156,8 +156,8 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
 
   return (
     <>
-      <button className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-3 rounded-xl border border-border bg-white px-7 text-[16px] font-semibold transition hover:-translate-y-px hover:bg-subtle" type="button" onClick={startEditing}>
-        <Pencil size={19} aria-hidden="true" /> Edit profile
+      <button className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent bg-transparent px-5 text-[15px] font-medium tracking-[-0.01em] text-secondary transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:border-hairline/70 hover:bg-white/80 hover:text-navy" type="button" onClick={startEditing}>
+        <Pencil size={18} strokeWidth={1.8} aria-hidden="true" /> Edit profile
       </button>
 
       <EditProfileModal

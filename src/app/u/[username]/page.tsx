@@ -1,31 +1,127 @@
 'use client';
 
 import {
-  CalendarDays,
   Check,
-  CircleDollarSign,
-  LayoutDashboard,
+  LayoutGrid,
   LogIn,
-  MessageCircleMore,
   RadioTower,
   Send,
   Share2,
   UserRound,
 } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Avatar } from '@/components/ui/avatar';
+import { useAvatarPalette } from '@/components/discover/use-avatar-palette';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
 import { ErrorState, SecureLoadingScreen } from '@/components/ui/states';
 import { ApiError, messengerApi, profileApi, tokenApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
-import { invalidateData, subscribeToInvalidation } from '@/lib/data-invalidation';
-import { formatUsdc } from '@/lib/decimal';
+import {
+  invalidateData,
+  subscribeToInvalidation,
+} from '@/lib/data-invalidation';
+import { cn } from '@/lib/utils';
 import type { FollowCounts, PublicUser } from '@/types';
+
+const ACTION_BASE =
+  'inline-flex items-center justify-center gap-2 rounded-full text-[15px] font-semibold tracking-[-0.01em] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:not-disabled:-translate-y-px active:not-disabled:translate-y-0';
+const PRIMARY_ACTION = `${ACTION_BASE} group min-h-12 bg-[#22252a] px-6 text-white shadow-[0_1px_2px_rgb(11_11_63/16%),0_12px_26px_-12px_rgb(11_11_63/38%)] hover:bg-brand hover:shadow-[0_2px_3px_rgb(16_69_245/18%),0_14px_28px_-12px_rgb(16_69_245/48%)]`;
+const SECONDARY_ACTION = `${ACTION_BASE} min-h-11 border border-transparent bg-transparent px-4 font-medium text-secondary hover:border-hairline/70 hover:bg-white/80 hover:text-navy`;
+const HEADER_ACTION = `${ACTION_BASE} min-h-10 border border-transparent bg-transparent px-3.5 text-secondary hover:border-hairline hover:bg-white hover:text-navy max-sm:px-3`;
+
+function ValueSkeleton({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-block animate-pulse rounded bg-[#eef3f6]',
+        className,
+      )}
+      aria-hidden="true"
+    />
+  );
+}
+
+function InlineStat({
+  label,
+  value,
+  loading,
+}: {
+  label: string;
+  value: number | undefined;
+  loading: boolean;
+}) {
+  return (
+    <span className="flex items-baseline gap-1.5">
+      {loading ? (
+        <ValueSkeleton className="h-4 w-7 translate-y-[-1px]" />
+      ) : (
+        <strong className="font-semibold tabular-nums text-navy">
+          {value === undefined ? '—' : value.toLocaleString()}
+        </strong>
+      )}
+      <span className="text-secondary">{label}</span>
+    </span>
+  );
+}
+
+function SignalMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'public-profile-signal-mark inline-block shrink-0 bg-brand',
+        className,
+      )}
+      aria-hidden="true"
+    />
+  );
+}
+
+function ActivityRegisterRow({
+  label,
+  value,
+  unit,
+  isEmpty = false,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  isEmpty?: boolean;
+}) {
+  return (
+    <div className="grid min-h-10 min-w-0 grid-cols-[10px_minmax(0,1fr)_auto] items-baseline gap-x-3 py-1.5">
+      <span
+        className="mt-[9px] block h-px w-2 bg-[#b9c9d6]"
+        aria-hidden="true"
+      />
+      <span className="text-[13px] font-medium leading-5 text-secondary">
+        {label}
+      </span>
+      <strong
+        className={cn(
+          'text-right text-[14px] leading-5 tabular-nums tracking-[-0.01em]',
+          isEmpty ? 'font-normal text-muted/75' : 'font-semibold text-navy',
+        )}
+      >
+        {isEmpty ? (
+          'None yet'
+        ) : (
+          <>
+            {value}
+            {unit ? (
+              <span className="ml-1 text-[10px] font-medium text-muted">
+                {unit}
+              </span>
+            ) : null}
+          </>
+        )}
+      </strong>
+    </div>
+  );
+}
 
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
@@ -41,7 +137,12 @@ export default function PublicProfilePage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [countsError, setCountsError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const formatCount = (value: number | undefined) => value === undefined ? '—' : value.toLocaleString();
+  const formatCount = (value: number | undefined) =>
+    value === undefined ? '—' : value.toLocaleString();
+  const [bannerPrimary, bannerSecondary] = useAvatarPalette(
+    profile?.avatar ?? null,
+    profile?.id || profile?.username || username,
+  );
 
   const loadProfile = useCallback(async () => {
     setProfileLoading(true);
@@ -59,11 +160,12 @@ export default function PublicProfilePage() {
     } catch (cause) {
       setProfile(null);
       setProfileError(
-        cause instanceof ApiError && (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
+        cause instanceof ApiError &&
+          (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
           ? 'This BeSeen profile does not exist.'
           : cause instanceof Error
-          ? cause.message
-          : 'This BeSeen profile could not be loaded.',
+            ? cause.message
+            : 'This BeSeen profile could not be loaded.',
       );
     } finally {
       setProfileLoading(false);
@@ -78,7 +180,8 @@ export default function PublicProfilePage() {
     } catch (cause) {
       setFollowCounts(null);
       setCountsError(
-        cause instanceof ApiError && (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
+        cause instanceof ApiError &&
+          (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
           ? 'Follow counts are unavailable because this user was not found.'
           : 'Follow counts could not be loaded.',
       );
@@ -117,10 +220,14 @@ export default function PublicProfilePage() {
       .mine()
       .then(async (holdings) => {
         if (active) {
-          const ownsToken = holdings.some((token) => token.owner.id === profile.id);
+          const ownsToken = holdings.some(
+            (token) => token.owner.id === profile.id,
+          );
           setFollowing(ownsToken);
           if (ownsToken) {
-            const conversation = await messengerApi.findConversationWithUser(profile.id);
+            const conversation = await messengerApi.findConversationWithUser(
+              profile.id,
+            );
             if (active) setConversationId(conversation?.id ?? null);
           }
         }
@@ -195,6 +302,7 @@ export default function PublicProfilePage() {
   if (!profile) return null;
 
   const ownProfile = auth.user?.id === profile.id;
+  const bannerGradient = `linear-gradient(135deg, ${bannerPrimary}, ${bannerSecondary})`;
   const joined = new Intl.DateTimeFormat('en', {
     month: 'long',
     year: 'numeric',
@@ -204,223 +312,255 @@ export default function PublicProfilePage() {
   const siteCta = !auth.user
     ? { href: '/login', label: 'Join BeSeen', icon: LogIn }
     : ownProfile
-      ? { href: '/dashboard', label: 'Go to dashboard', icon: LayoutDashboard }
-      : { href: `/u/${auth.user.username}`, label: 'My profile', icon: UserRound };
+      ? { href: '/dashboard', label: 'Go to dashboard', icon: LayoutGrid }
+      : {
+          href: `/u/${auth.user.username}`,
+          label: 'My profile',
+          icon: UserRound,
+        };
   const SiteCtaIcon = siteCta.icon;
   const messengerHref = conversationId
     ? `/dashboard/messenger?conversation=${encodeURIComponent(conversationId)}`
     : '/dashboard/messenger';
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-[#f6fafc] px-4 py-5 text-navy sm:px-7 lg:px-[clamp(42px,6.5vw,112px)] lg:py-[clamp(18px,3vh,36px)]">
-      <Image
-        className="pointer-events-none absolute -bottom-28 -left-28 w-[360px] select-none opacity-10 max-md:hidden"
-        src="/brand/beseen-brand-rays.svg"
-        width={460}
-        height={310}
-        alt=""
-      />
-
-      <div className="relative mx-auto flex min-h-[calc(100svh-40px)] w-full max-w-[1480px] flex-col lg:min-h-[calc(100svh-clamp(36px,6vh,72px))]">
-        <header className="flex min-h-14 shrink-0 items-center justify-between gap-4">
+    <main className="relative min-h-svh overflow-x-hidden bg-[#f3f7fa] px-4 py-5 text-navy sm:px-7 sm:py-6 lg:px-[clamp(32px,5vw,80px)]">
+      <div className="relative mx-auto flex w-full max-w-[1000px] flex-col">
+        <header className="flex min-h-11 shrink-0 items-center justify-between gap-4 px-1 sm:px-2">
           <Link
             href={auth.user ? '/dashboard' : '/login'}
             aria-label="Go to BeSeen"
           >
             <BrandLogo className="w-[146px] max-sm:w-[128px]" />
           </Link>
-          <div className="flex items-center gap-2.5">
-            <Link
-              className="inline-flex min-h-12 items-center justify-center gap-2.5 rounded-full bg-brand px-5 text-[14px] font-semibold text-white shadow-[0_8px_22px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6] max-sm:px-4"
-              href={siteCta.href}
-            >
-              <SiteCtaIcon size={18} aria-hidden="true" />
-              <span className="max-[430px]:hidden">{siteCta.label}</span>
-            </Link>
+          <div className="flex items-center gap-2">
             <button
-              className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-3 rounded-full border border-border bg-white px-5 text-[15px] font-semibold shadow-[0_7px_22px_rgb(11_11_63/5%)] transition hover:-translate-y-px hover:border-[#becfd6] max-sm:px-4"
+              className={`${HEADER_ACTION} cursor-pointer`}
               onClick={() => void shareProfile(profileUrl)}
               type="button"
               aria-label={copied ? 'Profile link copied' : 'Share profile'}
             >
               {copied ? (
-                <Check size={20} aria-hidden="true" />
+                <Check size={18} aria-hidden="true" />
               ) : (
-                <Share2 size={20} aria-hidden="true" />
+                <Share2 size={18} aria-hidden="true" />
               )}
-              <span className="max-sm:hidden">{copied ? 'Copied' : 'Share'}</span>
+              <span className="max-sm:hidden">
+                {copied ? 'Copied' : 'Share'}
+              </span>
             </button>
+            {/* The label is hidden on the narrowest screens, so the link carries its own name. */}
+            <Link
+              className={HEADER_ACTION}
+              href={siteCta.href}
+              aria-label={siteCta.label}
+            >
+              <SiteCtaIcon size={18} aria-hidden="true" />
+              <span className="max-[430px]:hidden">{siteCta.label}</span>
+            </Link>
           </div>
         </header>
 
-        <section className="public-profile-card relative mt-7 grid min-w-0 overflow-hidden rounded-[28px] border border-white bg-white/90 shadow-[0_22px_65px_rgb(25_58_87/10%)] backdrop-blur-sm min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] min-[1000px]:gap-[clamp(24px,3vw,64px)] min-[1000px]:px-[clamp(28px,3.5vw,68px)] min-[1000px]:py-[clamp(30px,5vh,62px)] max-[999px]:gap-10 max-[999px]:px-7 max-[999px]:py-9 max-sm:mt-5 max-sm:gap-8 max-sm:rounded-[22px] max-sm:px-5 max-sm:py-7">
-          <Image
-            className="pointer-events-none absolute -top-[278px] left-[24%] w-[640px] max-w-none select-none opacity-75 max-[999px]:-top-[330px] max-[999px]:left-[8%] max-sm:-top-[350px] max-sm:-left-24"
-            src="/brand/beseen-aura-ripple-signature.svg"
-            width={640}
-            height={640}
-            priority
-            alt=""
-          />
-
-          <div className="public-profile-main relative z-10 flex min-w-0 flex-col justify-end pb-1 min-[1000px]:pt-2 max-[999px]:pt-12 max-sm:pt-16">
-            <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full border-4 border-white bg-white leading-none shadow-[0_13px_30px_rgb(11_11_63/12%)]">
-              <Avatar
-                username={profile.username}
+        <section className="public-profile-card relative mt-4 min-w-0 rounded-[24px] border border-[#d9e1f0] bg-white p-3 shadow-[0_14px_40px_-6px_rgba(35,58,115,0.10)] sm:p-4">
+          {/* Hero band generated from the profile photo itself: blurred into atmosphere over the extracted palette, inset like the Aura card's cover. */}
+          <div
+            className="public-profile-banner relative h-[clamp(128px,14vw,152px)] overflow-hidden rounded-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,63,0.05)] sm:rounded-[16px]"
+            style={{ backgroundImage: bannerGradient }}
+            aria-hidden="true"
+          >
+            {profile.avatar ? (
+              <img
+                className="size-full scale-125 object-cover opacity-75 blur-2xl saturate-150"
                 src={profile.avatar}
-                size="xxl"
-                className="public-profile-avatar size-[158px] text-[45px] max-sm:size-[118px] max-sm:text-[36px]"
+                alt=""
               />
-            </span>
-
-            <div className="public-profile-name mt-7 flex min-w-0 flex-wrap items-center gap-3">
-              <h1 className="min-w-0 break-all text-[clamp(38px,4.7vw,61px)] font-semibold tracking-[-0.05em]">
-                @{profile.username}
-              </h1>
-              <VerificationBadge verification={profile.verification} size={28} />
-            </div>
-
-            {profile.bio?.trim() ? (
-              <p className="public-profile-tagline mt-3 max-w-[65ch] break-words text-[18px] font-medium text-secondary max-sm:text-base">
-                {profile.bio}
-              </p>
             ) : null}
-
-            <dl className="public-profile-followers mt-7 grid max-w-155 grid-cols-3 overflow-hidden rounded-2xl border border-border bg-white/75 text-center">
-              <div className="min-w-0 px-3 py-4">
-                <dt className="text-xs text-muted">Followers</dt>
-                <dd className="mt-1 text-xl font-semibold tabular-nums">{countsLoading ? '—' : followCounts?.followerCount.toLocaleString() ?? '—'}</dd>
-              </div>
-              <div className="min-w-0 border-x border-border px-3 py-4">
-                <dt className="text-xs text-muted">Following</dt>
-                <dd className="mt-1 text-xl font-semibold tabular-nums">{countsLoading ? '—' : followCounts?.followingCount.toLocaleString() ?? '—'}</dd>
-              </div>
-              <div className="min-w-0 px-3 py-4">
-                <dt className="text-xs text-muted">Broadcasts</dt>
-                <dd className="mt-1 text-xl font-semibold tabular-nums">{formatCount(profile.broadcastCount)}</dd>
-              </div>
-            </dl>
-
-            {countsError && (
-              <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-error" role="alert">
-                {countsError}
-                <button className="font-semibold underline underline-offset-3" onClick={() => void loadFollowCounts()} type="button">Retry</button>
-              </p>
-            )}
-
-            {actionError && (
-              <p className="mt-4 text-sm text-error" role="alert">
-                {actionError}
-              </p>
-            )}
-
-            <div className="public-profile-actions mt-8 flex flex-wrap gap-5 max-sm:grid max-sm:grid-cols-1">
-              {!auth.user ? (
-                <Link
-                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
-                  href="/login"
-                >
-                  <Send size={20} aria-hidden="true" /> Sign in to message
-                </Link>
-              ) : ownProfile ? (
-                <Link
-                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
-                  href="/dashboard/messenger"
-                >
-                  <Send size={20} aria-hidden="true" /> Open Messenger
-                </Link>
-              ) : following ? (
-                <Link
-                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6]"
-                  href={messengerHref}
-                >
-                  <Send size={20} aria-hidden="true" /> Open conversation
-                </Link>
-              ) : (
-                <button
-                  className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-3 rounded-xl border-0 bg-brand px-7 text-[16px] font-semibold text-white shadow-[0_10px_24px_rgb(16_69_245/18%)] transition hover:-translate-y-px hover:bg-[#0c3bd6] disabled:cursor-wait disabled:opacity-65"
-                  disabled={followingBusy}
-                  onClick={() => void follow()}
-                  type="button"
-                >
-                  <Send size={20} aria-hidden="true" />
-                  {followingBusy ? 'Preparing conversation…' : 'Purchase token to message'}
-                </button>
-              )}
-
-              {!ownProfile && auth.user ? (
-                <button
-                  className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-3 rounded-xl border border-border bg-white px-7 text-[16px] font-semibold transition hover:-translate-y-px hover:border-[#b7cbd3] hover:bg-subtle disabled:cursor-default disabled:opacity-65 disabled:hover:translate-y-0"
-                  disabled={following || followingBusy}
-                  onClick={() => void follow()}
-                  type="button"
-                >
-                  <RadioTower size={20} aria-hidden="true" />
-                  {followingBusy ? 'Subscribing…' : followingLabel}
-                </button>
-              ) : ownProfile ? (
-                <OwnProfileEditor onUpdated={() => void loadProfile()} />
-              ) : (
-                <Link
-                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-border bg-white px-7 text-[16px] font-semibold transition hover:-translate-y-px hover:bg-subtle"
-                  href="/login"
-                >
-                  <RadioTower size={20} aria-hidden="true" /> Subscribe to
-                  broadcasts
-                </Link>
-              )}
-            </div>
+            <span className="absolute inset-0 bg-white/15" />
+            <span className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.12),transparent_45%,rgba(11,11,63,0.10))]" />
+            <SignalMark className="absolute right-5 top-5 bg-white/90 drop-shadow-sm" />
           </div>
 
-          <aside className="public-profile-aside relative z-10 flex min-h-0 flex-col justify-end gap-6">
-            <section className="public-profile-details rounded-[20px] border border-border/90 bg-white/76 p-8 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md max-sm:p-5">
-              <h2 className="text-xl font-semibold">Profile details</h2>
-              <dl className="mt-5">
-                <div className="grid grid-cols-[34px_minmax(0,1fr)] items-center gap-3 pt-2">
-                  <CalendarDays
-                    className="text-secondary"
-                    size={23}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <dt className="text-sm text-muted">Joined</dt>
-                    <dd className="text-sm font-semibold">{joined}</dd>
+          <div className="relative grid min-w-0 px-2 pb-6 pt-0 sm:px-6 sm:pb-7 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-8 xl:px-11 xl:pb-7">
+            <div className="public-profile-main relative z-10 min-w-0">
+              <div className="public-profile-identity relative min-w-0">
+                <div className="relative z-10 -mt-13 w-fit sm:-mt-15 xl:-mt-17">
+                  <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full bg-white p-1.5 leading-none shadow-[0_2px_3px_rgb(11_11_63/8%),0_24px_55px_-18px_rgb(35_58_115/30%)]">
+                    <Avatar
+                      username={profile.username}
+                      src={profile.avatar}
+                      size="xxl"
+                      className="public-profile-avatar size-28 text-[34px] sm:size-30 sm:text-[36px] xl:size-34 xl:text-[40px]"
+                    />
+                  </span>
+                  {profile.verification?.isVerified ? (
+                    <span className="absolute bottom-0 right-0 grid size-10 place-items-center rounded-full bg-white shadow-raised max-sm:size-8">
+                      <VerificationBadge
+                        verification={profile.verification}
+                        size={22}
+                        className="max-sm:size-4.5"
+                      />
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 min-w-0">
+                  <h1 className="public-profile-name min-w-0 text-[clamp(40px,5vw,60px)] font-semibold leading-[0.96] tracking-[-0.035em] [overflow-wrap:anywhere]">
+                    @{profile.username}
+                  </h1>
+
+                  {profile.bio?.trim() ? (
+                    <p className="public-profile-tagline mt-3 max-w-[38ch] break-words text-[18px] leading-[1.5] text-secondary">
+                      {profile.bio}
+                    </p>
+                  ) : null}
+
+                  <p className="public-profile-followers mt-3.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] font-medium leading-6 text-secondary">
+                    <InlineStat
+                      label="Followers"
+                      value={followCounts?.followerCount}
+                      loading={countsLoading}
+                    />
+                    <span aria-hidden="true" className="text-[#a3b1c6]">
+                      ·
+                    </span>
+                    <InlineStat
+                      label="Following"
+                      value={followCounts?.followingCount}
+                      loading={countsLoading}
+                    />
+                  </p>
+
+                  {countsError && (
+                    <p
+                      className="mt-3 flex flex-wrap items-center gap-2 text-sm text-error"
+                      role="alert"
+                    >
+                      {countsError}
+                      <button
+                        className="font-semibold underline underline-offset-3"
+                        onClick={() => void loadFollowCounts()}
+                        type="button"
+                      >
+                        Retry
+                      </button>
+                    </p>
+                  )}
+
+                  {actionError && (
+                    <p className="mt-4 text-sm text-error" role="alert">
+                      {actionError}
+                    </p>
+                  )}
+
+                  <div className="public-profile-actions mt-5 flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-1">
+                    {!auth.user ? (
+                      <Link className={PRIMARY_ACTION} href="/login">
+                        <Send
+                          className="text-aqua transition-colors group-hover:text-white"
+                          size={18}
+                          strokeWidth={1.9}
+                          aria-hidden="true"
+                        />{' '}
+                        Sign in to message
+                      </Link>
+                    ) : ownProfile ? (
+                      <Link
+                        className={PRIMARY_ACTION}
+                        href="/dashboard/messenger"
+                      >
+                        <Send
+                          className="text-aqua transition-colors group-hover:text-white"
+                          size={18}
+                          strokeWidth={1.9}
+                          aria-hidden="true"
+                        />{' '}
+                        Send message
+                      </Link>
+                    ) : following ? (
+                      <Link className={PRIMARY_ACTION} href={messengerHref}>
+                        <Send
+                          className="text-aqua transition-colors group-hover:text-white"
+                          size={18}
+                          strokeWidth={1.9}
+                          aria-hidden="true"
+                        />{' '}
+                        Open conversation
+                      </Link>
+                    ) : (
+                      <button
+                        className={`${PRIMARY_ACTION} cursor-pointer disabled:cursor-wait disabled:opacity-65`}
+                        disabled={followingBusy}
+                        onClick={() => void follow()}
+                        type="button"
+                      >
+                        <Send
+                          className="text-aqua transition-colors group-hover:text-white"
+                          size={18}
+                          strokeWidth={1.9}
+                          aria-hidden="true"
+                        />
+                        {followingBusy
+                          ? 'Preparing conversation…'
+                          : 'Purchase token to message'}
+                      </button>
+                    )}
+
+                    {!ownProfile && auth.user ? (
+                      <button
+                        className={`${SECONDARY_ACTION} cursor-pointer disabled:cursor-default disabled:opacity-65`}
+                        disabled={following || followingBusy}
+                        onClick={() => void follow()}
+                        type="button"
+                      >
+                        <RadioTower
+                          size={18}
+                          strokeWidth={1.8}
+                          aria-hidden="true"
+                        />
+                        {followingBusy ? 'Subscribing…' : followingLabel}
+                      </button>
+                    ) : ownProfile ? (
+                      <OwnProfileEditor onUpdated={() => void loadProfile()} />
+                    ) : null}
                   </div>
                 </div>
-              </dl>
-            </section>
+              </div>
+            </div>
 
-            <section className="public-profile-stats grid grid-cols-2 rounded-[20px] border border-border/90 bg-white/76 p-2 shadow-[0_10px_28px_rgb(21_47_68/3%)] backdrop-blur-md">
-              <div className="grid justify-items-center gap-2 px-3 text-center">
-                <span className="grid size-10 place-items-center rounded-full bg-info-bg text-brand">
-                  <MessageCircleMore size={20} aria-hidden="true" />
-                </span>
-                <strong className="text-xl tabular-nums">{formatCount(profile.messageCount)}</strong>
-                <span className="text-xs text-muted">Total messages</span>
-              </div>
-              <div className="grid justify-items-center gap-2 px-3 text-center">
-                <span className="grid size-10 place-items-center rounded-full bg-info-bg text-brand">
-                  <Send size={20} aria-hidden="true" />
-                </span>
-                <strong className="text-xl tabular-nums">{formatCount(profile.sentMessageCount)}</strong>
-                <span className="text-xs text-muted">Sent messages</span>
-              </div>
-              <div className="mt-2 grid justify-items-center gap-2 border-t border-border px-3 pt-4 text-center">
-                <span className="grid size-10 place-items-center rounded-full bg-aqua/20 text-[#168d99]">
-                  <MessageCircleMore size={20} aria-hidden="true" />
-                </span>
-                <strong className="text-xl tabular-nums">{formatCount(profile.receivedMessageCount)}</strong>
-                <span className="text-xs text-muted">Received messages</span>
-              </div>
-              <div className="mt-2 grid justify-items-center gap-2 border-t border-border px-3 pt-4 text-center">
-                <span className="grid size-10 place-items-center rounded-full bg-success-bg text-success">
-                  <CircleDollarSign size={20} aria-hidden="true" />
-                </span>
-                <strong className="max-w-full break-words text-base tabular-nums">{profile.totalBountyReceivedUsdc === undefined ? '—' : formatUsdc(profile.totalBountyReceivedUsdc)}</strong>
-                <span className="text-xs text-muted">Bounty earned</span>
-              </div>
-            </section>
-          </aside>
+            <aside className="public-profile-aside relative z-10 mt-7 min-w-0 border-t border-hairline/45 px-2 pb-1 pt-6 sm:max-w-[520px] sm:px-0 xl:mt-0 xl:flex xl:max-w-none xl:flex-col xl:justify-start xl:border-t-0 xl:px-0 xl:pb-0 xl:pt-21">
+              <section className="public-profile-stats min-w-0">
+                <div>
+                  <h2 className="text-[18px] font-semibold tracking-[-0.02em]">
+                    Activity
+                  </h2>
+                </div>
+
+                <div className="mt-3">
+                  <ActivityRegisterRow
+                    label="Total messages"
+                    value={formatCount(profile.messageCount)}
+                    isEmpty={profile.messageCount === 0}
+                  />
+                  <ActivityRegisterRow
+                    label="Broadcasts"
+                    value={formatCount(profile.broadcastCount)}
+                    isEmpty={profile.broadcastCount === 0}
+                  />
+                  <ActivityRegisterRow
+                    label="Bounty earned"
+                    value={profile.totalBountyReceivedUsdc ?? '—'}
+                    unit={
+                      profile.totalBountyReceivedUsdc !== undefined
+                        ? 'USDC'
+                        : undefined
+                    }
+                    isEmpty={Number(profile.totalBountyReceivedUsdc) === 0}
+                  />
+                  <ActivityRegisterRow label="Joined" value={joined} />
+                </div>
+              </section>
+            </aside>
+          </div>
         </section>
       </div>
     </main>

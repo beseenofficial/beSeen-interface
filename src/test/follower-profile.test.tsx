@@ -43,7 +43,7 @@ describe('public profile social counts and statistics', () => {
     mocks.mine.mockResolvedValue([]);
   });
 
-  it('renders follower, following, profile stats, bio, verification, and lifetime bounty data', async () => {
+  it('renders the essential public profile stats without message-direction detail', async () => {
     render(<PublicProfilePage />);
     expect(await screen.findByText('Building private social tools')).toBeInTheDocument();
     expect(screen.getByLabelText('Verified account')).toBeInTheDocument();
@@ -51,9 +51,12 @@ describe('public profile social counts and statistics', () => {
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByText('7')).toBeInTheDocument();
-    expect(screen.getByText('35.5 USDC')).toBeInTheDocument();
+    expect(screen.queryByText('Sent messages')).not.toBeInTheDocument();
+    expect(screen.queryByText('Received messages')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lifetime')).not.toBeInTheDocument();
+    // The amount and its unit render as separate spans so every metric value shares one optical size.
+    expect(screen.getByText('35.5')).toBeInTheDocument();
+    expect(screen.getByText('USDC')).toBeInTheDocument();
   });
 
   it('refetches authoritative counts after a token purchase', async () => {
@@ -64,8 +67,15 @@ describe('public profile social counts and statistics', () => {
     render(<PublicProfilePage />);
     expect(await screen.findByText('4')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /subscribe to broadcasts/i }));
-    await waitFor(() => expect(screen.getAllByText('5').length).toBeGreaterThan(1));
+    await waitFor(() => expect(screen.getByText('5')).toBeInTheDocument());
     expect(mocks.followCounts).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not show a duplicate subscribe action to signed-out visitors', async () => {
+    auth.user = null;
+    render(<PublicProfilePage />);
+    expect(await screen.findByRole('link', { name: /sign in to message/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /subscribe to broadcasts/i })).not.toBeInTheDocument();
   });
 
   it('keeps profile data visible and offers retry when follow counts fail', async () => {

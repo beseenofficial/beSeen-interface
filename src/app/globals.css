@@ -20,9 +20,18 @@
   --color-error: #c93e50;
   --color-error-bg: #fdecef;
   --color-info-bg: #e9eeff;
+  --color-hairline: #e3edf1;
   --font-sans: var(--font-outfit), "Avenir Next", "Segoe UI", sans-serif;
   --font-message: var(--font-inter), "Segoe UI", sans-serif;
   --shadow-elevated: 0 12px 32px rgb(11 11 63 / 8%);
+
+  /* Surface tiers: one radius and one shadow per elevation, not per element. */
+  --radius-surface: 24px;
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --shadow-raised: 0 1px 2px rgb(16 33 61 / 5%), 0 8px 20px -10px rgb(16 33 61 / 8%);
+  --shadow-floating: 0 1px 2px rgb(16 33 61 / 5%), 0 24px 48px -20px rgb(16 33 61 / 10%);
+  --shadow-brand: 0 1px 2px rgb(16 69 245 / 22%), 0 10px 20px -8px rgb(16 69 245 / 30%);
 }
 
 @layer base {
@@ -186,86 +195,23 @@
   }
 }
 
-/* Keep the public profile fully visible on short desktop viewports. */
-@media (min-width: 1000px) and (max-height: 820px) {
-  .public-profile-card {
-    padding-block: clamp(20px, 3.5vh, 30px);
+.public-profile-signal-mark {
+  width: 24px;
+  height: 15px;
+  -webkit-mask: url("/brand/beseen-three-line-signature.png") center / contain no-repeat;
+  mask: url("/brand/beseen-three-line-signature.png") center / contain no-repeat;
+}
+
+/* Keep the public profile in one frame on short desktop viewports. */
+@media (min-width: 1280px) and (max-height: 780px) {
+  .public-profile-banner {
+    height: 128px;
   }
 
   .public-profile-avatar {
-    width: clamp(112px, 18vh, 145px);
-    height: clamp(112px, 18vh, 145px);
-    font-size: clamp(32px, 5vh, 42px);
-  }
-
-  .public-profile-name {
-    margin-top: clamp(10px, 2vh, 16px);
-  }
-
-  .public-profile-tagline {
-    margin-top: 6px;
-  }
-
-  .public-profile-followers {
-    margin-top: clamp(10px, 2vh, 16px);
-  }
-
-  .public-profile-bio {
-    margin-top: clamp(10px, 2vh, 16px);
-    padding-top: clamp(10px, 2vh, 16px);
-  }
-
-  .public-profile-actions {
-    margin-top: clamp(10px, 2vh, 16px);
-    gap: 10px;
-  }
-
-  .public-profile-actions > * {
-    min-height: 46px;
-    padding-inline: 16px;
-  }
-
-  .public-profile-aside {
-    gap: clamp(10px, 2vh, 18px);
-  }
-
-  .public-profile-details {
-    padding: clamp(16px, 2.7vh, 24px);
-  }
-
-  .public-profile-details dl {
-    margin-top: 10px;
-  }
-
-  .public-profile-details dl > div {
-    padding-block: clamp(7px, 1.3vh, 11px);
-  }
-
-  .public-profile-stats {
-    padding-block: clamp(14px, 2.5vh, 20px);
-  }
-}
-
-@media (min-width: 1000px) and (max-height: 650px) {
-  .public-profile-main {
-    font-size: 0.9rem;
-  }
-
-  .public-profile-details h2 {
-    font-size: 1.05rem;
-  }
-
-  .public-profile-details dl > div {
-    padding-block: 5px;
-  }
-
-  .public-profile-stats > div {
-    gap: 4px;
-  }
-
-  .public-profile-stats > div > span:first-child {
-    width: 32px;
-    height: 32px;
+    width: 128px;
+    height: 128px;
+    font-size: 36px;
   }
 }
 
