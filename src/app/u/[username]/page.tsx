@@ -327,12 +327,18 @@ export default function PublicProfilePage() {
     <main className="relative min-h-svh overflow-x-hidden bg-[#f3f7fa] px-4 py-5 text-navy sm:px-7 sm:py-6 lg:px-[clamp(32px,5vw,80px)]">
       <div className="relative mx-auto flex w-full max-w-[1000px] flex-col">
         <header className="flex min-h-11 shrink-0 items-center justify-between gap-4 px-1 sm:px-2">
-          <Link
-            href={auth.user ? '/dashboard' : '/login'}
-            aria-label="Go to BeSeen"
-          >
-            <BrandLogo className="w-[146px] max-sm:w-[128px]" />
-          </Link>
+          <div className="flex min-w-0 items-center gap-2.5 max-sm:gap-1.5">
+            <Link
+              className="shrink-0"
+              href={auth.user ? '/dashboard' : '/login'}
+              aria-label="Go to BeSeen"
+            >
+              <BrandLogo className="w-[146px] max-sm:w-[90px]" />
+            </Link>
+            <span className="shrink-0 text-[34px] font-semibold leading-none tracking-[-0.03em] text-brand max-sm:text-[21px]">
+              Profile
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <button
               className={`${HEADER_ACTION} cursor-pointer`}
@@ -384,7 +390,7 @@ export default function PublicProfilePage() {
             <div className="public-profile-main relative z-10 min-w-0">
               <div className="public-profile-identity relative min-w-0">
                 <div className="relative z-10 -mt-13 w-fit sm:-mt-15 xl:-mt-17">
-                  <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full bg-white p-1.5 leading-none shadow-[0_2px_3px_rgb(11_11_63/8%),0_24px_55px_-18px_rgb(35_58_115/30%)]">
+                  <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full bg-white p-1.5 leading-none">
                     <Avatar
                       username={profile.username}
                       src={profile.avatar}

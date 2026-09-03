@@ -159,7 +159,7 @@ export default function ProfilePage() {
           <div className="public-profile-main relative z-10 min-w-0">
             <div className="public-profile-identity relative min-w-0">
               <div className="relative z-10 -mt-13 w-fit sm:-mt-15 xl:-mt-17">
-                <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full bg-white p-1.5 leading-none shadow-[0_2px_3px_rgb(11_11_63/8%),0_24px_55px_-18px_rgb(35_58_115/30%)]">
+                <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full bg-white p-1.5 leading-none">
                   <Avatar
                     username={user.username}
                     src={user.avatar}
