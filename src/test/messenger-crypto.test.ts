@@ -173,7 +173,7 @@ describe('Messenger v1 crypto', () => {
   });
 
   it('includes reply and bounty terms in the signed manifest', async () => {
-    const encrypted = await createMessengerEnvelope('reply with demo bounty', context, sender, {
+    const encrypted = await createMessengerEnvelope('reply with bounty', context, sender, {
       replyToMessageId: '507F1F77BCF86CD799439099',
       bounty: { assetCode: 'USDC', amount: '10.25', durationSeconds: 3600 },
     });

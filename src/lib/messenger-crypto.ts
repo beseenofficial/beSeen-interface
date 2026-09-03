@@ -25,7 +25,7 @@ const CANONICAL_AMOUNT = /^(?:0|[1-9]\d*)(?:\.\d{1,7})?$/;
 
 export function validateMessengerBountyTerms(terms: MessengerBountyTerms): void {
   if (terms.assetCode !== 'USDC') {
-    throw new Error('Message bounties support demo USDC only.');
+    throw new Error('Message bounties support USDC only.');
   }
   if (!CANONICAL_AMOUNT.test(terms.amount) || /^0(?:\.0+)?$/.test(terms.amount)) {
     throw new Error('Enter a valid reward amount with up to 7 decimal places.');

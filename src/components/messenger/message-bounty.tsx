@@ -70,7 +70,7 @@ export function MessageBounty({
           </strong>
           {!claimed && !refunded && (
             <span className="block truncate text-[11px] leading-4 text-secondary">
-              {bounty.amount} demo {bounty.assetCode}
+              {bounty.amount} {bounty.assetCode}
             </span>
           )}
         </span>

@@ -327,8 +327,8 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
       }
       await refreshUser().catch(() => undefined);
       toast(
-        result.claimedNow ? 'Demo bounty claimed' : 'Demo bounty already claimed',
-        'This is a demo reward. No real funds were moved.',
+        result.claimedNow ? 'Bounty claimed' : 'Bounty already claimed',
+        'No real funds were moved.',
       );
     } catch (cause) {
       setHistoryError(messengerError(cause));

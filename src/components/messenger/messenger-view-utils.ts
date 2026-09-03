@@ -38,7 +38,7 @@ export function messengerError(cause: unknown): string {
     return 'This message could not be sent. Discard it, then write a new one.';
   }
   if (cause.code === 'INSUFFICIENT_DEMO_USDC_BALANCE') {
-    return 'Your demo USDC balance is not sufficient for this bounty.';
+    return 'Your USDC balance is not sufficient for this bounty.';
   }
   if (cause.code === 'BOUNTY_ALREADY_CLAIMED') {
     return 'This bounty has already been claimed.';

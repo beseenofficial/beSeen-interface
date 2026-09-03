@@ -20,7 +20,7 @@ describe('message bounty display', () => {
   it('renders the attached bounty state from the visual spec', () => {
     render(<MessageBounty bounty={baseBounty} beneficiary={false} claiming={false} onClaim={vi.fn()} />);
     expect(screen.getByText('Reply reward')).toBeInTheDocument();
-    expect(screen.getByText('25 demo USDC')).toBeInTheDocument();
+    expect(screen.getByText('25 USDC')).toBeInTheDocument();
     expect(screen.getByText('1 day')).toBeInTheDocument();
     expect(screen.getByText(/By /)).toBeInTheDocument();
   });

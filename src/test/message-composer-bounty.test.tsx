@@ -59,17 +59,17 @@ const sentMessage = {
   unlockedBounty: null, createdAt: '2026-08-29T00:00:00.000Z',
 };
 
-describe('message composer demo USDC bounty', () => {
+describe('message composer USDC bounty', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.loadPending.mockResolvedValue(null);
   });
 
-  it('blocks an amount above the exact demo balance without discarding the draft', async () => {
+  it('blocks an amount above the exact balance without discarding the draft', async () => {
     render(<Harness balance="9.9999999" refresh={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Draft'), 'encrypted later');
     await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
-    expect(screen.getByText('Choose an amount up to your 9.9999999 demo USDC balance.')).toBeInTheDocument();
+    expect(screen.getByText('Choose an amount up to your 9.9999999 USDC balance.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(mocks.create).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Draft')).toHaveValue('encrypted later');
@@ -81,7 +81,7 @@ describe('message composer demo USDC bounty', () => {
     await userEvent.type(screen.getByLabelText('Draft'), 'keep this draft');
     await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
     await userEvent.click(screen.getByRole('button', { name: 'Send' }));
-    expect(await screen.findByText('Your demo USDC balance is not sufficient for this bounty.')).toBeInTheDocument();
+    expect(await screen.findByText('Your USDC balance is not sufficient for this bounty.')).toBeInTheDocument();
     expect(screen.getByLabelText('Draft')).toHaveValue('keep this draft');
   });
 

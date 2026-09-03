@@ -128,7 +128,7 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
               />
               <span className="text-xs font-semibold text-secondary">{bountyAsset}</span>
             </div>
-            <p className="mt-1.5 text-xs text-secondary">Available: {demoUsdcBalance ?? 'loading…'} demo USDC</p>
+            <p className="mt-1.5 text-xs text-secondary">Available: {demoUsdcBalance ?? 'loading…'} USDC</p>
           </div>
 
           <div className="mt-3.5">
@@ -163,7 +163,7 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
 
           <div className="mt-3 rounded-xl bg-[#F5F7FF] px-3 py-2.5 text-xs leading-5 text-secondary">
             <p><span className="font-semibold text-navy">For @{otherParticipant?.username ?? 'this person'}:</span> reply by {deadline ?? 'a valid deadline'}.</p>
-            <p>If there is no eligible reply, the demo reward returns automatically.</p>
+            <p>If there is no eligible reply, the reward returns automatically.</p>
           </div>
 
           {showValidation && draftError && <p className="mt-2.5 text-xs text-error" role="alert">{draftError}</p>}

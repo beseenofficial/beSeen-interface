@@ -208,7 +208,7 @@ export default function OverviewPage() {
         <StatCard icon={UsersRound} iconClass="bg-info-bg text-brand" label="Aura holders" value={followerCount === null ? '—' : followerCount.toLocaleString()} hint="People holding your Aura" />
         <StatCard icon={Sparkles} iconClass="bg-[#f0eaff] text-[#7047e8]" label="Auras owned" value={aurasOwned === null ? '—' : aurasOwned.toLocaleString()} hint="Auras you own" />
         <StatCard icon={Tag} iconClass="bg-[#fff0ea] text-[#ff6b3d]" label="Your Aura price" value="—" hint="Pricing is not available yet" />
-        <StatCard icon={WalletCards} iconClass="bg-[#e5f7ff] text-[#167fa8]" label="Demo USDC balance" value={user.demoUsdcBalance === undefined ? '—' : formatUsdc(user.demoUsdcBalance)} hint="Available for message bounties" onClick={openWalletProfile} />
+        <StatCard icon={WalletCards} iconClass="bg-[#e5f7ff] text-[#167fa8]" label="USDC balance" value={user.demoUsdcBalance === undefined ? '—' : formatUsdc(user.demoUsdcBalance)} hint="Available for message bounties" onClick={openWalletProfile} />
       </section>
 
       <section className="overview-recent mt-4 grid gap-4 lg:grid-cols-2">

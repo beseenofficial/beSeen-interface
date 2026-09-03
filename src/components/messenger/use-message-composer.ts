@@ -64,9 +64,9 @@ export function validateBountyTerms({
   if (!isCanonicalDecimal(amount, 7) || /^0(?:\.0+)?$/.test(amount)) {
     return 'Enter a positive amount with up to 7 decimal places.';
   }
-  if (balance === undefined) return 'Your demo USDC balance is still loading. Try again in a moment.';
+  if (balance === undefined) return 'Your USDC balance is still loading. Try again in a moment.';
   if (compareDecimalStrings(amount, balance) > 0) {
-    return `Choose an amount up to your ${balance} demo USDC balance.`;
+    return `Choose an amount up to your ${balance} USDC balance.`;
   }
   if (!/^[1-9]\d*$/.test(durationValue)) return 'Enter a whole number greater than zero.';
   const durationSeconds = Number(durationValue) * bountyDurationMultipliers[durationUnit];
@@ -123,7 +123,7 @@ export function useMessageComposer({
       setSendErrorCode(null);
       if (message.unlockedBounty) {
         setMessages((current) => applyUnlockedBounty(current, message.unlockedBounty!));
-        toast('Reward unlocked', 'The other person can now collect this demo reward.');
+        toast('Reward unlocked', 'The other person can now collect this reward.');
       }
       if (message.bounty) {
         await refreshCurrentUser().catch(() => undefined);

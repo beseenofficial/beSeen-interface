@@ -26,7 +26,7 @@ function workspace(overrides: Record<string, unknown> = {}) {
 describe('message bounty window', () => {
   it('does not show a balance error immediately when opened', () => {
     render(<MessageBountyPanel workspace={workspace()} />);
-    expect(screen.queryByText('Choose an amount up to your 5 demo USDC balance.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Choose an amount up to your 5 USDC balance.')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Amount')).toHaveAttribute('type', 'text');
     expect(document.querySelector('select')).toBeNull();
     expect(screen.getByRole('button', { name: 'Reply time unit' })).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe('message bounty window', () => {
   it('shows validation after attach is attempted', async () => {
     render(<MessageBountyPanel workspace={workspace()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Attach 10 USDC' }));
-    expect(screen.getByText('Choose an amount up to your 5 demo USDC balance.')).toBeInTheDocument();
+    expect(screen.getByText('Choose an amount up to your 5 USDC balance.')).toBeInTheDocument();
   });
 
   it('keeps edits local until the reward is updated', async () => {
