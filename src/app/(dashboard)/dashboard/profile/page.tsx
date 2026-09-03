@@ -1,9 +1,7 @@
 'use client';
 
-import { CalendarDays, CircleDollarSign, ExternalLink, MessageCircleMore, RadioTower } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { useAvatarPalette } from '@/components/discover/use-avatar-palette';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
@@ -12,8 +10,83 @@ import { LoadingState } from '@/components/ui/states';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { profileApi } from '@/lib/api';
 import { useAuth } from '@/lib/blux';
-import { formatUsdc } from '@/lib/decimal';
+import { cn } from '@/lib/utils';
 import type { FollowCounts, PublicUserProfile } from '@/types';
+
+function ValueSkeleton({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn('inline-block animate-pulse rounded bg-[#eef3f6]', className)}
+      aria-hidden="true"
+    />
+  );
+}
+
+function InlineStat({
+  label,
+  value,
+  loading,
+}: {
+  label: string;
+  value: number | undefined;
+  loading: boolean;
+}) {
+  return (
+    <span className="flex items-baseline gap-1.5">
+      {loading ? (
+        <ValueSkeleton className="h-4 w-7 translate-y-[-1px]" />
+      ) : (
+        <strong className="font-semibold tabular-nums text-navy">
+          {value === undefined ? '—' : value.toLocaleString()}
+        </strong>
+      )}
+      <span className="text-secondary">{label}</span>
+    </span>
+  );
+}
+
+function SignalMark() {
+  return (
+    <span
+      className="public-profile-signal-mark absolute right-5 top-5 inline-block shrink-0 bg-white/90 drop-shadow-sm"
+      aria-hidden="true"
+    />
+  );
+}
+
+function ActivityRegisterRow({
+  label,
+  value,
+  unit,
+  isEmpty = false,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  isEmpty?: boolean;
+}) {
+  return (
+    <div className="grid min-h-10 min-w-0 grid-cols-[10px_minmax(0,1fr)_auto] items-baseline gap-x-3 py-1.5">
+      <span className="mt-[9px] block h-px w-2 bg-[#b9c9d6]" aria-hidden="true" />
+      <span className="text-[13px] font-medium leading-5 text-secondary">{label}</span>
+      <strong
+        className={cn(
+          'text-right text-[14px] leading-5 tabular-nums tracking-[-0.01em]',
+          isEmpty ? 'font-normal text-muted/75' : 'font-semibold text-navy',
+        )}
+      >
+        {isEmpty ? (
+          'None yet'
+        ) : (
+          <>
+            {value}
+            {unit ? <span className="ml-1 text-[10px] font-medium text-muted">{unit}</span> : null}
+          </>
+        )}
+      </strong>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const auth = useAuth();
@@ -21,6 +94,10 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [bannerPrimary, bannerSecondary] = useAvatarPalette(
+    user?.avatar ?? null,
+    user?.id || user?.username || 'profile',
+  );
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
@@ -42,82 +119,118 @@ export default function ProfilePage() {
     return <LoadingState label="Preparing your profile…" />;
   }
 
+  const bannerGradient = `linear-gradient(135deg, ${bannerPrimary}, ${bannerSecondary})`;
   const joined = new Intl.DateTimeFormat('en', {
     month: 'long',
     year: 'numeric',
   }).format(new Date(user.createdAt));
+  const formatCount = (value: number | undefined) =>
+    value === undefined ? '—' : value.toLocaleString();
 
   return (
     <DashboardPage>
       <PageHeader
+        className="mx-auto w-full max-w-[1000px]"
         eyebrow="Your account"
         title="Profile"
-        description="Preview and edit the profile people see on BeSeen."
-        action={<OwnProfileEditor onUpdated={() => void loadProfile()} />}
+        description="Manage the profile people see on BeSeen."
+        action={<OwnProfileEditor variant="filled" onUpdated={() => void loadProfile()} />}
       />
 
-      <section className="overflow-hidden rounded-3xl border border-border bg-white shadow-elevated">
-        <header className="flex min-h-15 min-w-0 items-center justify-between gap-4 border-b border-border px-5 max-sm:flex-col max-sm:items-stretch max-sm:py-4 sm:px-6">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Public profile preview</h2>
-            <p className="mt-0.5 text-xs text-muted">A compact preview of your username page</p>
-          </div>
-          <Link className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border px-3.5 text-xs font-semibold text-brand transition hover:bg-info-bg" href={`/u/${user.username}`}>
-            View full profile <ExternalLink size={14} aria-hidden="true" />
-          </Link>
-        </header>
+      <section className="public-profile-card relative mx-auto min-w-0 max-w-[1000px] rounded-[24px] border border-[#d9e1f0] bg-white p-3 shadow-[0_14px_40px_-6px_rgba(35,58,115,0.10)] sm:p-4">
+        <div
+          className="public-profile-banner relative h-[clamp(128px,14vw,152px)] overflow-hidden rounded-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,63,0.05)] sm:rounded-[16px]"
+          style={{ backgroundImage: bannerGradient }}
+          aria-hidden="true"
+        >
+          {user.avatar ? (
+            <img
+              className="size-full scale-125 object-cover opacity-75 blur-2xl saturate-150"
+              src={user.avatar}
+              alt=""
+            />
+          ) : null}
+          <span className="absolute inset-0 bg-white/15" />
+          <span className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.12),transparent_45%,rgba(11,11,63,0.10))]" />
+          <SignalMark />
+        </div>
 
-        <div className="min-w-0 bg-[#f6fafc] p-3 min-[380px]:p-4 sm:p-8 lg:p-10">
-          <article className="relative mx-auto grid max-w-210 overflow-hidden rounded-[24px] border border-white bg-white/92 shadow-[0_18px_50px_rgb(25_58_87/10%)] lg:grid-cols-[minmax(0,1fr)_minmax(245px,35%)]">
-            <Image className="pointer-events-none absolute -top-64 left-[8%] w-125 max-w-none select-none opacity-65" src="/brand/beseen-aura-ripple-signature.svg" width={640} height={640} alt="" />
-
-            <div className="relative z-10 flex min-w-0 flex-col justify-end px-4 py-7 min-[380px]:px-5 sm:px-9 sm:py-10">
-              <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full border-4 border-white bg-white leading-none shadow-[0_10px_25px_rgb(11_11_63/12%)]">
-                <Avatar username={user.username} src={user.avatar} size="xl" className="size-25 text-3xl sm:size-29" />
-              </span>
-
-              <div className="mt-5 flex min-w-0 items-start gap-2">
-                <h3 className="min-w-0 break-all text-[clamp(30px,4vw,43px)] font-semibold tracking-[-0.045em]">@{user.username}</h3>
-                <VerificationBadge verification={user.verification} size={23} />
+        <div className="relative grid min-w-0 px-2 pb-6 pt-0 sm:px-6 sm:pb-7 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-8 xl:px-11 xl:pb-7">
+          <div className="public-profile-main relative z-10 min-w-0">
+            <div className="public-profile-identity relative min-w-0">
+              <div className="relative z-10 -mt-13 w-fit sm:-mt-15 xl:-mt-17">
+                <span className="inline-flex w-fit shrink-0 overflow-hidden rounded-full bg-white p-1.5 leading-none shadow-[0_2px_3px_rgb(11_11_63/8%),0_24px_55px_-18px_rgb(35_58_115/30%)]">
+                  <Avatar
+                    username={user.username}
+                    src={user.avatar}
+                    size="xxl"
+                    className="public-profile-avatar size-28 text-[34px] sm:size-30 sm:text-[36px] xl:size-34 xl:text-[40px]"
+                  />
+                </span>
+                {user.verification?.isVerified ? (
+                  <span className="absolute bottom-0 right-0 grid size-10 place-items-center rounded-full bg-white shadow-raised max-sm:size-8">
+                    <VerificationBadge
+                      verification={user.verification}
+                      size={22}
+                      className="max-sm:size-4.5"
+                    />
+                  </span>
+                ) : null}
               </div>
-              {user.bio?.trim() ? <p className="mt-2 break-words text-sm font-medium text-secondary sm:text-base">{user.bio}</p> : null}
-              <dl className="mt-5 grid grid-cols-3 overflow-hidden rounded-xl border border-border bg-white text-center">
-                <div className="px-2 py-3"><dt className="text-[11px] text-muted">Followers</dt><dd className="mt-1 font-semibold tabular-nums">{statsLoading ? '—' : followCounts?.followerCount.toLocaleString() ?? '—'}</dd></div>
-                <div className="border-x border-border px-2 py-3"><dt className="text-[11px] text-muted">Following</dt><dd className="mt-1 font-semibold tabular-nums">{statsLoading ? '—' : followCounts?.followingCount.toLocaleString() ?? '—'}</dd></div>
-                <div className="px-2 py-3"><dt className="text-[11px] text-muted">Broadcasts</dt><dd className="mt-1 font-semibold tabular-nums">{statsLoading ? '—' : profile?.broadcastCount.toLocaleString() ?? '—'}</dd></div>
-              </dl>
+
+              <div className="mt-4 min-w-0">
+                <h2 className="public-profile-name min-w-0 text-[clamp(40px,5vw,60px)] font-semibold leading-[0.96] tracking-[-0.035em] [overflow-wrap:anywhere]">
+                  @{user.username}
+                </h2>
+
+                {user.bio?.trim() ? (
+                  <p className="public-profile-tagline mt-3 max-w-[38ch] break-words text-[18px] leading-[1.5] text-secondary">
+                    {user.bio}
+                  </p>
+                ) : null}
+
+                <p className="public-profile-followers mt-3.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] font-medium leading-6 text-secondary">
+                  <InlineStat
+                    label="Followers"
+                    value={followCounts?.followerCount}
+                    loading={statsLoading}
+                  />
+                  <span aria-hidden="true" className="text-[#a3b1c6]">·</span>
+                  <InlineStat
+                    label="Following"
+                    value={followCounts?.followingCount}
+                    loading={statsLoading}
+                  />
+                </p>
+              </div>
             </div>
+          </div>
 
-            <aside className="relative z-10 grid min-w-0 content-end gap-4 border-t border-border/70 bg-white/55 p-4 backdrop-blur-sm min-[380px]:p-5 sm:p-6 lg:border-l lg:border-t-0">
-              <div className="rounded-2xl border border-border bg-white/85 p-5">
-                <h3 className="text-base font-semibold">Profile details</h3>
-                <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
-                  <CalendarDays className="text-secondary" size={20} aria-hidden="true" />
-                  <div>
-                    <span className="block text-xs text-muted">Joined</span>
-                    <strong className="text-sm">{joined}</strong>
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
-                  <CircleDollarSign className="text-success" size={20} aria-hidden="true" />
-                  <div><span className="block text-xs text-muted">Demo USDC balance</span><strong className="text-sm tabular-nums">{user.demoUsdcBalance === undefined ? 'Loading…' : formatUsdc(user.demoUsdcBalance)}</strong></div>
-                </div>
-              </div>
+          <aside className="public-profile-aside relative z-10 mt-7 min-w-0 border-t border-hairline/45 px-2 pb-1 pt-6 sm:max-w-[520px] sm:px-0 xl:mt-0 xl:flex xl:max-w-none xl:flex-col xl:justify-start xl:border-t-0 xl:px-0 xl:pb-0 xl:pt-21">
+            <section className="public-profile-stats min-w-0">
+              <h2 className="text-[18px] font-semibold tracking-[-0.02em]">Activity</h2>
 
-              <div className="grid grid-cols-2 divide-x divide-border rounded-2xl border border-border bg-white/85 px-3 py-5">
-                <div className="grid justify-items-center gap-1.5 text-center">
-                  <MessageCircleMore className="text-brand" size={20} aria-hidden="true" />
-                  <strong className="tabular-nums">{statsLoading ? '—' : profile?.messageCount.toLocaleString() ?? '—'}</strong>
-                  <span className="text-[11px] text-muted">Total messages</span>
-                </div>
-                <div className="grid justify-items-center gap-1.5 text-center">
-                  <RadioTower className="text-[#20aab8]" size={20} aria-hidden="true" />
-                  <strong className="tabular-nums">{statsLoading || profile?.totalBountyReceivedUsdc === undefined ? '—' : formatUsdc(profile.totalBountyReceivedUsdc)}</strong>
-                  <span className="text-[11px] text-muted">Bounty earned</span>
-                </div>
+              <div className="mt-3">
+                <ActivityRegisterRow
+                  label="Total messages"
+                  value={formatCount(profile?.messageCount)}
+                  isEmpty={profile?.messageCount === 0}
+                />
+                <ActivityRegisterRow
+                  label="Broadcasts"
+                  value={formatCount(profile?.broadcastCount)}
+                  isEmpty={profile?.broadcastCount === 0}
+                />
+                <ActivityRegisterRow
+                  label="Bounty earned"
+                  value={profile?.totalBountyReceivedUsdc ?? '—'}
+                  unit={profile?.totalBountyReceivedUsdc !== undefined ? 'USDC' : undefined}
+                  isEmpty={Number(profile?.totalBountyReceivedUsdc) === 0}
+                />
+                <ActivityRegisterRow label="Joined" value={joined} />
               </div>
-            </aside>
-          </article>
+            </section>
+          </aside>
         </div>
       </section>
     </DashboardPage>

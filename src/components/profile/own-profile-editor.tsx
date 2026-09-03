@@ -11,10 +11,17 @@ import { validateAvatar } from '@/lib/avatar';
 import { invalidateData } from '@/lib/data-invalidation';
 import { useAuth } from '@/lib/blux';
 import { bioValidationError, normalizeBio } from '@/lib/profile-validation';
+import { cn } from '@/lib/utils';
 import type { User } from '@/types';
 import { useToast } from '@/providers/toast-provider';
 
-export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => void }) {
+export function OwnProfileEditor({
+  onUpdated,
+  variant = 'ghost',
+}: {
+  onUpdated: (user: User) => void;
+  variant?: 'ghost' | 'filled';
+}) {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -156,7 +163,16 @@ export function OwnProfileEditor({ onUpdated }: { onUpdated: (user: User) => voi
 
   return (
     <>
-      <button className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent bg-transparent px-5 text-[15px] font-medium tracking-[-0.01em] text-secondary transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:border-hairline/70 hover:bg-white/80 hover:text-navy" type="button" onClick={startEditing}>
+      <button
+        className={cn(
+          'inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent px-5 text-[15px] font-medium tracking-[-0.01em] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-px',
+          variant === 'filled'
+            ? 'bg-brand text-white shadow-brand hover:bg-[#0c3bd6]'
+            : 'bg-transparent text-secondary hover:border-hairline/70 hover:bg-white/80 hover:text-navy',
+        )}
+        type="button"
+        onClick={startEditing}
+      >
         <Pencil size={18} strokeWidth={1.8} aria-hidden="true" /> Edit profile
       </button>
 

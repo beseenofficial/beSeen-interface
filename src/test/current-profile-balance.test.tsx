@@ -11,14 +11,22 @@ vi.mock('@/lib/blux', () => ({ useAuth: () => ({
 
 import ProfilePage from '@/app/(dashboard)/dashboard/profile/page';
 
-describe('current profile demo balance', () => {
+describe('dashboard profile surface', () => {
   beforeEach(() => {
-    mocks.public.mockResolvedValue({ id: 'alice', username: 'alice', avatar: null, bio: null, verification: { isVerified: false, grantedAt: null, expiresAt: null }, createdAt: '2026-01-01T00:00:00.000Z', broadcastCount: 0, sentMessageCount: 0, receivedMessageCount: 0, messageCount: 0, totalBountyReceivedUsdc: '0' });
-    mocks.followCounts.mockResolvedValue({ user: { id: 'alice', username: 'alice' }, followerCount: 0, followingCount: 0 });
+    mocks.public.mockResolvedValue({ id: 'alice', username: 'alice', avatar: null, bio: null, verification: { isVerified: false, grantedAt: null, expiresAt: null }, createdAt: '2026-01-01T00:00:00.000Z', broadcastCount: 3, sentMessageCount: 5, receivedMessageCount: 7, messageCount: 12, totalBountyReceivedUsdc: '35.5' });
+    mocks.followCounts.mockResolvedValue({ user: { id: 'alice', username: 'alice' }, followerCount: 4, followingCount: 2 });
   });
 
-  it('renders the exact decimal string as demo USDC', async () => {
+  it('renders the public profile directly without the old preview window', async () => {
     render(<ProfilePage />);
-    expect(await screen.findByText('20.0000001 USDC')).toBeInTheDocument();
+    expect(await screen.findByText('@alice')).toBeInTheDocument();
+    expect(screen.getByText('Activity')).toBeInTheDocument();
+    expect(screen.getByText('Total messages')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('35.5')).toBeInTheDocument();
+    expect(screen.getByText('USDC')).toBeInTheDocument();
+    expect(screen.queryByText('Public profile preview')).not.toBeInTheDocument();
+    expect(screen.queryByText('View full profile')).not.toBeInTheDocument();
+    expect(screen.queryByText('USDC balance')).not.toBeInTheDocument();
   });
 });
