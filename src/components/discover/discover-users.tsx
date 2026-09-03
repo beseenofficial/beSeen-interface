@@ -1,19 +1,19 @@
 "use client";
 
-import { AlertCircle, Search, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowDownAZ, BadgeCheck, SlidersHorizontal, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
-import { profileApi, usersApi } from "@/lib/api";
-import type { DiscoverUser, PublicUserProfile } from "@/types";
+import { usersApi } from "@/lib/api";
+import type { DiscoverUser } from "@/types";
 import { appendUniqueUsers } from './append-unique-users';
 import { DiscoverCard } from './discover-card';
+import { DiscoverHero } from './discover-hero';
 import { DiscoverSkeleton } from './discover-skeleton';
-import { DiscoveryRail } from './discovery-rail';
 
 const DISCOVER_PAGE_SIZE = 20;
 const INITIAL_SKELETON_COUNT = 8;
-const discoverProfileCache = new Map<string, PublicUserProfile>();
+type DiscoverSort = 'aura' | 'alphabetical' | null;
 
 export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
   const [users, setUsers] = useState<DiscoverUser[]>([]);
@@ -24,7 +24,8 @@ export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
   const [paginationLoading, setPaginationLoading] = useState(false);
   const [paginationError, setPaginationError] = useState(false);
   const [search, setSearch] = useState('');
-  const [profiles, setProfiles] = useState<Map<string, PublicUserProfile>>(() => new Map(discoverProfileCache));
+  const [sortMode, setSortMode] = useState<DiscoverSort>(null);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const initialRequest = useRef<AbortController | null>(null);
   const paginationRequest = useRef<AbortController | null>(null);
   const paginationPending = useRef(false);
@@ -59,20 +60,6 @@ export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
       paginationRequest.current?.abort();
     };
   }, [loadInitialUsers]);
-
-  useEffect(() => {
-    const missingUsers = users.filter((user) => !discoverProfileCache.has(user.username));
-    if (missingUsers.length === 0) return;
-    const controller = new AbortController();
-    void Promise.allSettled(
-      missingUsers.map(async (user) => {
-        const profile = await profileApi.public(user.username, controller.signal);
-        discoverProfileCache.set(user.username, profile);
-        setProfiles((current) => new Map(current).set(user.username, profile));
-      }),
-    );
-    return () => controller.abort();
-  }, [users]);
 
   const loadMoreUsers = useCallback(async () => {
     if (!hasMore || !nextCursor || paginationPending.current) return;
@@ -118,14 +105,16 @@ export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
   }, [hasMore, initialLoading, loadMoreUsers, paginationError]);
 
   const normalizedSearch = search.trim().toLocaleLowerCase();
-  const visibleUsers = users.filter((user) => {
+  const matchingUsers = users.filter((user) => {
+    if (verifiedOnly && !user.verification?.isVerified) return false;
     return !normalizedSearch || user.username.toLocaleLowerCase().includes(normalizedSearch);
   });
-  const verified = users
-    .filter((user) => user.verification?.isVerified)
-    .map((user) => profiles.get(user.username))
-    .filter((profile): profile is PublicUserProfile => profile !== undefined);
-
+  const visibleUsers = [...matchingUsers];
+  if (sortMode === 'aura') {
+    visibleUsers.sort((first, second) => (second.followerCount ?? 0) - (first.followerCount ?? 0));
+  } else if (sortMode === 'alphabetical') {
+    visibleUsers.sort((first, second) => first.username.localeCompare(second.username));
+  }
   useEffect(() => {
     if (!normalizedSearch || initialLoading || initialError || visibleUsers.length > 0 || !hasMore || paginationError) return;
     void loadMoreUsers();
@@ -135,52 +124,12 @@ export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
     <>
       <span className="hidden" aria-hidden="true" dangerouslySetInnerHTML={{ __html: '<!-- THESIS: A public identity directory that makes finding a person feel immediate; it refuses the generic dashboard-card grid. OWN-WORLD: deep network navy, electric blue, bright paper, square portraits, signal dots, and compact trust metadata. STORY: search the open network, recognize a person, inspect honest signals, open their profile to begin a conversation. FIRST VIEWPORT: a dark identity field with a dominant search control, concise promise, trust note, and the people directory beginning immediately below. FORM: open network directory, grounded candidate 3, seed 7756175b. FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance -->' }} />
 
-      <header className={`discover-hero relative -mt-9 mb-6 min-h-[420px] overflow-hidden bg-[#071031] text-white max-sm:-mt-6 ${fullBleed ? 'left-1/2 w-[100dvw] -translate-x-1/2' : '-mx-10 max-[1100px]:-mx-5 max-sm:-mx-4'}`}>
-        <img className="absolute inset-0 size-full object-cover" src="/brand/discover-blend.svg" alt="" aria-hidden="true" />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,16,49,0.94)_0%,rgba(7,16,49,0.82)_48%,rgba(7,16,49,0.7)_100%)]" aria-hidden="true" />
-        <div className="relative z-10 mx-auto w-full max-w-[1480px] px-10 py-9 max-[1100px]:px-5 max-sm:px-4 max-sm:py-7">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)] lg:items-end">
-          <div>
-            <h1 className="max-w-3xl text-[clamp(40px,6vw,76px)] font-semibold leading-[0.92] tracking-[-0.04em]">
-              Find the person.<br /><span className="text-aqua">Start the conversation.</span>
-            </h1>
-            <p className="mt-5 max-w-2xl text-[15px] leading-6 text-[#cbd3ef]">
-              BeSeen is an open network of public identities. Search anyone by username, check their signals, and reach the right profile.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-[#071031]/85 p-4 ring-1 ring-white/20">
-            <span className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="text-lime" size={18} aria-hidden="true" /> Open to everyone</span>
-            <p className="mt-2 text-xs leading-5 text-[#aeb9dc]">Browse without signing in. Your next step stays clear and under your control.</p>
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-2xl bg-white p-2">
-          <label className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 text-secondary transition focus-within:bg-[#f5f7ff]">
-            <Search size={17} aria-hidden="true" />
-            <span className="sr-only">Search people</span>
-            <input
-              className="min-w-0 flex-1 border-0 bg-transparent text-base text-navy caret-brand outline-none placeholder:text-muted"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search a username"
-              type="search"
-              value={search}
-              disabled={initialLoading || initialError}
-            />
-          </label>
-        </div>
-        </div>
-      </header>
-
-      {!initialLoading && !initialError && !normalizedSearch && users.length > 0 && (
-        <div className="mb-9">
-          <DiscoveryRail
-            title="Verified"
-            description="Profiles with a verified BeSeen identity."
-            people={verified}
-            detail={() => 'Verified identity'}
-          />
-        </div>
-      )}
+      <DiscoverHero
+        disabled={initialLoading || initialError}
+        fullBleed={fullBleed}
+        onSearchChange={setSearch}
+        search={search}
+      />
 
       {!initialLoading && !initialError && users.length > 0 && (
         <div className="mb-4 flex items-end justify-between gap-4 px-1">
@@ -188,7 +137,38 @@ export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
             <h2 className="text-2xl font-semibold">People on BeSeen</h2>
             <p className="mt-1 text-sm text-secondary">Public profiles across the open network.</p>
           </div>
-          <span className="hidden text-xs font-semibold text-secondary sm:block">Select a person to view their profile</span>
+          <div className="flex flex-wrap justify-end gap-2" aria-label="Discover filters">
+            <button
+              className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-xs font-semibold transition-colors sm:text-sm ${sortMode === 'aura' ? 'border-navy bg-navy text-white' : 'border-[#d5ddeb] bg-white text-navy hover:border-brand hover:text-brand'}`}
+              type="button"
+              onClick={() => setSortMode((current) => current === 'aura' ? null : 'aura')}
+              aria-label={sortMode === 'aura' ? 'Remove Most Aura sort' : 'Sort by Most Aura'}
+              aria-pressed={sortMode === 'aura'}
+            >
+              {sortMode === 'aura' ? <X size={16} aria-hidden="true" /> : <SlidersHorizontal size={16} aria-hidden="true" />}
+              Most Aura
+            </button>
+            <button
+              className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-xs font-semibold transition-colors sm:text-sm ${verifiedOnly ? 'border-navy bg-navy text-white' : 'border-[#d5ddeb] bg-white text-navy hover:border-brand hover:text-brand'}`}
+              type="button"
+              onClick={() => setVerifiedOnly((current) => !current)}
+              aria-label={verifiedOnly ? 'Remove Verified Only filter' : 'Filter by Verified Only'}
+              aria-pressed={verifiedOnly}
+            >
+              {verifiedOnly ? <X size={16} aria-hidden="true" /> : <BadgeCheck size={16} aria-hidden="true" />}
+              Verified Only
+            </button>
+            <button
+              className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-xs font-semibold transition-colors sm:text-sm ${sortMode === 'alphabetical' ? 'border-navy bg-navy text-white' : 'border-[#d5ddeb] bg-white text-navy hover:border-brand hover:text-brand'}`}
+              type="button"
+              onClick={() => setSortMode((current) => current === 'alphabetical' ? null : 'alphabetical')}
+              aria-label={sortMode === 'alphabetical' ? 'Remove A–Z sort' : 'Sort A–Z'}
+              aria-pressed={sortMode === 'alphabetical'}
+            >
+              {sortMode === 'alphabetical' ? <X size={16} aria-hidden="true" /> : <ArrowDownAZ size={16} aria-hidden="true" />}
+              A–Z
+            </button>
+          </div>
         </div>
       )}
 
@@ -248,6 +228,8 @@ export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
               className="mt-5 min-h-11 rounded-xl bg-info-bg px-4 text-sm font-semibold text-brand transition hover:bg-brand hover:text-white"
               onClick={() => {
                 setSearch('');
+                setSortMode(null);
+                setVerifiedOnly(false);
               }}
               type="button"
             >

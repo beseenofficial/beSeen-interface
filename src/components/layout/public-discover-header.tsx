@@ -14,20 +14,18 @@ export function PublicDiscoverHeader() {
         : { href: "/login", label: "Join or sign in", compactLabel: "Join" };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-white">
-      <div className="mx-auto flex h-17 w-full max-w-[1480px] items-center gap-3 px-4 sm:h-19 sm:gap-7 sm:px-6 lg:px-10">
-        <Link className="shrink-0" href="/discover" aria-label="BeSeen Discover">
+    <header className="discover-glass-header sticky top-0 z-30">
+      <div className="mx-auto flex h-17 w-full max-w-[1580px] items-center gap-3 px-4 sm:h-19 sm:px-6 lg:px-10">
+        <Link
+          className="flex shrink-0 items-center gap-2.5 sm:gap-3"
+          href="/discover"
+          aria-current="page"
+          aria-label="BeSeen Discover"
+        >
           <BrandLogo className="w-24 sm:w-31.5" />
+          <span className="text-[20px] font-semibold leading-none tracking-[-0.035em] text-brand sm:text-[27px]">Discover</span>
         </Link>
-        <nav className="flex min-w-0 flex-1 items-center" aria-label="Public navigation">
-          <Link
-            className="inline-flex min-h-10 items-center border-b-2 border-brand px-2 text-sm font-semibold text-brand"
-            href="/discover"
-            aria-current="page"
-          >
-            Discover
-          </Link>
-        </nav>
+        <span className="flex-1" />
         {status === "loading" ? (
           <span className="h-10 w-20 animate-pulse rounded-xl bg-disabled sm:w-31" aria-hidden="true" />
         ) : (

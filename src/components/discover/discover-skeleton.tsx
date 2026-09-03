@@ -1,17 +1,20 @@
 export function DiscoverSkeleton() {
   return (
     <div
-      className="grid min-h-40 animate-pulse grid-cols-[88px_minmax(0,1fr)_96px] items-center gap-3 rounded-[24px] border border-[#d9e1f0] bg-white p-3"
+      className="relative flex min-h-[330px] animate-pulse flex-col rounded-[24px] border border-[#d9e1f0] bg-white p-3"
       aria-hidden="true"
     >
-      <span className="size-20 justify-self-center rounded-full bg-disabled" />
-      <div className="min-w-0">
-        <span className="block h-5 w-24 rounded bg-disabled" />
-        <span className="mt-3 block h-4 w-20 rounded bg-disabled/80" />
-        <span className="mt-3 block h-3 w-full rounded bg-disabled/70" />
-        <span className="mt-2 block h-3 w-3/4 rounded bg-disabled/70" />
+      <span className="block h-28 w-full rounded-[16px] bg-disabled" />
+      <span className="-mt-10 ml-4 block size-21 rounded-full border-4 border-white bg-disabled" />
+      <div className="mt-3 space-y-3 px-4">
+        <span className="block h-6 w-2/3 rounded bg-disabled" />
+        <span className="block h-3 w-full rounded bg-disabled/70" />
+        <span className="block h-3 w-4/5 rounded bg-disabled/70" />
       </div>
-      <span className="h-10 w-full rounded-xl bg-disabled" />
+      <div className="mt-auto flex items-end justify-between px-4 pb-3">
+        <span className="h-10 w-28 rounded bg-disabled/70" />
+        <span className="size-11 rounded-full bg-disabled" />
+      </div>
     </div>
   );
 }

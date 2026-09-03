@@ -35,6 +35,10 @@
     @apply bg-ice;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply m-0 min-w-80 font-sans text-base leading-6 text-navy antialiased;
   }
@@ -126,7 +130,31 @@
 
 .discover-hero {
   isolation: isolate;
-  box-shadow: 0 22px 55px rgb(7 16 49 / 18%);
+}
+
+.discover-page-background {
+  background: linear-gradient(180deg, #e9eeff 0%, #f6f8ff 34rem, #ffffff 68rem);
+}
+
+.discover-glass-header {
+  background: rgb(255 255 255 / 8%);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+.discover-glass-header::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 24px;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(to bottom, rgb(255 255 255 / 8%), transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  mask-image: linear-gradient(to bottom, black, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent);
 }
 
 .discover-rail {

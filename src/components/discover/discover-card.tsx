@@ -1,64 +1,78 @@
+'use client';
+
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import type { DiscoverUser } from '@/types';
 import { formatCompactCount } from './format-compact-count';
+import { useAvatarPalette } from './use-avatar-palette';
 
-export function DiscoverCard({ user }: { user: DiscoverUser }) {
+export function DiscoverCard({ user, preview = false }: { user: DiscoverUser; preview?: boolean }) {
   const bio = user.bio?.trim();
+  const [primaryColor, secondaryColor] = useAvatarPalette(user.avatar, user.id || user.username);
+  const gradient = `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`;
 
   return (
     <Link
-      className="discover-person group relative grid min-h-40 min-w-0 grid-cols-[88px_minmax(0,1fr)_96px] items-center gap-3 overflow-hidden rounded-[24px] border border-[#d9e1f0] bg-white p-3 text-navy shadow-[0_12px_34px_rgba(35,58,115,0.08)] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-[#bfcdf0] hover:shadow-[0_18px_42px_rgba(35,58,115,0.13)] max-[390px]:grid-cols-[76px_minmax(0,1fr)_76px] max-[390px]:gap-2 max-[390px]:rounded-2xl max-[390px]:p-2.5"
-      href={`/u/${encodeURIComponent(user.username)}`}
-      aria-label={`View @${user.username}'s profile`}
+      className={`discover-person group relative flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-[#d9e1f0] bg-white p-3 text-navy shadow-[0_12px_34px_rgba(35,58,115,0.08)] ${preview ? 'pointer-events-none min-h-[250px] select-none' : 'min-h-[330px]'}`}
+      href={preview ? '/discover' : `/u/${encodeURIComponent(user.username)}`}
+      aria-hidden={preview || undefined}
+      aria-label={preview ? undefined : `View @${user.username}'s profile`}
+      tabIndex={preview ? -1 : undefined}
     >
-      <div className="relative grid size-22 place-items-center justify-self-center rounded-full bg-[linear-gradient(135deg,#64ddea_40%,#0b0b3f_100%,#1045f5_70%)] p-[3px] shadow-[0_8px_22px_rgba(16,69,245,0.16)] max-[390px]:size-19">
+      <div
+        className={`relative w-full overflow-hidden rounded-[16px] ${preview ? 'h-20' : 'h-28'}`}
+        style={{ backgroundImage: gradient }}
+        aria-hidden="true"
+      >
+        {user.avatar && (
+          <img
+            className="size-full scale-125 object-cover opacity-75 blur-2xl saturate-150"
+            src={user.avatar}
+            alt=""
+          />
+        )}
+        <span className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.12),transparent_45%,rgba(11,11,63,0.12))]" />
+      </div>
+
+      <div className={`relative z-10 ml-4 grid place-items-center rounded-full bg-white p-1 ${preview ? '-mt-8 size-17' : '-mt-10 size-21'}`}>
         <Avatar
-          className="!size-full !rounded-full border-[3px] border-white bg-[#f3b19f] text-xl text-navy ring-0 transition-transform duration-500 group-hover:scale-[1.025]"
+          className="!size-full !rounded-full bg-[#f3b19f] text-xl text-navy ring-0"
           username={user.username}
           src={user.avatar}
           size="lg"
         />
       </div>
-      <div className="relative z-10 min-w-0 py-1">
+
+      <div className={`min-w-0 px-4 ${preview ? 'mt-2' : 'mt-3'}`}>
         <div className="flex max-w-full items-center gap-1.5">
-          <strong className="truncate text-xl font-semibold tracking-[-0.035em] text-navy max-[390px]:text-base">
+          <strong className={`${preview ? 'text-lg' : 'text-2xl'} truncate font-semibold tracking-[-0.035em] text-navy`}>
             @{user.username}
           </strong>
           <VerificationBadge verification={user.verification} size={16} />
         </div>
-        <p className="mt-2 flex items-center gap-1.5 text-sm text-navy max-[390px]:text-xs">
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-aqua/25 text-brand">
-            <Sparkles size={13} aria-hidden="true" />
-          </span>
-          Holds{' '}
-          <strong className="font-semibold tabular-nums text-brand">
-            {formatCompactCount(user.followerCount)} Aura
-          </strong>
-        </p>
-        <p className="mt-3 line-clamp-2 text-xs leading-5 text-secondary max-[390px]:mt-2 max-[390px]:leading-4">
-          {bio || 'Open this profile to learn more.'}
+        <p className={`line-clamp-2 text-secondary ${preview ? 'mt-1 text-xs leading-4' : 'mt-2 text-sm leading-5'}`}>
+          {bio || 'No bio yet — open this profile to learn more.'}
         </p>
       </div>
-      <div className="relative z-10 flex h-24 items-center border-l border-[#dfe5f1] pl-3 max-[390px]:h-20 max-[390px]:pl-2">
-        <span className="flex min-h-10 w-full items-center justify-center rounded-xl bg-brand px-2 text-xs font-semibold text-white transition-colors group-hover:bg-[#3153ff]">
-          View <ArrowUpRight className="ml-1" size={14} aria-hidden="true" />
+
+      <div className={`mt-auto flex items-end justify-between gap-4 px-4 ${preview ? 'pb-2 pt-2' : 'pb-3 pt-4'}`}>
+        <dl>
+          <div className="flex items-center gap-2.5">
+            <span className={`grid shrink-0 place-items-center rounded-full bg-brand/10 text-brand ${preview ? 'size-8' : 'size-10'}`} aria-hidden="true">
+              <Sparkles size={preview ? 15 : 18} />
+            </span>
+            <div>
+              <dd className={`${preview ? 'text-lg' : 'text-xl'} font-semibold leading-none tabular-nums text-navy`}>{formatCompactCount(user.followerCount)}</dd>
+              <dt className="mt-1 text-xs leading-none text-secondary">Aura holders</dt>
+            </div>
+          </div>
+        </dl>
+        <span className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#22252a] font-semibold text-white transition-colors group-hover:bg-brand ${preview ? 'size-10' : 'min-h-11 px-4 text-sm'}`}>
+          {!preview && 'Open profile'} <ArrowUpRight size={16} aria-hidden="true" />
         </span>
       </div>
-      <img
-        className="pointer-events-none absolute -left-16 top-1/2 size-48 -translate-y-1/2 opacity-75"
-        src="/brand/discover-card-aura-side-arc.svg"
-        alt=""
-        aria-hidden="true"
-      />
-      <img
-        className="pointer-events-none absolute right-4 top-2 h-12 w-auto opacity-70"
-        src="/brand/discover-card-dot-grid.svg"
-        alt=""
-        aria-hidden="true"
-      />
     </Link>
   );
 }

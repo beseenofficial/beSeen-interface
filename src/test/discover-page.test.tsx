@@ -51,13 +51,12 @@ describe('Discover page', () => {
     expect(await screen.findByText('@alice')).toBeInTheDocument();
     expect(screen.getByLabelText('Verified account')).toBeInTheDocument();
     expect(screen.getByText('Building thoughtful communities.')).toBeInTheDocument();
-    expect(screen.getByText('1.2K Aura')).toBeInTheDocument();
-    expect(screen.getByText('0 Aura')).toBeInTheDocument();
-    expect(screen.queryByText('BeSeen profile')).toBeNull();
+    expect(screen.getByText('1.2K')).toBeInTheDocument();
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No bio yet — open this profile to learn more.').length).toBeGreaterThan(0);
     expect(screen.queryByText('24')).toBeNull();
     expect(screen.queryByText('25 USDC')).toBeNull();
-    expect(await screen.findByRole('heading', { name: 'Verified' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View alice in Verified' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Verified' })).toBeNull();
 
     expect(await screen.findByText('@carol')).toBeInTheDocument();
     expect(screen.getAllByText('@bob')).toHaveLength(1);
@@ -93,11 +92,11 @@ describe('Discover page', () => {
     expect(screen.getByText('@alice')).toBeInTheDocument();
   });
 
-  it('searches loaded profiles without exposing filter controls', async () => {
+  it('searches loaded profiles and toggles Aura sorting', async () => {
     mocks.discover.mockResolvedValueOnce({
       users: [
-        { id: 'a', username: 'alice', avatar: null, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
-        { id: 'b', username: 'bob', avatar: null, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
+        { id: 'a', username: 'alice', avatar: null, followerCount: 4, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
+        { id: 'b', username: 'bob', avatar: null, followerCount: 20, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
       ],
       nextCursor: null,
       hasMore: false,
@@ -113,6 +112,24 @@ describe('Discover page', () => {
     expect(screen.getByText('@alice')).toBeInTheDocument();
     expect(screen.getByText('@bob')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Verified' })).toBeNull();
+
+    const directory = screen.getByLabelText('People on BeSeen');
+    await userEvent.click(screen.getByRole('button', { name: 'Sort by Most Aura' }));
+    expect(directory.querySelector('a')).toHaveAttribute('href', '/u/bob');
+    expect(screen.getByRole('button', { name: 'Remove Most Aura sort' })).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Most Aura sort' }));
+    expect(directory.querySelector('a')).toHaveAttribute('href', '/u/alice');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sort A–Z' }));
+    expect(screen.getByRole('button', { name: 'Remove A–Z sort' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Sort by Most Aura' })).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filter by Verified Only' }));
+    expect(screen.getByText('@alice')).toBeInTheDocument();
+    expect(screen.queryByText('@bob')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Verified Only filter' }));
+    expect(screen.getByText('@bob')).toBeInTheDocument();
   });
 
   it('continues through paginated results while searching', async () => {

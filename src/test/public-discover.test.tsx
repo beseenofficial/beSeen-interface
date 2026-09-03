@@ -25,7 +25,7 @@ describe('public Discover page', () => {
   it('shows public navigation and an auth action without private app navigation', async () => {
     render(<PublicDiscoverPage />);
 
-    expect(screen.getByRole('link', { name: 'Discover' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'BeSeen Discover' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Join or sign in' })).toHaveAttribute('href', '/login');
     expect(screen.queryByText('Overview')).toBeNull();
     expect(screen.queryByText('Messenger')).toBeNull();
