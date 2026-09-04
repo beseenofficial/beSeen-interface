@@ -43,7 +43,7 @@ describe('login flow', () => {
   it('offers a BeSeen sign-in button when signed out', () => {
     render(<LoginPage />);
     expect(
-      screen.getByRole('button', { name: /sign in to beseen/i }),
+      screen.getByRole('button', { name: /^sign in$/i }),
     ).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
