@@ -15,10 +15,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@bluxcc/react": "^0.2.18",
+    "@bluxcc/react": "^0.3.6",
     "@noble/curves": "^1.8.1",
     "@opennextjs/cloudflare": "^1.20.2",
-    "@stellar/stellar-sdk": "^16.2.0",
+    "@stellar/stellar-sdk": "^17.0.1",
     "framer-motion": "^13.1.0",
     "libsodium-wrappers-sumo": "^0.8.4",
     "lucide-react": "^0.468.0",

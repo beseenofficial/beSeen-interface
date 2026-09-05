@@ -155,7 +155,7 @@ export async function deriveKeysFromSignedTransaction(
   ) {
     throw new Error('The signed key transaction operation is incorrect.');
   }
-  const signature = new Uint8Array(parsed.signatures[0].signature());
+  const signature = parsed.signatures[0].signature.toBytes();
   if (signature.length !== 64) throw new Error('The wallet signature has an invalid length.');
   const verifier = (await import('@stellar/stellar-sdk')).Keypair.fromPublicKey(walletAddress);
   if (!verifier.verify(asBuffer(parsed.hash()), asBuffer(signature))) {

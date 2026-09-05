@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthContextValue } from '@/lib/blux';
 import type { AuthConfig } from '@/types';
@@ -26,6 +26,46 @@ const auth: AuthContextValue = {
   fundWallet: vi.fn(),
 };
 
+const emailLogin = {
+  sendCodeAsync: vi.fn(async () => undefined),
+  loginWithCodeAsync: vi.fn(async () => ({})),
+  reset: vi.fn(),
+  error: null as Error | null,
+  isCodeSent: false,
+  isError: false,
+  isIdle: true,
+  isLoggingIn: false,
+  isPending: false,
+  isSendingCode: false,
+  isSuccess: false,
+  status: 'idle' as const,
+};
+const oauthLogin = {
+  loginOAuthAsync: vi.fn(async () => ({})),
+  reset: vi.fn(),
+  error: null as Error | null,
+  isPending: false,
+};
+const passkeyLogin = {
+  loginPasskeyAsync: vi.fn(async () => ({})),
+  reset: vi.fn(),
+  error: null as Error | null,
+  isPending: false,
+};
+const walletLogin = {
+  loginWalletAsync: vi.fn(async () => ({})),
+  reset: vi.fn(),
+  error: null as Error | null,
+  isPending: false,
+};
+
+vi.mock('@bluxcc/react', () => ({
+  useLoginEmail: () => emailLogin,
+  useLoginOAuth: () => oauthLogin,
+  useLoginPasskey: () => passkeyLogin,
+  useLoginWallet: () => walletLogin,
+}));
+
 vi.mock('@/lib/blux', () => ({
   useAuth: () => auth,
 }));
@@ -37,15 +77,53 @@ beforeEach(() => {
   auth.busyLabel = null;
   auth.address = null;
   auth.error = null;
+  emailLogin.error = null;
+  emailLogin.isCodeSent = false;
+  emailLogin.isLoggingIn = false;
+  emailLogin.isPending = false;
+  emailLogin.isSendingCode = false;
+  oauthLogin.error = null;
+  oauthLogin.isPending = false;
+  passkeyLogin.error = null;
+  passkeyLogin.isPending = false;
+  walletLogin.error = null;
+  walletLogin.isPending = false;
+  vi.clearAllMocks();
 });
 
 describe('login flow', () => {
-  it('offers a BeSeen sign-in button when signed out', () => {
+  it('keeps every sign-in method visible while preserving email and Google hierarchy', () => {
     render(<LoginPage />);
-    expect(
-      screen.getByRole('button', { name: /^sign in$/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /email me a code/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^wallet$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^discord$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^github$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^passkey$/i })).toBeInTheDocument();
+    expect(screen.queryByText(/sms/i)).toBeNull();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('starts social and wallet login directly from their buttons', async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+    await waitFor(() => expect(oauthLogin.loginOAuthAsync).toHaveBeenCalledWith('google'));
+
+    fireEvent.click(screen.getByRole('button', { name: /^wallet$/i }));
+    await waitFor(() => expect(walletLogin.loginWalletAsync).toHaveBeenCalledWith());
+  });
+
+  it('starts the headless email flow from the primary form', async () => {
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: ' hello@example.com ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+    await waitFor(() =>
+      expect(emailLogin.sendCodeAsync).toHaveBeenCalledWith('hello@example.com'),
+    );
+    expect(screen.queryByText(/sms/i)).toBeNull();
   });
 
   it('asks for the ownership signature when it is still missing', () => {
@@ -60,20 +138,38 @@ describe('login flow', () => {
     ).toBeInTheDocument();
   });
 
-  it('surfaces sign-in errors', () => {
+  it('does not render Blux provider errors in the login panel', () => {
     auth.status = 'sign-required';
     auth.error = 'The wallet signing request timed out. Please try again.';
     render(<LoginPage />);
-    expect(screen.getByRole('alert')).toHaveTextContent(/timed out/i);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/wallet signing request timed out/i)).toBeNull();
   });
 
-  it('keeps the sign-in transition lightweight while keys are being created', () => {
+  it('shows only local email validation and clears it as the user corrects the value', () => {
+    render(<LoginPage />);
+    const input = screen.getByLabelText(/email address/i);
+    fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/enter your email address/i);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+
+    fireEvent.change(input, { target: { value: 'hello' } });
+    fireEvent.blur(input);
+    expect(screen.getByRole('alert')).toHaveTextContent(/complete email address/i);
+
+    fireEvent.change(input, { target: { value: 'hello@example.com' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(input).toHaveValue('hello@example.com');
+    expect(emailLogin.sendCodeAsync).not.toHaveBeenCalled();
+  });
+
+  it('shows the contextual sign-in transition while keys are being created', () => {
     auth.status = 'loading';
     auth.busyLabel =
       'Creating your keypair — approve the signature request in your wallet';
     render(<LoginPage />);
-    expect(screen.getByText('Signing you in…')).toBeInTheDocument();
-    expect(screen.queryByText(/creating your keypair/i)).toBeNull();
+    expect(screen.getByText(/creating your keypair/i)).toBeInTheDocument();
     expect(screen.queryByText(/no transaction is submitted to stellar/i)).toBeNull();
     expect(screen.queryByText(/derive your beseen signing keypair/i)).toBeNull();
   });
