@@ -5,9 +5,11 @@ import { BrandLogo } from './brand-logo';
 
 const easeOut = [0.22, 1, 0.36, 1] as const;
 
-// Keep the label prop for compatibility with existing auth callers. The visible
-// status stays intentionally fixed so authentication always feels lightweight.
-export function SecureLoadingScreen({}: { label?: string }) {
+export function SecureLoadingScreen({
+  label = 'Signing you in…',
+}: {
+  label?: string;
+}) {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -20,7 +22,7 @@ export function SecureLoadingScreen({}: { label?: string }) {
       role="status"
       aria-live="polite"
       aria-busy="true"
-      aria-label="Signing you in"
+      aria-label={label}
     >
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_48%,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.68)_48%,rgba(238,247,250,0)_100%)]"
@@ -55,7 +57,7 @@ export function SecureLoadingScreen({}: { label?: string }) {
             ease: easeOut,
           }}
         >
-          Signing you in…
+          {label}
         </motion.p>
 
         <motion.div

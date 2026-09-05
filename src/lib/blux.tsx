@@ -543,7 +543,14 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
         showWalletUIs: false,
         networks: [selectedNetwork],
         defaultNetwork: selectedNetwork,
-        loginMethods: ["passkey", "wallet", "email", "google"],
+        loginMethods: [
+          "wallet",
+          "google",
+          "email",
+          "discord",
+          "github",
+          "passkey",
+        ],
         appearance,
       }}
     >
