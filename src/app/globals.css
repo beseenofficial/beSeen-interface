@@ -151,6 +151,13 @@
   -webkit-backdrop-filter: blur(18px) saturate(145%);
 }
 
+@media (max-width: 639px) {
+  .discover-glass-header {
+    background: rgb(246 248 255 / 92%);
+    border-bottom: 1px solid rgb(212 223 239 / 72%);
+  }
+}
+
 .discover-glass-header::after {
   position: absolute;
   top: 100%;
