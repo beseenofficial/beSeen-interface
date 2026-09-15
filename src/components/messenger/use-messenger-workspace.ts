@@ -1,5 +1,6 @@
 'use client';
 
+import { useWriteContract } from '@bluxcc/react';
 import {
   useCallback,
   useEffect,
@@ -33,6 +34,11 @@ import { loadPendingMessengerAttempt } from '@/lib/messenger-workflow';
 import { useAuth } from '@/lib/blux';
 import { invalidateData } from '@/lib/data-invalidation';
 import { useToast } from '@/providers/toast-provider';
+import {
+  bountyDeadline,
+  getBeSeenContractAddress,
+  toBountyContractAmount,
+} from '@/lib/bounty-contract';
 import type {
   BroadcastRecipientSummary,
   DecryptedBroadcast,
@@ -45,7 +51,8 @@ import type {
 
 export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   const { toast } = useToast();
-  const { refreshUser } = useAuth();
+  const { address: senderAddress, refreshUser } = useAuth();
+  const { mutateAsync: writeContract } = useWriteContract<bigint>();
   const conversationList = useConversationList();
   const {
     activeConversation,
@@ -107,6 +114,34 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     [keys],
   );
 
+  const lockBounty = useCallback(
+    async (bounty: { amount: string; durationSeconds: number }) => {
+      const recipientAddress = context?.otherParticipant.walletAddress;
+      if (!senderAddress) {
+        throw new Error('Connect your Stellar wallet before locking a bounty.');
+      }
+      if (!recipientAddress) {
+        throw new Error('The recipient wallet address is unavailable. Refresh the conversation and try again.');
+      }
+
+      const transaction = await writeContract({
+        call: {
+          address: getBeSeenContractAddress(),
+          fn: 'lock_bounty',
+          args: [
+            senderAddress,
+            recipientAddress,
+            toBountyContractAmount(bounty.amount),
+            bountyDeadline(bounty.durationSeconds),
+          ],
+        },
+      });
+
+      return transaction.returnValue();
+    },
+    [context?.otherParticipant.walletAddress, senderAddress, writeContract],
+  );
+
   const composer = useMessageComposer({
     activeConversationId,
     keys,
@@ -118,6 +153,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     toast,
     demoUsdcBalance: user.demoUsdcBalance,
     refreshCurrentUser: refreshUser,
+    lockBounty,
   });
   const {
     setHasPendingRetry,

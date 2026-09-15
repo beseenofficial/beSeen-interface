@@ -49,11 +49,13 @@ beforeAll(async () => {
     conversationId,
     viewer: {
       id: '507f1f77bcf86cd799439012', username: 'sender', avatar: null, keyVersion: 1,
+      walletAddress: 'GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR',
       signingPublicKey: bytesToBase64(keys.signingPublicKey),
       encryptionPublicKey: bytesToBase64(keys.encryptionPublicKey),
     },
     otherParticipant: {
       id: '507f1f77bcf86cd799439013', username: 'recipient', avatar: null, keyVersion: 1,
+      walletAddress: 'GDNSSYSCSSJ76FER5WEEXME5G4MTCUBKDRQSKOYP36KUKVDB2VCMERS6',
       signingPublicKey: bytesToBase64(recipientSigning.publicKey),
       encryptionPublicKey: bytesToBase64(recipientEncryption.publicKey),
     },

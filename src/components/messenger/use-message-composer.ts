@@ -40,6 +40,7 @@ type UseMessageComposerOptions = {
   toast: (title: string, message?: string) => void;
   demoUsdcBalance: string | undefined;
   refreshCurrentUser: () => Promise<unknown>;
+  lockBounty: (bounty: MessengerBountyTerms) => Promise<bigint | null>;
 };
 
 export type BountyDurationUnit = 'minute' | 'hour' | 'day';
@@ -85,6 +86,7 @@ export function useMessageComposer({
   toast,
   demoUsdcBalance,
   refreshCurrentUser,
+  lockBounty,
 }: UseMessageComposerOptions) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
@@ -153,6 +155,7 @@ export function useMessageComposer({
       ? { assetCode: bountyAsset, amount: bountyAmount, durationSeconds: Number(bountyDuration) }
       : null;
     try {
+      if (bounty) await lockBounty(bounty);
       const result = await createAndSendMessengerMessage({
         conversationId: activeConversationId,
         plaintext: draft,

@@ -20,7 +20,7 @@ vi.mock('@/lib/messenger-workflow', () => ({
 import { useMessageComposer } from '@/components/messenger/use-message-composer';
 import type { DecryptedMessengerMessage, MessengerConversation } from '@/types';
 
-function Harness({ activeConversationId = 'conversation', balance, refresh }: { activeConversationId?: string; balance?: string; refresh: () => Promise<unknown> }) {
+function Harness({ activeConversationId = 'conversation', balance, refresh, lockBounty = vi.fn().mockResolvedValue(1n) }: { activeConversationId?: string; balance?: string; refresh: () => Promise<unknown>; lockBounty?: (bounty: { assetCode: 'USDC'; amount: string; durationSeconds: number }) => Promise<bigint | null> }) {
   const [, setConversations] = useState<MessengerConversation[]>([]);
   const [, setMessages] = useState<DecryptedMessengerMessage[]>([]);
   const composer = useMessageComposer({
@@ -34,6 +34,7 @@ function Harness({ activeConversationId = 'conversation', balance, refresh }: { 
     toast: () => undefined,
     demoUsdcBalance: balance,
     refreshCurrentUser: refresh,
+    lockBounty,
   });
   return (
     <form onSubmit={composer.sendMessage}>
@@ -95,9 +96,21 @@ describe('message composer USDC bounty', () => {
     expect(refresh).toHaveBeenCalledOnce();
   });
 
+  it('does not send the message when the on-chain lock fails', async () => {
+    const lockBounty = vi.fn().mockRejectedValue(new Error('Wallet signature was rejected.'));
+    render(<Harness balance="20" refresh={vi.fn()} lockBounty={lockBounty} />);
+    await userEvent.type(screen.getByLabelText('Draft'), 'keep this message');
+    await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('Wallet signature was rejected.')).toBeInTheDocument();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Draft')).toHaveValue('keep this message');
+  });
+
   it('converts the entered reply time and unit to seconds', async () => {
+    const lockBounty = vi.fn().mockResolvedValue(42n);
     mocks.create.mockResolvedValueOnce({ message: sentMessage, created: true });
-    render(<Harness balance="100" refresh={vi.fn()} />);
+    render(<Harness balance="100" refresh={vi.fn()} lockBounty={lockBounty} />);
     await userEvent.type(screen.getByLabelText('Draft'), 'reply in four days');
     await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
     await userEvent.clear(screen.getByLabelText('Duration value'));
@@ -107,6 +120,11 @@ describe('message composer USDC bounty', () => {
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
       bounty: expect.objectContaining({ durationSeconds: 4 * 86400 }),
     }));
+    expect(lockBounty).toHaveBeenCalledWith({
+      assetCode: 'USDC',
+      amount: '10',
+      durationSeconds: 4 * 86400,
+    });
   });
 
   it('keeps a separate draft for each conversation', async () => {
