@@ -1,292 +1,57 @@
 'use client';
 
-import {
-  Check,
-  LayoutGrid,
-  LogIn,
-  RadioTower,
-  Send,
-  Share2,
-  UserRound,
-} from 'lucide-react';
+import { LayoutGrid, LogIn, RadioTower, Send, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
 import { Avatar } from '@/components/ui/avatar';
-import { useAvatarPalette } from '@/components/discover/use-avatar-palette';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { OwnProfileEditor } from '@/components/profile/own-profile-editor';
 import { ErrorState, SecureLoadingScreen } from '@/components/ui/states';
-import { ApiError, messengerApi, profileApi, tokenApi } from '@/lib/api';
-import { useAuth } from '@/lib/blux';
 import {
-  invalidateData,
-  subscribeToInvalidation,
-} from '@/lib/data-invalidation';
-import { cn } from '@/lib/utils';
-import type { FollowCounts, PublicUser } from '@/types';
-
-const ACTION_BASE =
-  'inline-flex items-center justify-center gap-2 rounded-full text-[15px] font-semibold tracking-[-0.01em] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:not-disabled:-translate-y-px active:not-disabled:translate-y-0';
-const PRIMARY_ACTION = `${ACTION_BASE} group min-h-12 bg-[#22252a] px-6 text-white shadow-[0_1px_2px_rgb(11_11_63/16%),0_12px_26px_-12px_rgb(11_11_63/38%)] hover:bg-brand hover:shadow-[0_2px_3px_rgb(16_69_245/18%),0_14px_28px_-12px_rgb(16_69_245/48%)]`;
-const SECONDARY_ACTION = `${ACTION_BASE} min-h-11 border border-transparent bg-transparent px-4 font-medium text-secondary hover:border-hairline/70 hover:bg-white/80 hover:text-navy`;
-const HEADER_ACTION = `${ACTION_BASE} min-h-10 border border-transparent bg-transparent px-3.5 text-secondary hover:border-hairline hover:bg-white hover:text-navy max-sm:px-3`;
-
-function ValueSkeleton({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-block animate-pulse rounded bg-[#eef3f6]',
-        className,
-      )}
-      aria-hidden="true"
-    />
-  );
-}
-
-function InlineStat({
-  label,
-  value,
-  loading,
-}: {
-  label: string;
-  value: number | undefined;
-  loading: boolean;
-}) {
-  return (
-    <span className="flex items-baseline gap-1.5">
-      {loading ? (
-        <ValueSkeleton className="h-4 w-7 translate-y-[-1px]" />
-      ) : (
-        <strong className="font-semibold tabular-nums text-navy">
-          {value === undefined ? '—' : value.toLocaleString()}
-        </strong>
-      )}
-      <span className="text-secondary">{label}</span>
-    </span>
-  );
-}
-
-function SignalMark({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        'public-profile-signal-mark inline-block shrink-0 bg-brand',
-        className,
-      )}
-      aria-hidden="true"
-    />
-  );
-}
-
-function ActivityRegisterRow({
-  label,
-  value,
-  unit,
-  isEmpty = false,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  isEmpty?: boolean;
-}) {
-  return (
-    <div className="grid min-h-10 min-w-0 grid-cols-[10px_minmax(0,1fr)_auto] items-baseline gap-x-3 py-1.5">
-      <span
-        className="mt-[9px] block h-px w-2 bg-[#b9c9d6]"
-        aria-hidden="true"
-      />
-      <span className="text-[13px] font-medium leading-5 text-secondary">
-        {label}
-      </span>
-      <strong
-        className={cn(
-          'text-right text-[14px] leading-5 tabular-nums tracking-[-0.01em]',
-          isEmpty ? 'font-normal text-muted/75' : 'font-semibold text-navy',
-        )}
-      >
-        {isEmpty ? (
-          'None yet'
-        ) : (
-          <>
-            {value}
-            {unit ? (
-              <span className="ml-1 text-[10px] font-medium text-muted">
-                {unit}
-              </span>
-            ) : null}
-          </>
-        )}
-      </strong>
-    </div>
-  );
-}
+  ActivityRegisterRow,
+  InlineStat,
+  SignalMark,
+} from '@/components/profile/public-profile-kpis';
+import { PublicProfileHeader } from '@/components/profile/public-profile-header';
+import { PurchaseConfirmationModal } from '@/components/profile/purchase-confirmation-modal';
+import {
+  PRIMARY_ACTION,
+  SECONDARY_ACTION,
+  formatCount,
+} from '@/lib/public-profile-actions';
+import { usePublicProfilePage } from './use-public-profile-page';
 
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
-  const auth = useAuth();
-  const [profile, setProfile] = useState<PublicUser | null>(null);
-  const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
-  const [following, setFollowing] = useState(false);
-  const [followingBusy, setFollowingBusy] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [countsLoading, setCountsLoading] = useState(true);
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [countsError, setCountsError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const formatCount = (value: number | undefined) =>
-    value === undefined ? '—' : value.toLocaleString();
-  const [bannerPrimary, bannerSecondary] = useAvatarPalette(
-    profile?.avatar ?? null,
-    profile?.id || profile?.username || username,
-  );
-
-  const loadProfile = useCallback(async () => {
-    setProfileLoading(true);
-    setProfileError(null);
-    try {
-      let loadedProfile = await profileApi.public(username);
-      if (
-        loadedProfile.broadcastCount === undefined ||
-        loadedProfile.messageCount === undefined ||
-        loadedProfile.totalBountyReceivedUsdc === undefined
-      ) {
-        loadedProfile = await profileApi.public(username);
-      }
-      setProfile(loadedProfile);
-    } catch (cause) {
-      setProfile(null);
-      setProfileError(
-        cause instanceof ApiError &&
-          (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
-          ? 'This BeSeen profile does not exist.'
-          : cause instanceof Error
-            ? cause.message
-            : 'This BeSeen profile could not be loaded.',
-      );
-    } finally {
-      setProfileLoading(false);
-    }
-  }, [username]);
-
-  const loadFollowCounts = useCallback(async () => {
-    setCountsLoading(true);
-    setCountsError(null);
-    try {
-      setFollowCounts(await profileApi.followCounts(username));
-    } catch (cause) {
-      setFollowCounts(null);
-      setCountsError(
-        cause instanceof ApiError &&
-          (cause.status === 404 || cause.code === 'USER_NOT_FOUND')
-          ? 'Follow counts are unavailable because this user was not found.'
-          : 'Follow counts could not be loaded.',
-      );
-    } finally {
-      setCountsLoading(false);
-    }
-  }, [username]);
-
-  useEffect(() => {
-    void Promise.allSettled([loadProfile(), loadFollowCounts()]);
-  }, [loadFollowCounts, loadProfile]);
-
-  useEffect(
-    () =>
-      subscribeToInvalidation((detail) => {
-        if (!detail.username || detail.username === username) {
-          if (detail.resource === 'follow-counts') void loadFollowCounts();
-          if (detail.resource === 'public-profile') void loadProfile();
-        }
-      }),
-    [loadFollowCounts, loadProfile, username],
-  );
-
-  useEffect(() => {
-    let active = true;
-    setFollowing(false);
-    setConversationId(null);
-
-    if (!profile || !auth.user || auth.user.id === profile.id) {
-      return () => {
-        active = false;
-      };
-    }
-
-    void tokenApi
-      .mine()
-      .then(async (holdings) => {
-        if (active) {
-          const ownsToken = holdings.some(
-            (token) => token.owner.id === profile.id,
-          );
-          setFollowing(ownsToken);
-          if (ownsToken) {
-            const conversation = await messengerApi.findConversationWithUser(
-              profile.id,
-            );
-            if (active) setConversationId(conversation?.id ?? null);
-          }
-        }
-      })
-      .catch((cause) => {
-        if (active) {
-          setActionError(
-            cause instanceof Error
-              ? cause.message
-              : 'Your subscription status could not be loaded.',
-          );
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [auth.user, profile]);
-
-  async function follow() {
-    if (!profile || !auth.user || followingBusy) return;
-    setFollowingBusy(true);
-    setActionError(null);
-    try {
-      const result = await tokenApi.purchase(profile.username);
-      setFollowing(true);
-      setConversationId(result.conversation.id);
-      invalidateData({ resource: 'follow-counts', username: profile.username });
-      invalidateData({ resource: 'owned-tokens' });
-      invalidateData({ resource: 'conversations' });
-    } catch (cause) {
-      setActionError(
-        cause instanceof Error
-          ? cause.message
-          : 'This profile could not be followed.',
-      );
-    } finally {
-      setFollowingBusy(false);
-    }
-  }
-
-  async function shareProfile(profileUrl: string) {
-    const url = `${window.location.origin}/u/${profile?.username ?? username}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `@${username} on BeSeen`, url });
-        return;
-      } catch {
-        return;
-      }
-    }
-    await navigator.clipboard.writeText(profileUrl);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-  }
+  const {
+    auth,
+    profile,
+    followCounts,
+    following,
+    followingBusy,
+    conversationId,
+    copied,
+    profileLoading,
+    countsLoading,
+    profileError,
+    countsError,
+    actionError,
+    approvalOpen,
+    bannerPrimary,
+    bannerSecondary,
+    loadProfile,
+    loadFollowCounts,
+    openApproval,
+    confirmPurchase,
+    setApprovalOpen,
+    shareProfile,
+  } = usePublicProfilePage(username);
 
   if (profileLoading) {
     return <SecureLoadingScreen label="Loading public profile…" />;
   }
+
   if (profileError && !profile) {
     return (
       <main className="min-h-svh bg-ice p-6">
@@ -299,6 +64,7 @@ export default function PublicProfilePage() {
       </main>
     );
   }
+
   if (!profile) return null;
 
   const ownProfile = auth.user?.id === profile.id;
@@ -318,7 +84,6 @@ export default function PublicProfilePage() {
           label: 'My profile',
           icon: UserRound,
         };
-  const SiteCtaIcon = siteCta.icon;
   const messengerHref = conversationId
     ? `/dashboard/messenger?conversation=${encodeURIComponent(conversationId)}`
     : '/dashboard/messenger';
@@ -326,49 +91,14 @@ export default function PublicProfilePage() {
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-[#f3f7fa] px-4 py-5 text-navy sm:px-7 sm:py-6 lg:px-[clamp(32px,5vw,80px)]">
       <div className="relative mx-auto flex w-full max-w-[1000px] flex-col">
-        <header className="flex min-h-11 shrink-0 items-center justify-between gap-4 px-1 sm:px-2">
-          <div className="flex min-w-0 items-center gap-2.5 max-sm:gap-1.5">
-            <Link
-              className="shrink-0"
-              href={auth.user ? '/dashboard' : '/login'}
-              aria-label="Go to BeSeen"
-            >
-              <BrandLogo className="w-[146px] max-sm:w-[90px]" />
-            </Link>
-            <span className="shrink-0 text-[34px] font-semibold leading-none tracking-[-0.03em] text-brand max-sm:text-[21px]">
-              Profile
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className={`${HEADER_ACTION} cursor-pointer`}
-              onClick={() => void shareProfile(profileUrl)}
-              type="button"
-              aria-label={copied ? 'Profile link copied' : 'Share profile'}
-            >
-              {copied ? (
-                <Check size={18} aria-hidden="true" />
-              ) : (
-                <Share2 size={18} aria-hidden="true" />
-              )}
-              <span className="max-sm:hidden">
-                {copied ? 'Copied' : 'Share'}
-              </span>
-            </button>
-            {/* The label is hidden on the narrowest screens, so the link carries its own name. */}
-            <Link
-              className={HEADER_ACTION}
-              href={siteCta.href}
-              aria-label={siteCta.label}
-            >
-              <SiteCtaIcon size={18} aria-hidden="true" />
-              <span className="max-[430px]:hidden">{siteCta.label}</span>
-            </Link>
-          </div>
-        </header>
+        <PublicProfileHeader
+          copied={copied}
+          authUser={auth.user}
+          onShare={() => void shareProfile(profileUrl)}
+          siteCta={siteCta}
+        />
 
         <section className="public-profile-card relative mt-4 min-w-0 rounded-[24px] border border-[#d9e1f0] bg-white p-3 shadow-[0_14px_40px_-6px_rgba(35,58,115,0.10)] sm:p-4">
-          {/* Hero band generated from the profile photo itself: blurred into atmosphere over the extracted palette, inset like the Aura card's cover. */}
           <div
             className="public-profile-banner relative h-[clamp(128px,14vw,152px)] overflow-hidden rounded-[14px] shadow-[inset_0_0_0_1px_rgba(11,11,63,0.05)] sm:rounded-[16px]"
             style={{ backgroundImage: bannerGradient }}
@@ -496,7 +226,7 @@ export default function PublicProfilePage() {
                       <button
                         className={`${PRIMARY_ACTION} cursor-pointer disabled:cursor-wait disabled:opacity-65`}
                         disabled={followingBusy}
-                        onClick={() => void follow()}
+                        onClick={openApproval}
                         type="button"
                       >
                         <Send
@@ -506,8 +236,8 @@ export default function PublicProfilePage() {
                           aria-hidden="true"
                         />
                         {followingBusy
-                          ? 'Preparing conversation…'
-                          : 'Purchase token to message'}
+                          ? 'Buying Aura…'
+                          : 'Purchase Aura to message'}
                       </button>
                     )}
 
@@ -515,7 +245,7 @@ export default function PublicProfilePage() {
                       <button
                         className={`${SECONDARY_ACTION} cursor-pointer disabled:cursor-default disabled:opacity-65`}
                         disabled={following || followingBusy}
-                        onClick={() => void follow()}
+                        onClick={openApproval}
                         type="button"
                       >
                         <RadioTower
@@ -523,7 +253,7 @@ export default function PublicProfilePage() {
                           strokeWidth={1.8}
                           aria-hidden="true"
                         />
-                        {followingBusy ? 'Subscribing…' : followingLabel}
+                        {followingBusy ? 'Buying Aura…' : followingLabel}
                       </button>
                     ) : ownProfile ? (
                       <OwnProfileEditor onUpdated={() => void loadProfile()} />
@@ -569,6 +299,14 @@ export default function PublicProfilePage() {
           </div>
         </section>
       </div>
+
+      <PurchaseConfirmationModal
+        open={approvalOpen}
+        username={profile.username}
+        followingBusy={followingBusy}
+        onClose={() => setApprovalOpen(false)}
+        onConfirm={() => void confirmPurchase()}
+      />
     </main>
   );
 }

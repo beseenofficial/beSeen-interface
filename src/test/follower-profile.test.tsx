@@ -5,24 +5,41 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({ useParams: () => ({ username: 'alice' }) }));
 
 const mocks = vi.hoisted(() => ({
-  profile: vi.fn(), followCounts: vi.fn(), profileToken: vi.fn(), mine: vi.fn(), purchase: vi.fn(),
+  profile: vi.fn(), followCounts: vi.fn(), profileToken: vi.fn(), mine: vi.fn(), purchaseContext: vi.fn(), purchase: vi.fn(), writeContract: vi.fn(),
   ApiError: class ApiError extends Error {
     constructor(message: string, public status: number, public code: string) { super(message); }
   },
 }));
 const auth = vi.hoisted(() => ({
+  address: 'GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR' as string | null,
   user: { id: 'viewer', username: 'viewer', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' } as {
     id: string; username: string; avatar: null; createdAt: string;
   } | null,
 }));
 
+vi.mock('@bluxcc/react', () => ({
+  useWriteContract: () => ({ mutateAsync: mocks.writeContract }),
+}));
+
 vi.mock('@/lib/api', () => ({
   messengerApi: { findConversationWithUser: vi.fn() },
   profileApi: { public: mocks.profile, followCounts: mocks.followCounts },
-  tokenApi: { profileToken: mocks.profileToken, mine: mocks.mine, purchase: mocks.purchase },
+  tokenApi: { profileToken: mocks.profileToken, mine: mocks.mine, purchaseContext: mocks.purchaseContext, purchase: mocks.purchase },
   ApiError: mocks.ApiError,
 }));
 vi.mock('@/lib/blux', () => ({ useAuth: () => auth }));
+
+const horizonLoadAccount = vi.fn();
+vi.mock('@stellar/stellar-sdk', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@stellar/stellar-sdk')>();
+  return {
+    ...actual,
+    Horizon: {
+      ...actual.Horizon,
+      Server: vi.fn(() => ({ loadAccount: horizonLoadAccount })),
+    },
+  };
+});
 
 import PublicProfilePage from '@/app/u/[username]/page';
 
@@ -36,11 +53,16 @@ const publicProfile = {
 describe('public profile social counts and statistics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_BESEEN_CONTRACT_ADDRESS = 'CDYJKXW6QTWQYPT3JCWXDUBG5TL5ALDX7PT4ULKH5IBJKOFXJAEKU7V5';
     auth.user = { id: 'viewer', username: 'viewer', avatar: null, createdAt: '2026-01-01T00:00:00.000Z' };
+    auth.address = 'GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR';
     mocks.profile.mockResolvedValue(publicProfile);
     mocks.followCounts.mockResolvedValue({ user: { id: 'alice-id', username: 'alice' }, followerCount: 4, followingCount: 2 });
     mocks.profileToken.mockResolvedValue({ id: 'token', owner: { id: 'alice-id', username: 'alice', avatar: null }, createdAt: '2026-01-01T00:00:00.000Z' });
     mocks.mine.mockResolvedValue([]);
+    mocks.purchaseContext.mockResolvedValue({ subjectAddress: 'GDNSSYSCSSJ76FER5WEEXME5G4MTCUBKDRQSKOYP36KUKVDB2VCMERS6' });
+    mocks.writeContract.mockResolvedValue({ returnValue: vi.fn().mockResolvedValue(null) });
+    horizonLoadAccount.mockResolvedValue({ id: auth.address });
   });
 
   it('renders the essential public profile stats without message-direction detail', async () => {
@@ -67,8 +89,57 @@ describe('public profile social counts and statistics', () => {
     render(<PublicProfilePage />);
     expect(await screen.findByText('4')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /subscribe to broadcasts/i }));
+    // The confirmation modal must be approved before the contract call fires.
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(mocks.writeContract).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(screen.getByText('5')).toBeInTheDocument());
+    expect(mocks.writeContract).toHaveBeenCalledWith({
+      call: {
+        address: 'CDYJKXW6QTWQYPT3JCWXDUBG5TL5ALDX7PT4ULKH5IBJKOFXJAEKU7V5',
+        fn: 'buy_aura',
+        args: [
+          'GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR',
+          'GDNSSYSCSSJ76FER5WEEXME5G4MTCUBKDRQSKOYP36KUKVDB2VCMERS6',
+        ],
+      },
+    });
     expect(mocks.followCounts).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not create an off-chain holding when the Aura transaction fails', async () => {
+    mocks.writeContract.mockRejectedValueOnce(new Error('Wallet signature was rejected.'));
+    render(<PublicProfilePage />);
+    await userEvent.click(await screen.findByRole('button', { name: /subscribe to broadcasts/i }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(await screen.findByText('Wallet signature was rejected.')).toBeInTheDocument();
+    expect(mocks.purchase).not.toHaveBeenCalled();
+  });
+
+  it('cancelling the approval modal skips the purchase entirely', async () => {
+    render(<PublicProfilePage />);
+    await userEvent.click(await screen.findByRole('button', { name: /subscribe to broadcasts/i }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(mocks.writeContract).not.toHaveBeenCalled();
+    expect(mocks.purchase).not.toHaveBeenCalled();
+  });
+
+  it('blocks the purchase with a clear error when the wallet is unfunded', async () => {
+    horizonLoadAccount.mockRejectedValueOnce(new Error('Account not found'));
+    render(<PublicProfilePage />);
+    await userEvent.click(await screen.findByRole('button', { name: /subscribe to broadcasts/i }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(
+      await screen.findByText(
+        'Your Stellar wallet is not funded yet. Fund it with XLM first, then try again.',
+      ),
+    ).toBeInTheDocument();
+    expect(mocks.writeContract).not.toHaveBeenCalled();
+    expect(mocks.purchase).not.toHaveBeenCalled();
   });
 
   it('does not show a duplicate subscribe action to signed-out visitors', async () => {

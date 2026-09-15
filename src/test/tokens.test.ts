@@ -1,15 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { requestWithStatus } = vi.hoisted(() => ({ requestWithStatus: vi.fn() }));
+const { request, requestWithStatus } = vi.hoisted(() => ({
+  request: vi.fn(),
+  requestWithStatus: vi.fn(),
+}));
 vi.mock('@/lib/api/transport', () => ({
-  apiRequest: vi.fn(),
+  apiRequest: request,
   apiRequestWithStatus: requestWithStatus,
 }));
 
 import { tokenApi } from '@/lib/api/tokens';
 
 describe('token purchase status', () => {
-  beforeEach(() => requestWithStatus.mockReset());
+  beforeEach(() => {
+    request.mockReset();
+    requestWithStatus.mockReset();
+  });
 
   it.each([
     [201, true],
@@ -31,5 +37,13 @@ describe('token purchase status', () => {
     expect(requestWithStatus).toHaveBeenCalledWith('/v1/users/alice/token/purchase', {
       method: 'POST', auth: true,
     });
+  });
+
+  it('loads the authenticated on-chain purchase context', async () => {
+    request.mockResolvedValueOnce({ subjectAddress: 'GDNSSYSCSSJ76FER5WEEXME5G4MTCUBKDRQSKOYP36KUKVDB2VCMERS6' });
+    await expect(tokenApi.purchaseContext('alice')).resolves.toEqual({
+      subjectAddress: 'GDNSSYSCSSJ76FER5WEEXME5G4MTCUBKDRQSKOYP36KUKVDB2VCMERS6',
+    });
+    expect(request).toHaveBeenCalledWith('/v1/users/alice/token/purchase-context', { auth: true });
   });
 });

@@ -2,6 +2,12 @@ import { apiRequest, apiRequestWithStatus } from '@/lib/api/transport';
 import type { TokenHolding, TokenPurchaseConversation, UserToken } from '@/types';
 
 export const tokenApi = {
+  async purchaseContext(username: string): Promise<{ subjectAddress: string }> {
+    return apiRequest<{ subjectAddress: string }>(
+      `/v1/users/${encodeURIComponent(username)}/token/purchase-context`,
+      { auth: true },
+    );
+  },
   async profileToken(username: string, signal?: AbortSignal): Promise<UserToken> {
     return (
       await apiRequest<{ token: UserToken }>(`/v1/users/${encodeURIComponent(username)}/token`, {

@@ -178,6 +178,8 @@ export type MessengerConversation = {
 export type MessengerConversationPage = CursorPage<MessengerConversation>;
 
 export type MessengerContextParticipant = MessengerParticipant & {
+  /** Stellar account used for on-chain bounty settlement. */
+  walletAddress: string;
   keyVersion: number;
   signingPublicKey: string;
   encryptionPublicKey: string;
