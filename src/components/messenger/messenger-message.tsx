@@ -8,7 +8,6 @@ import {
   MessageBubbleAvatar,
 } from '@/components/messenger/message-bubble';
 import { messengerTimeLabel } from '@/components/messenger/messenger-view-utils';
-import type { MessengerWorkspaceState } from '@/components/messenger/use-messenger-workspace';
 import { cn } from '@/lib/utils';
 import type { DecryptedMessengerMessage } from '@/types';
 
@@ -16,28 +15,22 @@ export function MessengerMessage({
   message,
   reply,
   outgoing,
-  beneficiary,
-  claimingBountyId,
   groupStart,
   replyActionOpen,
   senderAvatar,
   senderUsername,
   onReply,
   onToggleReplyAction,
-  onClaim,
 }: {
   message: DecryptedMessengerMessage;
   reply: DecryptedMessengerMessage | null;
   outgoing: boolean;
-  beneficiary: boolean;
-  claimingBountyId: string | null;
   groupStart: boolean;
   replyActionOpen: boolean;
   senderAvatar: string | null;
   senderUsername: string;
   onReply: (message: DecryptedMessengerMessage) => void;
   onToggleReplyAction: (messageId: string) => void;
-  onClaim: MessengerWorkspaceState['claimBounty'];
 }) {
   return (
     <motion.article
@@ -146,14 +139,7 @@ export function MessengerMessage({
             </div>
           )}
         </div>
-        {message.bounty && (
-          <MessageBounty
-            bounty={message.bounty}
-            beneficiary={beneficiary}
-            claiming={claimingBountyId === message.bounty.id}
-            onClaim={(bounty) => void onClaim(bounty)}
-          />
-        )}
+        {message.bounty && <MessageBounty bounty={message.bounty} />}
         <div
           className={cn(
             'flex items-center justify-end gap-1.5 text-[11px] leading-none text-[#080B0D]',

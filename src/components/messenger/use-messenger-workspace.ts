@@ -1,12 +1,7 @@
 'use client';
 
 import { useWriteContract } from '@bluxcc/react';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   decryptMessengerItems,
   HISTORY_POLL_MS,
@@ -14,7 +9,7 @@ import {
 } from '@/components/messenger/messenger-view-utils';
 import { useConversationList } from '@/components/messenger/use-conversation-list';
 import { useMessageComposer } from '@/components/messenger/use-message-composer';
-import { ApiError, messengerApi } from '@/lib/api';
+import { ApiError, messengerApi, profileApi } from '@/lib/api';
 import {
   BROADCAST_REFRESH_INTERVAL_MS,
   loadCompleteBroadcastFeed,
@@ -25,17 +20,16 @@ import {
   startMessengerPolling,
 } from '@/lib/messenger-polling';
 import {
-  applyClaimedBounty,
   firstUnreadMessageId,
   mergeMessengerMessages,
   mergeMessengerTimeline,
 } from '@/lib/messenger-state';
 import { loadPendingMessengerAttempt } from '@/lib/messenger-workflow';
 import { useAuth } from '@/lib/blux';
-import { invalidateData } from '@/lib/data-invalidation';
 import { useToast } from '@/providers/toast-provider';
 import {
   bountyDeadline,
+  contractU64ToString,
   getBeSeenContractAddress,
   toBountyContractAmount,
 } from '@/lib/bounty-contract';
@@ -44,14 +38,13 @@ import type {
   DecryptedBroadcast,
   DecryptedMessengerMessage,
   DerivedKeys,
-  MessengerBounty,
   MessengerConversationContext,
   User,
 } from '@/types';
 
 export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   const { toast } = useToast();
-  const { address: senderAddress, refreshUser } = useAuth();
+  const { address: senderAddress } = useAuth();
   const { mutateAsync: writeContract } = useWriteContract<bigint>();
   const conversationList = useConversationList();
   const {
@@ -62,23 +55,34 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setActiveConversationId,
     setConversations,
   } = conversationList;
-  const [context, setContext] = useState<MessengerConversationContext | null>(null);
+  const [context, setContext] = useState<MessengerConversationContext | null>(
+    null,
+  );
   const [messages, setMessages] = useState<DecryptedMessengerMessage[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [nextBeforeSequence, setNextBeforeSequence] = useState<number | null>(null);
+  const [nextBeforeSequence, setNextBeforeSequence] = useState<number | null>(
+    null,
+  );
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [claimingBountyId, setClaimingBountyId] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
-  const [unreadMarker, setUnreadMarker] = useState<{ afterSequence: number; count: number } | null>(null);
-  const [receivedBroadcasts, setReceivedBroadcasts] = useState<DecryptedBroadcast[]>([]);
-  const [broadcastRecipientDetails, setBroadcastRecipientDetails] = useState<Record<string, BroadcastRecipientSummary[]>>({});
+  const [unreadMarker, setUnreadMarker] = useState<{
+    afterSequence: number;
+    count: number;
+  } | null>(null);
+  const [receivedBroadcasts, setReceivedBroadcasts] = useState<
+    DecryptedBroadcast[]
+  >([]);
+  const [broadcastRecipientDetails, setBroadcastRecipientDetails] = useState<
+    Record<string, BroadcastRecipientSummary[]>
+  >({});
   const cache = useRef(new Map<string, DecryptedMessengerMessage>());
   const broadcastRefreshInFlight = useRef(false);
   const messageEnd = useRef<HTMLDivElement>(null);
-  const readBatcher = useRef<ReturnType<typeof createReadCursorBatcher> | null>(null);
-  const refreshedExpiredBounties = useRef(new Set<string>());
+  const readBatcher = useRef<ReturnType<typeof createReadCursorBatcher> | null>(
+    null,
+  );
 
   const closeProfile = useCallback(() => setProfileUsername(null), []);
 
@@ -87,7 +91,9 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     broadcastRefreshInFlight.current = true;
     try {
       const items = await loadCompleteBroadcastFeed('received');
-      const decrypted = await Promise.all(items.map((item) => decryptFeedItem(item, keys)));
+      const decrypted = await Promise.all(
+        items.map((item) => decryptFeedItem(item, keys)),
+      );
       setReceivedBroadcasts(decrypted);
     } finally {
       broadcastRefreshInFlight.current = false;
@@ -107,21 +113,66 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   const refreshHistory = useCallback(
     async (conversationId: string) => {
       const page = await messengerApi.messages(conversationId, { limit: 30 });
-      const decrypted = await decryptMessengerItems(page.items, keys, cache.current);
+      const decrypted = await decryptMessengerItems(
+        page.items,
+        keys,
+        cache.current,
+      );
       setMessages((current) => mergeMessengerMessages(current, decrypted));
       setHistoryError(null);
     },
     [keys],
   );
 
+  // Locks the bounty on-chain with the sender's wallet and returns the
+  // contract-generated global bounty ID as a decimal string. The ID must be
+  // known before the message manifest is signed and sent to the API.
   const lockBounty = useCallback(
-    async (bounty: { amount: string; durationSeconds: number }) => {
-      const recipientAddress = context?.otherParticipant.walletAddress;
+    async (bounty: {
+      amount: string;
+      durationSeconds: number;
+    }): Promise<string> => {
       if (!senderAddress) {
         throw new Error('Connect your Stellar wallet before locking a bounty.');
       }
+
+      // Do not use a context left over from the previously selected
+      // conversation. The conversation list always identifies the intended
+      // recipient, while the authenticated context may still be loading.
+      const activeContext =
+        context?.conversationId === activeConversationId ? context : null;
+      const recipient =
+        activeContext?.otherParticipant ??
+        activeConversation?.otherParticipant ??
+        null;
+      if (!recipient) {
+        throw new Error(
+          'The bounty recipient is unavailable. Reopen the conversation and try again.',
+        );
+      }
+
+      // Context is the cheapest source when it includes the settlement
+      // address. Older API responses can omit it, so resolve the recipient's
+      // canonical public profile instead of treating a missing context field
+      // as a terminal error.
+      let recipientAddress = activeContext?.otherParticipant.walletAddress?.trim();
       if (!recipientAddress) {
-        throw new Error('The recipient wallet address is unavailable. Refresh the conversation and try again.');
+        const profile = await profileApi.public(recipient.username);
+        if (profile.id !== recipient.id) {
+          throw new Error('The bounty recipient profile no longer matches this conversation.');
+        }
+        recipientAddress = profile.walletAddress?.trim();
+      }
+      if (!recipientAddress) {
+        throw new Error(
+          'The recipient wallet address is unavailable. Ask them to reconnect their wallet and try again.',
+        );
+      }
+
+      recipientAddress = recipientAddress.toUpperCase();
+      const { StrKey } = await import('@stellar/stellar-sdk');
+      if (!StrKey.isValidEd25519PublicKey(recipientAddress)) {
+        throw new Error('The recipient wallet address is not a valid Stellar account.');
       }
 
       const transaction = await writeContract({
@@ -137,9 +188,15 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
         },
       });
 
-      return transaction.returnValue();
+      return contractU64ToString(await transaction.returnValue());
     },
-    [context?.otherParticipant.walletAddress, senderAddress, writeContract],
+    [
+      activeConversation,
+      activeConversationId,
+      context,
+      senderAddress,
+      writeContract,
+    ],
   );
 
   const composer = useMessageComposer({
@@ -151,9 +208,13 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     refreshHistory,
     refreshConversationList,
     toast,
-    demoUsdcBalance: user.demoUsdcBalance,
-    refreshCurrentUser: refreshUser,
     lockBounty,
+    otherParticipantUsername:
+      (context?.conversationId === activeConversationId
+        ? context.otherParticipant.username
+        : null) ??
+      activeConversation?.otherParticipant.username ??
+      null,
   });
   const {
     setHasPendingRetry,
@@ -173,6 +234,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     }
     let active = true;
     const controller = new AbortController();
+    setContext(null);
     cache.current.clear();
     setHistoryLoading(true);
     setHistoryError(null);
@@ -185,11 +247,19 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     void Promise.all([
       messengerApi.conversation(activeConversationId, controller.signal),
       messengerApi.context(activeConversationId, controller.signal),
-      messengerApi.messages(activeConversationId, { limit: 30 }, controller.signal),
+      messengerApi.messages(
+        activeConversationId,
+        { limit: 30 },
+        controller.signal,
+      ),
       loadPendingMessengerAttempt(activeConversationId),
     ])
       .then(async ([conversation, loadedContext, history, pending]) => {
-        const decrypted = await decryptMessengerItems(history.items, keys, cache.current);
+        const decrypted = await decryptMessengerItems(
+          history.items,
+          keys,
+          cache.current,
+        );
         if (!active) return;
         setConversations((current) => {
           const exists = current.some((item) => item.id === conversation.id);
@@ -202,18 +272,28 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
         setContext(loadedContext);
         setUnreadMarker(
           conversation.unreadCount > 0
-            ? { afterSequence: conversation.readState.viewerReadSequence, count: conversation.unreadCount }
+            ? {
+                afterSequence: conversation.readState.viewerReadSequence,
+                count: conversation.unreadCount,
+              }
             : null,
         );
-        setMessages(decrypted.sort((left, right) => right.sequence - left.sequence));
+        setMessages(
+          decrypted.sort((left, right) => right.sequence - left.sequence),
+        );
         setNextBeforeSequence(history.nextBeforeSequence);
         setHasMoreMessages(history.hasMore);
         setHasPendingRetry(Boolean(pending));
       })
       .catch((cause) => {
         if (!active || controller.signal.aborted) return;
-        if (cause instanceof ApiError && (cause.code === 'CONVERSATION_NOT_FOUND' || cause.status === 404)) {
-          setConversations((current) => current.filter((item) => item.id !== activeConversationId));
+        if (
+          cause instanceof ApiError &&
+          (cause.code === 'CONVERSATION_NOT_FOUND' || cause.status === 404)
+        ) {
+          setConversations((current) =>
+            current.filter((item) => item.id !== activeConversationId),
+          );
           setActiveConversationId(null);
           toast('Conversation unavailable', 'It was removed from Messenger.');
           return;
@@ -249,8 +329,13 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
         try {
           await refreshHistory(activeConversationId);
         } catch (cause) {
-          if (cause instanceof ApiError && (cause.code === 'CONVERSATION_NOT_FOUND' || cause.status === 404)) {
-            setConversations((current) => current.filter((item) => item.id !== activeConversationId));
+          if (
+            cause instanceof ApiError &&
+            (cause.code === 'CONVERSATION_NOT_FOUND' || cause.status === 404)
+          ) {
+            setConversations((current) =>
+              current.filter((item) => item.id !== activeConversationId),
+            );
             setActiveConversationId(null);
             toast('Conversation unavailable', 'It was removed from Messenger.');
             return;
@@ -274,7 +359,10 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     readBatcher.current?.dispose();
     if (!activeConversationId) return;
     readBatcher.current = createReadCursorBatcher(async (throughSequence) => {
-      const result = await messengerApi.markRead(activeConversationId, throughSequence);
+      const result = await messengerApi.markRead(
+        activeConversationId,
+        throughSequence,
+      );
       setConversations((current) =>
         current.map((conversation) =>
           conversation.id === activeConversationId
@@ -295,27 +383,22 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
 
   useEffect(() => {
     if (historyLoading || messages.length === 0) return;
-    const highestRendered = Math.max(...messages.map((message) => message.sequence));
+    const highestRendered = Math.max(
+      ...messages.map((message) => message.sequence),
+    );
     readBatcher.current?.push(highestRendered);
   }, [historyLoading, messages]);
-
-  useEffect(() => {
-    const newlyExpired = messages.filter(
-      (message) =>
-        message.bounty?.status === 'expired' &&
-        message.manifest.senderId === user.id &&
-        !refreshedExpiredBounties.current.has(message.bounty.id),
-    );
-    if (newlyExpired.length === 0) return;
-    newlyExpired.forEach((message) => refreshedExpiredBounties.current.add(message.bounty!.id));
-    void refreshUser().catch(() => undefined);
-  }, [messages, refreshUser, user.id]);
 
   useEffect(() => {
     if (!historyLoading && !loadingOlder) {
       messageEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  }, [historyLoading, loadingOlder, messages.length, receivedBroadcasts.length]);
+  }, [
+    historyLoading,
+    loadingOlder,
+    messages.length,
+    receivedBroadcasts.length,
+  ]);
 
   async function loadOlderMessages() {
     if (!activeConversationId || !nextBeforeSequence || loadingOlder) return;
@@ -325,7 +408,11 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
         limit: 30,
         beforeSequence: nextBeforeSequence,
       });
-      const decrypted = await decryptMessengerItems(page.items, keys, cache.current);
+      const decrypted = await decryptMessengerItems(
+        page.items,
+        keys,
+        cache.current,
+      );
       setMessages((current) => mergeMessengerMessages(current, decrypted));
       setNextBeforeSequence(page.nextBeforeSequence);
       setHasMoreMessages(page.hasMore);
@@ -348,34 +435,22 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     }
   }
 
-  async function claimBounty(bounty: MessengerBounty) {
-    if (claimingBountyId) return;
-    setClaimingBountyId(bounty.id);
-    try {
-      const result = await messengerApi.claimBounty(bounty.id);
-      setMessages((current) => applyClaimedBounty(current, result.bounty));
-      invalidateData({ resource: 'conversations', conversationId: activeConversationId ?? undefined });
-      if (result.bounty.status === 'claimed') {
-        const beneficiary = messages.find((message) => message.bounty?.id === bounty.id)?.manifest.recipientId;
-        if (beneficiary === user.id) {
-          invalidateData({ resource: 'public-profile', username: user.username });
-        }
-      }
-      await refreshUser().catch(() => undefined);
-      toast(
-        result.claimedNow ? 'Bounty claimed' : 'Bounty already claimed',
-        'No real funds were moved.',
-      );
-    } catch (cause) {
-      setHistoryError(messengerError(cause));
-    } finally {
-      setClaimingBountyId(null);
-    }
-  }
-
-  const otherParticipant = context?.otherParticipant ?? activeConversation?.otherParticipant ?? null;
-  const timelineItems = mergeMessengerTimeline(messages, receivedBroadcasts, otherParticipant?.id ?? null);
-  const unreadMessageId = firstUnreadMessageId(messages, user.id, unreadMarker?.afterSequence ?? null);
+  const otherParticipant =
+    (context?.conversationId === activeConversationId
+      ? context.otherParticipant
+      : null) ??
+    activeConversation?.otherParticipant ??
+    null;
+  const timelineItems = mergeMessengerTimeline(
+    messages,
+    receivedBroadcasts,
+    otherParticipant?.id ?? null,
+  );
+  const unreadMessageId = firstUnreadMessageId(
+    messages,
+    user.id,
+    unreadMarker?.afterSequence ?? null,
+  );
 
   return {
     user,
@@ -387,7 +462,6 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     hasMoreMessages,
     loadingOlder,
     ...composer,
-    claimingBountyId,
     profileUsername,
     unreadMarker,
     broadcastRecipientDetails,
@@ -400,7 +474,6 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     closeProfile,
     loadOlderMessages,
     retryHistory,
-    claimBounty,
   };
 }
 

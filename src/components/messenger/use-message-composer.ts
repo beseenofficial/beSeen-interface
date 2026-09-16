@@ -20,12 +20,13 @@ import {
   retryPendingMessengerMessage,
 } from '@/lib/messenger-workflow';
 import { utf8 } from '@/lib/encoding';
-import { compareDecimalStrings, isCanonicalDecimal } from '@/lib/decimal';
+import { isCanonicalDecimal } from '@/lib/decimal';
 import { invalidateData } from '@/lib/data-invalidation';
 import type {
   DecryptedMessengerMessage,
   DerivedKeys,
   MessengerConversation,
+  MessengerBountyLockTerms,
   MessengerBountyTerms,
 } from '@/types';
 
@@ -38,9 +39,14 @@ type UseMessageComposerOptions = {
   refreshHistory: (conversationId: string) => Promise<void>;
   refreshConversationList: () => Promise<void>;
   toast: (title: string, message?: string) => void;
-  demoUsdcBalance: string | undefined;
-  refreshCurrentUser: () => Promise<unknown>;
-  lockBounty: (bounty: MessengerBountyTerms) => Promise<bigint | null>;
+  /**
+   * Locks the bounty on-chain via the sender's wallet and resolves to the
+   * contract-generated bounty ID (decimal string). A rejection or failure must
+   * abort the send — the message is never silently downgraded to bounty-less.
+   */
+  lockBounty: (bounty: MessengerBountyLockTerms) => Promise<string>;
+  /** Username of the conversation partner, used to link back to their profile. */
+  otherParticipantUsername?: string | null;
 };
 
 export type BountyDurationUnit = 'minute' | 'hour' | 'day';
@@ -51,23 +57,19 @@ export const bountyDurationMultipliers: Record<BountyDurationUnit, number> = {
   day: 86400,
 };
 
+// Bounty funding is verified on-chain by the contract during lock_bounty;
+// the client only validates the shape of the form, never a local balance.
 export function validateBountyTerms({
   amount,
-  balance,
   durationUnit,
   durationValue,
 }: {
   amount: string;
-  balance: string | undefined;
   durationUnit: BountyDurationUnit;
   durationValue: string;
 }) {
   if (!isCanonicalDecimal(amount, 7) || /^0(?:\.0+)?$/.test(amount)) {
     return 'Enter a positive amount with up to 7 decimal places.';
-  }
-  if (balance === undefined) return 'Your USDC balance is still loading. Try again in a moment.';
-  if (compareDecimalStrings(amount, balance) > 0) {
-    return `Choose an amount up to your ${balance} USDC balance.`;
   }
   if (!/^[1-9]\d*$/.test(durationValue)) return 'Enter a whole number greater than zero.';
   const durationSeconds = Number(durationValue) * bountyDurationMultipliers[durationUnit];
@@ -84,9 +86,8 @@ export function useMessageComposer({
   refreshHistory,
   refreshConversationList,
   toast,
-  demoUsdcBalance,
-  refreshCurrentUser,
   lockBounty,
+  otherParticipantUsername,
 }: UseMessageComposerOptions) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
@@ -125,10 +126,7 @@ export function useMessageComposer({
       setSendErrorCode(null);
       if (message.unlockedBounty) {
         setMessages((current) => applyUnlockedBounty(current, message.unlockedBounty!));
-        toast('Reward unlocked', 'The other person can now collect this reward.');
-      }
-      if (message.bounty) {
-        await refreshCurrentUser().catch(() => undefined);
+        toast('Reply received', 'The bounty settlement is now queued on-chain.');
       }
       if (activeConversationId) {
         invalidateData({ resource: 'conversations', conversationId: activeConversationId });
@@ -138,7 +136,7 @@ export function useMessageComposer({
         ]);
       }
     },
-    [activeConversationId, refreshConversationList, refreshCurrentUser, refreshHistory, setMessages, toast],
+    [activeConversationId, refreshConversationList, refreshHistory, setMessages, toast],
   );
 
   async function sendMessage(event: FormEvent) {
@@ -151,17 +149,26 @@ export function useMessageComposer({
       return;
     }
     setSending(true);
-    const bounty: MessengerBountyTerms | null = showBounty
+    const bountyDraft: MessengerBountyLockTerms | null = showBounty
       ? { assetCode: bountyAsset, amount: bountyAmount, durationSeconds: Number(bountyDuration) }
       : null;
     try {
-      if (bounty) await lockBounty(bounty);
+      // The idempotency key is final before anything leaves this device.
+      const clientMessageId = crypto.randomUUID().toLowerCase();
+      // Lock the bounty on-chain first; only the contract-generated ID makes
+      // the message bounty-backed, and it must be inside the signed manifest.
+      // A failed, rejected, or ID-less lock aborts before any manifest is
+      // signed or sent, and the draft stays intact for a retry.
+      const lockedBounty: MessengerBountyTerms | null = bountyDraft
+        ? { ...bountyDraft, contractBountyId: await lockBounty(bountyDraft) }
+        : null;
       const result = await createAndSendMessengerMessage({
         conversationId: activeConversationId,
         plaintext: draft,
         keys,
+        clientMessageId,
         replyToMessageId: replyTarget?.id ?? null,
-        bounty,
+        bounty: lockedBounty,
       });
       setDraft('');
       if (messageInput.current) messageInput.current.style.height = 'auto';
@@ -182,6 +189,16 @@ export function useMessageComposer({
       if (pending) setDraft('');
       setSendError(messengerError(cause));
       setSendErrorCode(cause instanceof ApiError ? cause.code : 'NETWORK_UNKNOWN');
+      // Contract access was denied: the relationship record may still exist,
+      // but the on-chain Aura no longer does. Refresh the related views so the
+      // profile, price, and conversation state reflect that.
+      if (cause instanceof ApiError && cause.code === 'CONTRACT_MESSAGE_ACCESS_DENIED') {
+        invalidateData({ resource: 'conversations', conversationId: activeConversationId });
+        if (otherParticipantUsername) {
+          invalidateData({ resource: 'public-profile', username: otherParticipantUsername });
+          invalidateData({ resource: 'follow-counts', username: otherParticipantUsername });
+        }
+      }
     } finally {
       setSending(false);
     }
@@ -230,7 +247,6 @@ export function useMessageComposer({
   const bountyError = showBounty
     ? validateBountyTerms({
         amount: bountyAmount,
-        balance: demoUsdcBalance,
         durationUnit: bountyDurationUnit,
         durationValue: bountyDurationValue,
       })
@@ -252,7 +268,6 @@ export function useMessageComposer({
     bountyDurationValue,
     bountyDurationUnit,
     bountyError,
-    demoUsdcBalance,
     messageInput,
     draftBytes,
     setDraft,

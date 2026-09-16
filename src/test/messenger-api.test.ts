@@ -7,11 +7,11 @@ vi.mock('@/lib/api/transport', () => ({
 }));
 
 import {
-  claimMessengerBounty,
   getMessengerMessages,
   listMessengerConversations,
   markMessengerConversationRead,
 } from '@/lib/api/messenger';
+import * as messengerModule from '@/lib/api/messenger';
 
 describe('Messenger API contract paths', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -48,17 +48,11 @@ describe('Messenger API contract paths', () => {
     );
   });
 
-  it('preserves an idempotent already-claimed bounty response', async () => {
-    transport.request.mockResolvedValue({
-      bounty: { id: '507f1f77bcf86cd799439088', status: 'claimed' },
-      claimedNow: false,
-    });
-    await expect(claimMessengerBounty('507f1f77bcf86cd799439088')).resolves.toMatchObject({
-      claimedNow: false,
-    });
-    expect(transport.request).toHaveBeenCalledWith(
-      '/v1/messenger/bounties/507f1f77bcf86cd799439088/claim',
-      { method: 'POST', auth: true },
-    );
+  it('no longer exposes the removed manual claim endpoint', () => {
+    // Bounties settle on-chain via the server verifier (settle_replies);
+    // POST /v1/messenger/bounties/:id/claim does not exist anymore.
+    expect(
+      Object.keys(messengerModule).some((key) => /claim/i.test(key)),
+    ).toBe(false);
   });
 });
