@@ -4,6 +4,7 @@ import { ArrowUpRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
+import { formatAuraPrice } from '@/lib/decimal';
 import type { DiscoverUser } from '@/types';
 import { formatCompactCount } from './format-compact-count';
 import { useAvatarPalette } from './use-avatar-palette';
@@ -67,6 +68,14 @@ export function DiscoverCard({ user, preview = false }: { user: DiscoverUser; pr
               <dd className={`${preview ? 'text-lg' : 'text-xl'} font-semibold leading-none tabular-nums text-navy`}>{formatCompactCount(user.followerCount)}</dd>
               <dt className="mt-1 text-xs leading-none text-secondary">Aura holders</dt>
             </div>
+          </div>
+          <div className={`${preview ? 'mt-1.5' : 'mt-2.5'} flex items-baseline gap-1.5`}>
+            <dd className={`${preview ? 'text-xs' : 'text-sm'} font-semibold leading-none tabular-nums text-navy`}>
+              {formatAuraPrice(user.auraPrice) ?? '—'}
+            </dd>
+            <dt className={`${preview ? 'text-[10px]' : 'text-xs'} leading-none text-secondary`}>
+              {user.auraPrice === null ? 'Price unavailable' : 'USDC / Aura'}
+            </dt>
           </div>
         </dl>
         <span className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#22252a] font-semibold text-white transition-colors group-hover:bg-brand ${preview ? 'size-10' : 'min-h-11 px-4 text-sm'}`}>

@@ -13,7 +13,7 @@ const updatedUser: User = {
   avatar: 'https://images.beseen.fi/avatars/user/updated.webp',
   bio: null,
   verification: { isVerified: false, grantedAt: null, expiresAt: null },
-  demoUsdcBalance: '20',
+  auraPrice: '10000000',
   createdAt: '2026-07-31T00:00:00.000Z',
 };
 

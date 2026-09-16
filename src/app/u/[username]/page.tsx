@@ -20,7 +20,11 @@ import {
   SECONDARY_ACTION,
   formatCount,
 } from '@/lib/public-profile-actions';
-import { usePublicProfilePage } from './use-public-profile-page';
+import { formatAuraPrice } from '@/lib/decimal';
+import {
+  auraPurchasePhaseLabel,
+  usePublicProfilePage,
+} from './use-public-profile-page';
 
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
@@ -30,6 +34,9 @@ export default function PublicProfilePage() {
     followCounts,
     following,
     followingBusy,
+    purchasePhase,
+    pendingPurchase,
+    registrationBusy,
     conversationId,
     copied,
     profileLoading,
@@ -44,6 +51,7 @@ export default function PublicProfilePage() {
     loadFollowCounts,
     openApproval,
     confirmPurchase,
+    retryPurchaseConfirmation,
     setApprovalOpen,
     shareProfile,
   } = usePublicProfilePage(username);
@@ -87,6 +95,13 @@ export default function PublicProfilePage() {
   const messengerHref = conversationId
     ? `/dashboard/messenger?conversation=${encodeURIComponent(conversationId)}`
     : '/dashboard/messenger';
+  // The raw auraPrice string stays untouched; only this formatted copy is shown.
+  const auraPriceLabel = formatAuraPrice(profile.auraPrice);
+  const purchasePhaseLabel = auraPurchasePhaseLabel(purchasePhase);
+  const purchaseBlocked = followingBusy || profile.auraPrice === null;
+  const awaitingConfirmation =
+    pendingPurchase !== null &&
+    (purchasePhase === 'awaiting_server_confirmation' || registrationBusy);
 
   return (
     <main className="relative min-h-svh overflow-x-hidden bg-[#f3f7fa] px-4 py-5 text-navy sm:px-7 sm:py-6 lg:px-[clamp(32px,5vw,80px)]">
@@ -182,6 +197,54 @@ export default function PublicProfilePage() {
                     </p>
                   )}
 
+                  {!ownProfile && (
+                    <p className="public-profile-price mt-3.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] font-medium leading-6 text-secondary">
+                      {auraPriceLabel !== null ? (
+                        <>
+                          <span>Aura price</span>
+                          <strong className="tabular-nums text-navy">
+                            {auraPriceLabel} USDC
+                          </strong>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-muted">
+                            Aura price temporarily unavailable
+                          </span>
+                          <button
+                            className="font-semibold text-brand underline underline-offset-3"
+                            onClick={() => void loadProfile()}
+                            type="button"
+                          >
+                            Retry
+                          </button>
+                        </>
+                      )}
+                    </p>
+                  )}
+
+                  {purchasePhaseLabel && !following && (
+                    <p
+                      className="mt-3 text-sm text-secondary"
+                      role="status"
+                    >
+                      {purchasePhaseLabel}
+                      {purchasePhase === 'awaiting_server_confirmation' &&
+                        !registrationBusy && (
+                          <>
+                            {' '}
+                            <button
+                              className="font-semibold text-brand underline underline-offset-3"
+                              onClick={retryPurchaseConfirmation}
+                              type="button"
+                            >
+                              Retry confirmation
+                            </button>
+                          </>
+                        )}
+                    </p>
+                  )}
+
                   {actionError && (
                     <p className="mt-4 text-sm text-error" role="alert">
                       {actionError}
@@ -222,10 +285,27 @@ export default function PublicProfilePage() {
                         />{' '}
                         Open conversation
                       </Link>
+                    ) : awaitingConfirmation ? (
+                      <button
+                        className={`${PRIMARY_ACTION} cursor-pointer disabled:cursor-wait disabled:opacity-65`}
+                        disabled={registrationBusy}
+                        onClick={retryPurchaseConfirmation}
+                        type="button"
+                      >
+                        <Send
+                          className="text-aqua transition-colors group-hover:text-white"
+                          size={18}
+                          strokeWidth={1.9}
+                          aria-hidden="true"
+                        />
+                        {registrationBusy
+                          ? 'Confirming purchase…'
+                          : 'Finish confirming purchase'}
+                      </button>
                     ) : (
                       <button
                         className={`${PRIMARY_ACTION} cursor-pointer disabled:cursor-wait disabled:opacity-65`}
-                        disabled={followingBusy}
+                        disabled={purchaseBlocked}
                         onClick={openApproval}
                         type="button"
                       >
@@ -236,15 +316,19 @@ export default function PublicProfilePage() {
                           aria-hidden="true"
                         />
                         {followingBusy
-                          ? 'Buying Aura…'
-                          : 'Purchase Aura to message'}
+                          ? (purchasePhaseLabel ?? 'Buying Aura…')
+                          : profile.auraPrice === null
+                            ? 'Aura price unavailable'
+                            : auraPriceLabel
+                              ? `Purchase Aura · ${auraPriceLabel} USDC`
+                              : 'Purchase Aura to message'}
                       </button>
                     )}
 
                     {!ownProfile && auth.user ? (
                       <button
                         className={`${SECONDARY_ACTION} cursor-pointer disabled:cursor-default disabled:opacity-65`}
-                        disabled={following || followingBusy}
+                        disabled={following || purchaseBlocked}
                         onClick={openApproval}
                         type="button"
                       >
@@ -253,7 +337,9 @@ export default function PublicProfilePage() {
                           strokeWidth={1.8}
                           aria-hidden="true"
                         />
-                        {followingBusy ? 'Buying Aura…' : followingLabel}
+                        {followingBusy
+                          ? (purchasePhaseLabel ?? 'Buying Aura…')
+                          : followingLabel}
                       </button>
                     ) : ownProfile ? (
                       <OwnProfileEditor onUpdated={() => void loadProfile()} />
@@ -304,6 +390,7 @@ export default function PublicProfilePage() {
         open={approvalOpen}
         username={profile.username}
         followingBusy={followingBusy}
+        priceLabel={auraPriceLabel}
         onClose={() => setApprovalOpen(false)}
         onConfirm={() => void confirmPurchase()}
       />

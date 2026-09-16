@@ -32,16 +32,16 @@ describe('Discover page', () => {
     mocks.discover
       .mockResolvedValueOnce({
         users: [
-          { id: 'a', username: 'alice', avatar: null, bio: 'Building thoughtful communities.', followerCount: 1_250, followingCount: 24, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
-          { id: 'b', username: 'bob', avatar: null, bio: null, followerCount: 0, followingCount: 0, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
+          { id: 'a', username: 'alice', avatar: null, bio: 'Building thoughtful communities.', auraPrice: '25000000', followerCount: 1_250, followingCount: 24, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
+          { id: 'b', username: 'bob', avatar: null, bio: null, auraPrice: null, followerCount: 0, followingCount: 0, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
         ],
         nextCursor: 'cursor-2',
         hasMore: true,
       })
       .mockResolvedValueOnce({
         users: [
-          { id: 'b', username: 'bob', avatar: null },
-          { id: 'c', username: 'carol', avatar: null },
+          { id: 'b', username: 'bob', avatar: null, auraPrice: null },
+          { id: 'c', username: 'carol', avatar: null, auraPrice: null },
         ],
         nextCursor: null,
         hasMore: false,
@@ -57,6 +57,10 @@ describe('Discover page', () => {
     expect(screen.queryByText('24')).toBeNull();
     expect(screen.queryByText('25 USDC')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Verified' })).toBeNull();
+    // The exact Aura price renders from base units; a null price shows an explicit state.
+    expect(screen.getAllByText('2.5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('USDC / Aura').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Price unavailable').length).toBeGreaterThan(0);
 
     expect(await screen.findByText('@carol')).toBeInTheDocument();
     expect(screen.getAllByText('@bob')).toHaveLength(1);
@@ -70,13 +74,13 @@ describe('Discover page', () => {
   it('keeps loaded users visible when pagination fails and allows retry', async () => {
     mocks.discover
       .mockResolvedValueOnce({
-        users: [{ id: 'a', username: 'alice', avatar: null }],
+        users: [{ id: 'a', username: 'alice', avatar: null, auraPrice: '10000000' }],
         nextCursor: 'cursor-2',
         hasMore: true,
       })
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({
-        users: [{ id: 'b', username: 'bob', avatar: null }],
+        users: [{ id: 'b', username: 'bob', avatar: null, auraPrice: '10000000' }],
         nextCursor: null,
         hasMore: false,
       });
@@ -95,8 +99,8 @@ describe('Discover page', () => {
   it('searches loaded profiles and toggles Aura sorting', async () => {
     mocks.discover.mockResolvedValueOnce({
       users: [
-        { id: 'a', username: 'alice', avatar: null, followerCount: 4, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
-        { id: 'b', username: 'bob', avatar: null, followerCount: 20, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
+        { id: 'a', username: 'alice', avatar: null, auraPrice: '10000000', followerCount: 4, verification: { isVerified: true, grantedAt: null, expiresAt: null } },
+        { id: 'b', username: 'bob', avatar: null, auraPrice: '20000000', followerCount: 20, verification: { isVerified: false, grantedAt: null, expiresAt: null } },
       ],
       nextCursor: null,
       hasMore: false,
@@ -135,12 +139,12 @@ describe('Discover page', () => {
   it('continues through paginated results while searching', async () => {
     mocks.discover
       .mockResolvedValueOnce({
-        users: [{ id: 'a', username: 'alice', avatar: null }],
+        users: [{ id: 'a', username: 'alice', avatar: null, auraPrice: '10000000' }],
         nextCursor: 'cursor-2',
         hasMore: true,
       })
       .mockResolvedValueOnce({
-        users: [{ id: 'b', username: 'bob', avatar: null }],
+        users: [{ id: 'b', username: 'bob', avatar: null, auraPrice: '10000000' }],
         nextCursor: null,
         hasMore: false,
       });

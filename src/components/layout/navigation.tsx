@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  CircleDollarSign,
   Compass,
   ExternalLink,
   HandCoins,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 const baseNavigationItems = [
   { href: "/dashboard/discover", label: "Discover", icon: Compass },
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/earnings", label: "Earnings", icon: CircleDollarSign },
   { href: "/dashboard/messenger", label: "Messenger", icon: MessageCircleMore },
 ];
 

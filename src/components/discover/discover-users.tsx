@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { usersApi } from "@/lib/api";
+import { subscribeToInvalidation } from "@/lib/data-invalidation";
 import type { DiscoverUser } from "@/types";
 import { appendUniqueUsers } from './append-unique-users';
 import { DiscoverCard } from './discover-card';
@@ -60,6 +61,15 @@ export function DiscoverUsers({ fullBleed = false }: { fullBleed?: boolean }) {
       paginationRequest.current?.abort();
     };
   }, [loadInitialUsers]);
+
+  // Confirmed Aura purchases change follower counts and prices shown here.
+  useEffect(
+    () =>
+      subscribeToInvalidation((detail) => {
+        if (detail.resource === 'discover') void loadInitialUsers();
+      }),
+    [loadInitialUsers],
+  );
 
   const loadMoreUsers = useCallback(async () => {
     if (!hasMore || !nextCursor || paginationPending.current) return;
