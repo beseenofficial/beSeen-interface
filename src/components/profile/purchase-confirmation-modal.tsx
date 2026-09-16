@@ -4,12 +4,15 @@ export function PurchaseConfirmationModal({
   open,
   username,
   followingBusy,
+  priceLabel,
   onClose,
   onConfirm,
 }: {
   open: boolean;
   username: string;
   followingBusy: boolean;
+  /** Formatted Aura price for display (e.g. "1.5"); null when unavailable. */
+  priceLabel: string | null;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -30,6 +33,17 @@ export function PurchaseConfirmationModal({
           connected wallet.
         </p>
         <p className="mt-2 text-sm leading-6 text-secondary">
+          {priceLabel !== null ? (
+            <>
+              Current Aura price:{' '}
+              <strong className="tabular-nums text-navy">{priceLabel} USDC</strong>
+              . The final price is set by the contract at execution time.
+            </>
+          ) : (
+            'The current Aura price is temporarily unavailable, so purchasing is paused. Close this dialog and retry loading the profile.'
+          )}
+        </p>
+        <p className="mt-2 text-sm leading-6 text-secondary">
           Do you want to continue?
         </p>
         <div className="mt-6 flex gap-3">
@@ -43,7 +57,7 @@ export function PurchaseConfirmationModal({
           </button>
           <button
             className="min-h-11 flex-1 cursor-pointer rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(16,69,245,0.20)] transition hover:bg-[#0C3BD6] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={followingBusy}
+            disabled={followingBusy || priceLabel === null}
             onClick={onConfirm}
             type="button"
           >

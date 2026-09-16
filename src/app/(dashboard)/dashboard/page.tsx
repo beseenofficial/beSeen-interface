@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, CircleDollarSign, Copy, Gift, Link2, MessageCircleMore, Sparkles, Tag, UsersRound, WalletCards } from 'lucide-react';
+import { ArrowRight, CircleDollarSign, Copy, Gift, Link2, MessageCircleMore, Tag, UsersRound } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
@@ -9,12 +9,12 @@ import { RecentMessages, type RecentMessageItem } from '@/components/dashboard/r
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { LoadingState } from '@/components/ui/states';
-import { messengerApi, profileApi, tokenApi } from '@/lib/api';
+import { earningsApi, messengerApi, profileApi } from '@/lib/api';
 import { BROADCAST_REFRESH_INTERVAL_MS, loadCompleteBroadcastFeed, mergeBroadcastFeeds } from '@/lib/broadcast-feed';
 import { decryptFeedItem } from '@/lib/broadcast-crypto';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
-import { formatUsdc } from '@/lib/decimal';
+import { formatAuraPrice, formatUsdc } from '@/lib/decimal';
 import { decryptMessengerMessage } from '@/lib/messenger-crypto';
 import { useToast } from '@/providers/toast-provider';
 
@@ -36,16 +36,19 @@ type StatCardProps = {
   value: string;
   hint: string;
   onClick?: () => void;
+  href?: string;
+  loading?: boolean;
 };
 
-function StatCard({ icon: Icon, iconClass, label, value, hint, onClick }: StatCardProps) {
-  const content = <><span className={`overview-stat-icon grid size-11 place-items-center rounded-full ${iconClass}`}><Icon size={21} strokeWidth={1.8} /></span><span className="overview-stat-label mt-5 block text-sm font-semibold">{label}</span><strong className="overview-stat-value mt-1.5 block text-[27px] font-medium leading-none tracking-[-0.03em]">{value}</strong><span className="overview-stat-hint mt-2.5 block text-xs text-muted">{hint}</span></>;
+function StatCard({ icon: Icon, iconClass, label, value, hint, onClick, href, loading }: StatCardProps) {
+  const content = <><span className={`overview-stat-icon grid size-11 place-items-center rounded-full ${iconClass}`}><Icon size={21} strokeWidth={1.8} /></span><span className="overview-stat-label mt-5 block text-sm font-semibold">{label}</span>{loading ? <span className="mt-2 block h-7 w-28 animate-pulse rounded-lg bg-border" role="status"><span className="sr-only">Loading {label}</span></span> : <strong className="overview-stat-value mt-1.5 block text-[27px] font-medium leading-none tracking-[-0.03em]">{value}</strong>}<span className="overview-stat-hint mt-2.5 block text-xs text-muted">{hint}</span></>;
+  if (href) return <Link className="overview-stat-card min-h-46 rounded-2xl border border-border bg-white p-5 text-left transition hover:border-brand/25 hover:shadow-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={href}>{content}</Link>;
   if (onClick) return <button className="overview-stat-card min-h-46 cursor-pointer rounded-2xl border border-border bg-white p-5 text-left transition hover:border-brand/25 hover:shadow-elevated" onClick={onClick} type="button">{content}</button>;
   return <article className="overview-stat-card min-h-46 rounded-2xl border border-border bg-white p-5">{content}</article>;
 }
 
 export default function OverviewPage() {
-  const { user, keys, openWalletProfile } = useAuth();
+  const { user, keys, refreshUser } = useAuth();
   const { toast } = useToast();
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
   const [messages, setMessages] = useState<RecentMessageItem[]>([]);
@@ -53,14 +56,17 @@ export default function OverviewPage() {
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [followerCount, setFollowerCount] = useState<number | null>(null);
-  const [aurasOwned, setAurasOwned] = useState<number | null>(null);
-  const [lifetimeBounty, setLifetimeBounty] = useState<string | null>(null);
+  const [earningsTotal, setEarningsTotal] = useState<string | null>(null);
+  const [earningsLoading, setEarningsLoading] = useState(true);
   const refreshInFlight = useRef(false);
 
   const loadDashboard = useCallback(async (includeStats = false) => {
     if (!user || !keys || refreshInFlight.current) return;
     refreshInFlight.current = true;
-    if (includeStats) setBroadcastsLoading(true);
+    if (includeStats) {
+      setBroadcastsLoading(true);
+      setEarningsLoading(true);
+    }
     try {
       const [receivedResult, sentResult, conversationsResult] = await Promise.allSettled([
         loadCompleteBroadcastFeed('received'),
@@ -126,20 +132,21 @@ export default function OverviewPage() {
       }
 
       if (includeStats) {
-        const [followerResult, tokensResult, profileResult] = await Promise.allSettled([
+        const [followerResult, earningsResult] = await Promise.allSettled([
           profileApi.followCounts(user.username),
-          tokenApi.mine(),
-          profileApi.public(user.username),
+          earningsApi.list({ limit: 25 }),
         ]);
         setFollowerCount(followerResult.status === 'fulfilled' ? followerResult.value.followerCount : null);
-        setAurasOwned(tokensResult.status === 'fulfilled' ? tokensResult.value.length : null);
-        setLifetimeBounty(profileResult.status === 'fulfilled' ? profileResult.value.totalBountyReceivedUsdc : null);
+        setEarningsTotal(earningsResult.status === 'fulfilled' ? earningsResult.value.totalAmount : null);
+        setEarningsLoading(false);
       }
     } catch {
       if (includeStats) {
         setBroadcasts([]);
         setMessages([]);
         setUnreadMessageCount(0);
+        setEarningsTotal(null);
+        setEarningsLoading(false);
       }
     } finally {
       if (includeStats) {
@@ -201,14 +208,19 @@ export default function OverviewPage() {
           <Copy className="shrink-0 text-navy" size={19} />
         </button>
         <StatCard icon={MessageCircleMore} iconClass="bg-info-bg text-brand" label="Unread messages" value={unreadMessageCount.toLocaleString()} hint={unreadMessageCount > 0 ? `${unreadMessageCount} waiting to be read` : 'You are all caught up'} />
-        <StatCard icon={CircleDollarSign} iconClass="bg-success-bg text-emerald-600" label="Bounty earned" value={lifetimeBounty === null ? '—' : formatUsdc(lifetimeBounty)} hint="All-time claimed USDC bounties" />
+        <StatCard icon={CircleDollarSign} iconClass="bg-success-bg text-emerald-600" label="Total earned" value={earningsTotal === null ? '—' : formatUsdc(earningsTotal)} hint={earningsTotal === null && !earningsLoading ? 'Earnings temporarily unavailable' : 'All-time net bounty earnings'} href="/dashboard/earnings" loading={earningsLoading} />
       </section>
 
-      <section className="overview-secondary mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Aura and wallet summary">
+      <section className="overview-secondary mt-4 grid gap-4 sm:grid-cols-2" aria-label="Aura summary">
         <StatCard icon={UsersRound} iconClass="bg-info-bg text-brand" label="Aura holders" value={followerCount === null ? '—' : followerCount.toLocaleString()} hint="People holding your Aura" />
-        <StatCard icon={Sparkles} iconClass="bg-[#f0eaff] text-[#7047e8]" label="Auras owned" value={aurasOwned === null ? '—' : aurasOwned.toLocaleString()} hint="Auras you own" />
-        <StatCard icon={Tag} iconClass="bg-[#fff0ea] text-[#ff6b3d]" label="Your Aura price" value="—" hint="Pricing is not available yet" />
-        <StatCard icon={WalletCards} iconClass="bg-[#e5f7ff] text-[#167fa8]" label="USDC balance" value={user.demoUsdcBalance === undefined ? '—' : formatUsdc(user.demoUsdcBalance)} hint="Available for message bounties" onClick={openWalletProfile} />
+        <StatCard
+          icon={Tag}
+          iconClass="bg-[#fff0ea] text-[#ff6b3d]"
+          label="Your Aura price"
+          value={formatAuraPrice(user.auraPrice ?? null) ?? '—'}
+          hint={user.auraPrice === null || user.auraPrice === undefined ? 'Price temporarily unavailable — select to refresh' : 'Current on-chain price of your Aura'}
+          onClick={user.auraPrice == null ? () => void refreshUser().catch(() => undefined) : undefined}
+        />
       </section>
 
       <section className="overview-recent mt-4 grid gap-4 lg:grid-cols-2">
