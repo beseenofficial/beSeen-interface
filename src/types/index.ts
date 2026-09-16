@@ -4,6 +4,16 @@ export type UserVerification = {
   expiresAt: string | null;
 };
 
+/**
+ * The subject's current on-chain Aura price as reported by the server.
+ *
+ * This is the raw `aura_price(subject)` contract result serialized as a
+ * base-unit integer string (7 decimal places for the USDC-style flow).
+ * `null` means the server temporarily could not read the contract RPC; it
+ * never means "free" and never means zero.
+ */
+export type AuraPrice = string | null;
+
 export type BaseUser = {
   id: string;
   username: string;
@@ -14,6 +24,9 @@ export type BaseUser = {
 };
 
 export type PublicUserProfile = BaseUser & {
+  /** Stellar `G...` address used as the `subject` of `buy_aura`. */
+  walletAddress: string;
+  auraPrice: AuraPrice;
   broadcastCount: number;
   sentMessageCount: number;
   receivedMessageCount: number;
@@ -22,7 +35,7 @@ export type PublicUserProfile = BaseUser & {
 };
 
 export type CurrentUserProfile = BaseUser & {
-  demoUsdcBalance: string;
+  auraPrice: AuraPrice;
 };
 
 export type FollowCounts = {
@@ -39,6 +52,7 @@ export type DiscoverUser = {
   username: string;
   avatar: string | null;
   bio: string | null;
+  auraPrice: AuraPrice;
   followerCount: number;
   followingCount: number;
   verification: UserVerification;
@@ -132,23 +146,29 @@ export type DerivedKeys = {
   encryptionPrivateKey: Uint8Array;
 };
 
-export type UserToken = {
-  id: string;
-  owner: Pick<User, 'id' | 'username' | 'avatar'>;
-  createdAt: string;
-  acquiredAt?: string;
-};
+export type AuraPurchaseStatus = 'pending' | 'confirmed' | 'failed';
 
-export type TokenHolding = {
+export type AuraPurchaseRegistration = {
+  /** Contract-generated global Aura token ID (u64 decimal string). */
   tokenId: string;
-  ownerId: string;
-  ownerUsername: string;
-  acquiredAt: string;
+  buyerId: string;
+  subjectId: string;
+  subjectUsername: string;
+  /** Lowercase 64-character hexadecimal transaction hash. */
+  transactionHash: string;
+  status: AuraPurchaseStatus;
+  confirmedAt: string | null;
 };
 
-export type TokenPurchaseConversation = {
+export type AuraPurchaseConversation = {
   id: string;
   created: boolean;
+};
+
+export type AuraPurchaseRegistrationResult = {
+  purchase: AuraPurchaseRegistration;
+  /** Present once the purchase is confirmed; `null` while pending (HTTP 202). */
+  conversation: AuraPurchaseConversation | null;
 };
 
 export type MessengerParticipant = Pick<User, 'id' | 'username' | 'avatar'>;
@@ -192,14 +212,50 @@ export type MessengerConversationContext = {
 };
 
 export type MessengerBountyTerms = {
+  /**
+   * Contract-generated global bounty ID (positive u64 decimal string),
+   * returned by the client-signed `lock_bounty` transaction. Required: the
+   * message manifest is only built and signed after the contract returns it.
+   * Never a JavaScript number, never a MongoDB ObjectId.
+   */
+  contractBountyId: string;
   assetCode: 'USDC';
+  /** Canonical positive decimal string with at most 7 decimal places. */
   amount: string;
   durationSeconds: number;
 };
 
+/**
+ * The bounty terms known before the on-chain lock: everything except the
+ * contract-generated ID. `lock_bounty` is called with these; the full
+ * MessengerBountyTerms exist only after the contract returns the ID.
+ */
+export type MessengerBountyLockTerms = Omit<MessengerBountyTerms, 'contractBountyId'>;
+
+export type ContractBountySettlementStatus =
+  | 'pending'
+  | 'processing'
+  | 'confirmed'
+  | 'failed';
+
+/**
+ * On-chain funding state of a bounty. Only contract-backed values exist.
+ * The server does not serialize this field on message bounties yet; when it
+ * does, `contract_refunded` distinguishes a sender-reclaimed expired bounty
+ * from one whose response window simply ended.
+ */
+export type MessengerBountyFundingStatus =
+  | 'contract_locked'
+  | 'contract_settled'
+  | 'contract_refunded';
+
 export type MessengerBounty = MessengerBountyTerms & {
+  /** Server (MongoDB) bounty ID. Never interchangeable with contractBountyId. */
   id: string;
   status: 'offered' | 'claimable' | 'claimed' | 'expired';
+  fundingStatus?: MessengerBountyFundingStatus;
+  settlementStatus: ContractBountySettlementStatus;
+  settlementTransactionHash: string | null;
   expiresAt: string;
   replyMessageId: string | null;
   claimableAt: string | null;
@@ -312,11 +368,17 @@ export type BroadcastProgress = {
   complete: boolean;
 };
 
+/**
+ * Broadcast audiences are server-generated snapshots of confirmed Aura
+ * followers. `demo_all_users` survives only in previously stored records.
+ */
+export type BroadcastAudienceType = 'aura_holders' | 'demo_all_users';
+
 export type BroadcastDraft = {
   id: string;
   clientBroadcastId: string;
   status: 'draft';
-  audience: { type: 'token_holders'; count: number };
+  audience: { type: BroadcastAudienceType; count: number };
   encryption: {
     version: 1;
     contentSuite: 'XCHACHA20-POLY1305-IETF';
@@ -336,7 +398,7 @@ export type PublishedBroadcast = {
   clientBroadcastId: string;
   creatorId: string;
   status: 'published';
-  audience: { type: 'token_holders'; count: number };
+  audience: { type: BroadcastAudienceType; count: number };
   encryptionVersion: 1;
   contentCiphertext: string;
   contentNonce: string;
@@ -364,7 +426,7 @@ export type BroadcastFeedItem = {
     contentCiphertext: string;
     contentNonce: string;
     creatorEncryptedBroadcastKey: string;
-    audienceType: 'token_holders';
+    audienceType: BroadcastAudienceType;
     audienceCount: number;
     recipientKeysDigest: string;
   };

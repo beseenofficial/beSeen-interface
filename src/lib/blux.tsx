@@ -77,6 +77,14 @@ function wipeKeys(keys: DerivedKeys): void {
   keys.encryptionPrivateKey.fill(0);
 }
 
+/**
+ * Stellar network the connected wallet is pinned to. Contract transactions
+ * (buy_aura, lock_bounty) are signed on this network; the BeSeen server's
+ * reported network passphrase must match before any transaction is sent.
+ */
+export const WALLET_NETWORK = networks.testnet;
+export const WALLET_NETWORK_PASSPHRASE: string = WALLET_NETWORK;
+
 const BLUX_RECENT_LOGIN = "__BLUX__RECENT_LOGIN_CONFIG";
 const BLUX_RESTORE_TIMEOUT_MS = 8_000;
 
@@ -175,7 +183,6 @@ export function AuthBridge({
     string | null
   >(null);
   const inFlight = useRef(false);
-  const retriedMissingBalance = useRef(false);
   const activeBluxIdentity = useRef({
     address,
     isAuthenticated: blux.isAuthenticated,
@@ -345,12 +352,6 @@ export function AuthBridge({
       }),
     [refreshUser, user],
   );
-
-  useEffect(() => {
-    if (!user || user.demoUsdcBalance !== undefined || retriedMissingBalance.current) return;
-    retriedMissingBalance.current = true;
-    void refreshUser().catch(() => undefined);
-  }, [refreshUser, user]);
 
   useEffect(() => {
     if (
@@ -534,7 +535,7 @@ export function BeSeenAuthProvider({ children }: { children: ReactNode }) {
     return null;
   }
 
-  const selectedNetwork = networks.testnet;
+  const selectedNetwork = WALLET_NETWORK;
   return (
     <BluxProvider
       config={{

@@ -1,7 +1,7 @@
 export type DataResource =
   | 'current-user'
-  | 'owned-tokens'
   | 'conversations'
+  | 'discover'
   | 'follow-counts'
   | 'public-profile';
 
@@ -21,7 +21,6 @@ export function invalidateData(detail: DataInvalidation): void {
 
 export function invalidateAuthenticatedData(): void {
   invalidateData({ resource: 'current-user' });
-  invalidateData({ resource: 'owned-tokens' });
   invalidateData({ resource: 'conversations' });
   invalidateData({ resource: 'follow-counts' });
 }

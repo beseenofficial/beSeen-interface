@@ -61,6 +61,11 @@ export function serializeMessengerManifest(fields: MessengerMessageManifest): st
     `Sender Encrypted Message Key: ${fields.senderEncryptedMessageKey}`,
     `Recipient Encrypted Message Key: ${fields.recipientEncryptedMessageKey}`,
     `Reply To Message ID: ${fields.replyToMessageId?.toLowerCase() ?? 'none'}`,
+    // Only a contract-backed bounty adds this line, and always before the
+    // asset/amount/duration lines, matching the server's canonical manifest.
+    ...(bounty?.contractBountyId
+      ? [`Bounty Contract ID: ${bounty.contractBountyId}`]
+      : []),
     `Bounty Asset Code: ${bounty?.assetCode ?? 'none'}`,
     `Bounty Amount: ${bounty?.amount ?? 'none'}`,
     `Bounty Duration Seconds: ${bounty?.durationSeconds ?? 'none'}`,

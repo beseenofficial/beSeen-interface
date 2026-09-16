@@ -7,7 +7,7 @@ import type { User } from '@/types';
 const user: User = {
   id: 'user', username: 'alice', avatar: null, bio: null,
   verification: { isVerified: false, grantedAt: null, expiresAt: null },
-  demoUsdcBalance: '20', createdAt: '2026-01-01T00:00:00.000Z',
+  auraPrice: null, createdAt: '2026-01-01T00:00:00.000Z',
 };
 
 function Harness({ onSave = vi.fn() }: { onSave?: () => void }) {

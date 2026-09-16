@@ -1,6 +1,5 @@
 import { apiRequest, apiRequestWithStatus } from '@/lib/api/transport';
 import type {
-  MessengerBounty,
   MessengerConversation,
   MessengerConversationContext,
   MessengerConversationPage,
@@ -131,15 +130,6 @@ export async function markMessengerConversationRead(
   );
 }
 
-export async function claimMessengerBounty(
-  bountyId: string,
-): Promise<{ bounty: MessengerBounty; claimedNow: boolean }> {
-  return apiRequest(`/v1/messenger/bounties/${encodeURIComponent(bountyId)}/claim`, {
-    method: 'POST',
-    auth: true,
-  });
-}
-
 export const messengerApi = {
   listConversations: listMessengerConversations,
   findConversationWithUser: findMessengerConversationWithUser,
@@ -148,5 +138,4 @@ export const messengerApi = {
   messages: getMessengerMessages,
   sendMessage: sendMessengerMessage,
   markRead: markMessengerConversationRead,
-  claimBounty: claimMessengerBounty,
 };
