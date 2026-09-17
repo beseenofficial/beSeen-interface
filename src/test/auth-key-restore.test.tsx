@@ -10,7 +10,7 @@ const user: User = {
   avatar: null,
   bio: null,
   verification: { isVerified: false, grantedAt: null, expiresAt: null },
-  demoUsdcBalance: '20',
+  auraPrice: '10000000',
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 const keys: DerivedKeys = {

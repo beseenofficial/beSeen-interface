@@ -24,7 +24,7 @@ describe('recipient pagination', () => {
       items: [recipient('c')], nextCursor: null, hasMore: false,
     });
     const draft = {
-      id: 'draft', audience: { type: 'token_holders', count: 3 },
+      id: 'draft', audience: { type: 'aura_holders', count: 3 },
       recipients: { items: [recipient('a'), recipient('b')], nextCursor: 'cursor-2', hasMore: true },
     } as BroadcastDraft;
     await expect(loadAllRecipients(draft)).resolves.toHaveLength(3);
@@ -37,7 +37,7 @@ describe('recipient pagination', () => {
       items: [recipient('b'), recipient('c')], nextCursor: null, hasMore: false,
     });
     const draft = {
-      id: 'draft', audience: { type: 'token_holders', count: 3 },
+      id: 'draft', audience: { type: 'aura_holders', count: 3 },
       recipients: { items: [recipient('a'), recipient('b')], nextCursor: 'opaque-cursor', hasMore: true },
     } as BroadcastDraft;
 

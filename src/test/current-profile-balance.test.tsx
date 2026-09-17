@@ -6,14 +6,14 @@ vi.mock('@/components/profile/own-profile-editor', () => ({ OwnProfileEditor: ()
 vi.mock('@/lib/api', () => ({ profileApi: { public: mocks.public, followCounts: mocks.followCounts } }));
 vi.mock('@/lib/blux', () => ({ useAuth: () => ({
   keys: { signingPublicKey: new Uint8Array(), signingPrivateKey: new Uint8Array(), encryptionPublicKey: new Uint8Array(), encryptionPrivateKey: new Uint8Array() },
-  user: { id: 'alice', username: 'alice', avatar: null, bio: null, verification: { isVerified: false, grantedAt: null, expiresAt: null }, demoUsdcBalance: '20.0000001', createdAt: '2026-01-01T00:00:00.000Z' },
+  user: { id: 'alice', username: 'alice', avatar: null, bio: null, verification: { isVerified: false, grantedAt: null, expiresAt: null }, auraPrice: '10000000', createdAt: '2026-01-01T00:00:00.000Z' },
 }) }));
 
 import ProfilePage from '@/app/(dashboard)/dashboard/profile/page';
 
 describe('dashboard profile surface', () => {
   beforeEach(() => {
-    mocks.public.mockResolvedValue({ id: 'alice', username: 'alice', avatar: null, bio: null, verification: { isVerified: false, grantedAt: null, expiresAt: null }, createdAt: '2026-01-01T00:00:00.000Z', broadcastCount: 3, sentMessageCount: 5, receivedMessageCount: 7, messageCount: 12, totalBountyReceivedUsdc: '35.5' });
+    mocks.public.mockResolvedValue({ id: 'alice', username: 'alice', avatar: null, bio: null, verification: { isVerified: false, grantedAt: null, expiresAt: null }, walletAddress: 'GDNSSYSCSSJ76FER5WEEXME5G4MTCUBKDRQSKOYP36KUKVDB2VCMERS6', auraPrice: '10000000', createdAt: '2026-01-01T00:00:00.000Z', broadcastCount: 3, sentMessageCount: 5, receivedMessageCount: 7, messageCount: 12, totalBountyReceivedUsdc: '35.5' });
     mocks.followCounts.mockResolvedValue({ user: { id: 'alice', username: 'alice' }, followerCount: 4, followingCount: 2 });
   });
 

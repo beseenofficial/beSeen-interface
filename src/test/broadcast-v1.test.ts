@@ -58,7 +58,7 @@ async function feedItem(source: 'recipient' | 'creator' = 'recipient'): Promise<
       contentCiphertext: encrypted.contentCiphertext,
       contentNonce: encrypted.contentNonce,
       creatorEncryptedBroadcastKey: creatorWrapped,
-      audienceType: 'token_holders',
+      audienceType: 'aura_holders',
       audienceCount: source === 'creator' ? 0 : 1,
       recipientKeysDigest: await recipientKeysDigest([]),
     },
@@ -88,7 +88,7 @@ describe('broadcast v1 crypto', () => {
       encryptionVersion: 1,
       broadcastId: 'ABC', clientBroadcastId: 'DEF', creatorId: 'FED', creatorKeyVersion: 3,
       contentNonce: 'nonce', contentCiphertext: 'cipher', creatorEncryptedBroadcastKey: 'creator-key',
-      audienceType: 'token_holders', audienceCount: 2, recipientKeysDigest: 'A'.repeat(64),
+      audienceType: 'aura_holders', audienceCount: 2, recipientKeysDigest: 'A'.repeat(64),
     });
     expect(serialized).toContain('Broadcast ID: abc\nClient Broadcast ID: def');
     expect(serialized).toContain('Recipient Keys Digest: ' + 'a'.repeat(64));

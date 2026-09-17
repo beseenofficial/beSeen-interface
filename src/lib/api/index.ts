@@ -2,7 +2,6 @@ export { authApi, registrationErrorMessage } from './auth';
 export { activityApi, recordUserActivity } from './activity';
 export { broadcastApi } from './broadcasts';
 export {
-  claimMessengerBounty,
   findMessengerConversationWithUser,
   getMessengerConversation,
   getMessengerConversationContext,
@@ -15,7 +14,17 @@ export {
 export type { MessengerConversationQuery, MessengerHistoryQuery } from './messenger';
 export { profileApi, profileUpdateErrorMessage } from './profiles';
 export type { ProfileUpdate } from './profiles';
-export { tokenApi } from './tokens';
+export { auraApi } from './aura';
+export type {
+  AuraPurchaseRegistrationPayload,
+  AuraPurchaseRegistrationResponse,
+} from './aura';
+export { earningsApi } from './earnings';
+export type {
+  EarningTransaction,
+  EarningsPage,
+  EarningsQuery,
+} from './earnings';
 export { discoverUsers, usersApi } from './users';
 export {
   ApiError,

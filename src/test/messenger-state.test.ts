@@ -49,8 +49,9 @@ describe('Messenger lifecycle helpers', () => {
 
   it('applies unlockedBounty immediately to the related displayed message', () => {
     const bounty: MessengerBounty = {
-      id: '507f1f77bcf86cd799439099', assetCode: 'USDC', amount: '10', durationSeconds: 3600,
-      status: 'claimable', expiresAt: '2026-08-11T12:00:00.000Z', replyMessageId: '507f1f77bcf86cd799439077',
+      id: '507f1f77bcf86cd799439099', contractBountyId: '9', assetCode: 'USDC', amount: '10', durationSeconds: 3600,
+      status: 'claimable', settlementStatus: 'pending', settlementTransactionHash: null,
+      expiresAt: '2026-08-11T12:00:00.000Z', replyMessageId: '507f1f77bcf86cd799439077',
       claimableAt: '2026-08-10T12:01:00.000Z', claimedAt: null,
     };
     const message = {

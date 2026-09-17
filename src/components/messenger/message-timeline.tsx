@@ -25,7 +25,6 @@ export function MessageTimeline({
   workspace: MessengerWorkspaceState;
 }) {
   const {
-    claimingBountyId,
     hasMoreMessages,
     historyError,
     historyLoading,
@@ -37,7 +36,6 @@ export function MessageTimeline({
     unreadMarker,
     unreadMessageId,
     user,
-    claimBounty,
     loadOlderMessages,
     retryHistory,
     setReplyTarget,
@@ -213,8 +211,6 @@ export function MessageTimeline({
                   message={message}
                   reply={reply}
                   outgoing={message.manifest.senderId === user.id}
-                  beneficiary={message.manifest.recipientId === user.id}
-                  claimingBountyId={claimingBountyId}
                   groupStart={groupStart}
                   replyActionOpen={replyActionMessageId === message.id}
                   senderAvatar={
@@ -233,7 +229,6 @@ export function MessageTimeline({
                       current === messageId ? null : messageId,
                     )
                   }
-                  onClaim={claimBounty}
                 />
               </div>
             );

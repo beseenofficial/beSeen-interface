@@ -1,6 +1,12 @@
 const CANONICAL_DECIMAL = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
 
-export function isCanonicalDecimal(value: string, maximumFractionDigits = 7): boolean {
+/**
+ * Decimal places used by the Stellar USDC-style token flow. All token base-unit
+ * conversions in the client go through this single value.
+ */
+export const TOKEN_DECIMALS = 7;
+
+export function isCanonicalDecimal(value: string, maximumFractionDigits = TOKEN_DECIMALS): boolean {
   if (!CANONICAL_DECIMAL.test(value)) return false;
   const fraction = value.split('.')[1] ?? '';
   return fraction.length <= maximumFractionDigits;
@@ -27,4 +33,39 @@ export function compareDecimalStrings(left: string, right: string): number {
 
 export function formatUsdc(value: string): string {
   return `${value} USDC`;
+}
+
+/**
+ * Converts a non-negative base-unit integer string (e.g. a contract i128/u64
+ * amount) into its canonical decimal string, using string arithmetic only.
+ *
+ * Examples with the default 7 decimals: "10000000" -> "1", "15000000" -> "1.5".
+ */
+export function baseUnitsToDecimalString(
+  baseUnits: string,
+  decimals: number = TOKEN_DECIMALS,
+): string {
+  if (!/^\d+$/.test(baseUnits)) {
+    throw new Error('Base units must be a non-negative integer string.');
+  }
+  if (!Number.isSafeInteger(decimals) || decimals < 0) {
+    throw new Error('Decimals must be a non-negative integer.');
+  }
+  const digits = baseUnits.replace(/^0+(?=\d)/, '');
+  if (decimals === 0) return digits;
+  const padded = digits.padStart(decimals + 1, '0');
+  const whole = padded.slice(0, -decimals).replace(/^0+(?=\d)/, '');
+  const fraction = padded.slice(-decimals).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+/**
+ * Formats a server-provided Aura price (base-unit integer string) for display.
+ * Returns `null` when the price is unavailable so callers can render a
+ * retry state instead of a misleading zero. The raw string is never parsed
+ * with `Number`.
+ */
+export function formatAuraPrice(price: string | null): string | null {
+  if (price === null) return null;
+  return baseUnitsToDecimalString(price);
 }

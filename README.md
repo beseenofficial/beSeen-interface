@@ -54,8 +54,9 @@ API default is `http://localhost:5000`.
 | `NEXT_PUBLIC_BLUX_APP_ID` | Blux application used to connect a Stellar wallet. |
 | `NEXT_PUBLIC_API_BASE_URL` | BeSeen API origin, without `/v1`; defaults to `http://localhost:5000`. |
 | `NEXT_PUBLIC_APP_URL` | Public frontend origin used for profile links. |
+| `NEXT_PUBLIC_BESEEN_CONTRACT_ADDRESS` | Soroban contract used for BeSeen bounties. |
 
-`Dockerfile` and `compose.yaml` pass all three public values at build time.
+`Dockerfile` and `compose.yaml` pass these public values at build time.
 
 ## Important modules
 

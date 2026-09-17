@@ -32,7 +32,6 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
     bountyDurationUnit,
     bountyDurationValue,
     bountyPanelOpen,
-    demoUsdcBalance,
     otherParticipant,
     showBounty,
     setBountyAmount,
@@ -44,7 +43,6 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
 
   const draftError = validateBountyTerms({
     amount: draftAmount,
-    balance: demoUsdcBalance,
     durationUnit: draftDurationUnit,
     durationValue: draftDurationValue,
   });
@@ -128,7 +126,7 @@ export function MessageBountyPanel({ workspace }: { workspace: MessengerWorkspac
               />
               <span className="text-xs font-semibold text-secondary">{bountyAsset}</span>
             </div>
-            <p className="mt-1.5 text-xs text-secondary">Available: {demoUsdcBalance ?? 'loading…'} USDC</p>
+            <p className="mt-1.5 text-xs text-secondary">Locked on-chain from your connected wallet when you send.</p>
           </div>
 
           <div className="mt-3.5">

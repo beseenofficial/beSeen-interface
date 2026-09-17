@@ -38,6 +38,7 @@ beforeAll(async () => {
       id: '507f1f77bcf86cd799439012',
       username: 'sender',
       avatar: null,
+      walletAddress: 'GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR',
       keyVersion: 2,
       signingPublicKey: bytesToBase64(sender.signingPublicKey),
       encryptionPublicKey: bytesToBase64(sender.encryptionPublicKey),
@@ -46,6 +47,7 @@ beforeAll(async () => {
       id: '507f1f77bcf86cd799439013',
       username: 'recipient',
       avatar: null,
+      walletAddress: 'GDNSSYSCSSJ76FER5WEEXME5G4MTCUBKDRQSKOYP36KUKVDB2VCMERS6',
       keyVersion: 4,
       signingPublicKey: bytesToBase64(recipient.signingPublicKey),
       encryptionPublicKey: bytesToBase64(recipient.encryptionPublicKey),
@@ -175,12 +177,56 @@ describe('Messenger v1 crypto', () => {
   it('includes reply and bounty terms in the signed manifest', async () => {
     const encrypted = await createMessengerEnvelope('reply with bounty', context, sender, {
       replyToMessageId: '507F1F77BCF86CD799439099',
-      bounty: { assetCode: 'USDC', amount: '10.25', durationSeconds: 3600 },
+      bounty: { contractBountyId: '7', assetCode: 'USDC', amount: '10.25', durationSeconds: 3600 },
     });
     const manifest = serializeMessengerManifest(encrypted.manifest);
     expect(manifest).toContain('Reply To Message ID: 507f1f77bcf86cd799439099');
+    expect(manifest).toContain('Bounty Contract ID: 7');
     expect(manifest).toContain('Bounty Asset Code: USDC');
     expect(manifest).toContain('Bounty Amount: 10.25');
     expect(manifest).toContain('Bounty Duration Seconds: 3600');
+  });
+
+  it('omits the contract ID line only when there is no bounty at all', async () => {
+    const encrypted = await createMessengerEnvelope('no bounty', context, sender);
+    const manifest = serializeMessengerManifest(encrypted.manifest);
+    expect(manifest).not.toContain('Bounty Contract ID');
+    expect(manifest).toContain('Bounty Asset Code: none');
+  });
+
+  it('places Bounty Contract ID immediately before the asset lines, byte for byte', async () => {
+    const encrypted = await createMessengerEnvelope('contract bounty', context, sender, {
+      clientMessageId: '2f2b1762-f0f5-4b1b-8acd-70afcf043365',
+      bounty: { assetCode: 'USDC', amount: '10.25', durationSeconds: 3600, contractBountyId: '7' },
+    });
+    const manifest = serializeMessengerManifest(encrypted.manifest);
+    expect(manifest).toContain(
+      [
+        'Reply To Message ID: none',
+        'Bounty Contract ID: 7',
+        'Bounty Asset Code: USDC',
+        'Bounty Amount: 10.25',
+        'Bounty Duration Seconds: 3600',
+      ].join('\n'),
+    );
+    // Deterministic: serializing the same manifest twice is byte-identical.
+    expect(serializeMessengerManifest(encrypted.manifest)).toBe(manifest);
+    // The payload carries the same contract bounty ID the manifest signed.
+    expect(encrypted.payload.bounty).toMatchObject({ contractBountyId: '7' });
+  });
+
+  it('fails decryption when the signed contract bounty ID is tampered with', async () => {
+    const encrypted = await createMessengerEnvelope('contract bounty', context, sender, {
+      bounty: { assetCode: 'USDC', amount: '10.25', durationSeconds: 3600, contractBountyId: '7' },
+    });
+    const item = historyItem(encrypted, 'recipient');
+    item.manifest = {
+      ...item.manifest,
+      bountyTerms: { assetCode: 'USDC', amount: '10.25', durationSeconds: 3600, contractBountyId: '8' },
+    };
+    await expect(decryptMessengerMessage(item, recipient)).resolves.toMatchObject({
+      state: 'invalid',
+      plaintext: null,
+    });
   });
 });

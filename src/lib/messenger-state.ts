@@ -53,11 +53,3 @@ export function applyUnlockedBounty(
   );
 }
 
-export function applyClaimedBounty(
-  messages: DecryptedMessengerMessage[],
-  claimedBounty: MessengerBounty,
-): DecryptedMessengerMessage[] {
-  return messages.map((message) =>
-    message.bounty?.id === claimedBounty.id ? { ...message, bounty: claimedBounty } : message,
-  );
-}

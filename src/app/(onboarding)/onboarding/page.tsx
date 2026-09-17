@@ -18,6 +18,7 @@ import { AVATAR_ALLOWED_TYPES, validateAvatar } from '@/lib/avatar';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
 import { invalidateAuthenticatedData } from '@/lib/data-invalidation';
+import { requestFriendbotFunding } from '@/lib/friendbot';
 import { useToast } from '@/providers/toast-provider';
 
 type Availability = 'idle' | 'checking' | 'available' | 'unavailable';
@@ -150,13 +151,18 @@ export default function OnboardingPage() {
 
     submissionInProgress.current = true;
     setSubmitting(true);
+    const walletAddress = auth.address;
     try {
       const user = await authApi.register({
-        walletAddress: auth.address,
+        walletAddress,
         username,
         avatarFile: avatarFile ?? undefined,
         keys: auth.keys,
       });
+      // Registration is the account's first sign-in, so it is the one point
+      // where the wallet is known to be new. Left unawaited on purpose: the
+      // top-up must not delay or fail the redirect into the dashboard.
+      void requestFriendbotFunding(walletAddress, auth.config.stellarNetwork);
       auth.setUser(user);
       invalidateAuthenticatedData();
       toast(

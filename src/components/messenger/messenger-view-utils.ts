@@ -37,17 +37,11 @@ export function messengerError(cause: unknown): string {
   if (cause.code === 'MESSAGE_ID_CONFLICT') {
     return 'This message could not be sent. Discard it, then write a new one.';
   }
-  if (cause.code === 'INSUFFICIENT_DEMO_USDC_BALANCE') {
-    return 'Your USDC balance is not sufficient for this bounty.';
+  if (cause.code === 'CONTRACT_MESSAGE_ACCESS_DENIED') {
+    return 'Messaging access is no longer active between you two. An Aura may have been transferred or burned — a new Aura purchase from their profile restores access.';
   }
-  if (cause.code === 'BOUNTY_ALREADY_CLAIMED') {
-    return 'This bounty has already been claimed.';
-  }
-  if (cause.code === 'BOUNTY_NOT_CLAIMABLE') {
-    return 'This reward is not ready yet. The other person needs to reply before time runs out.';
-  }
-  if (cause.code === 'BOUNTY_EXPIRED' || cause.status === 410) {
-    return 'This reward has expired.';
+  if (cause.code === 'CONTRACT_MESSAGE_ACCESS_UNAVAILABLE') {
+    return 'Messaging access could not be verified right now. Your message is preserved — try again in a moment.';
   }
   if (
     cause.code === 'RATE_LIMIT_EXCEEDED' ||
