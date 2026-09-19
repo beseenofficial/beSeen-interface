@@ -17,6 +17,7 @@ import { APP_URL } from '@/lib/constants';
 import { formatAuraPrice, formatUsdc } from '@/lib/decimal';
 import { decryptMessengerMessage } from '@/lib/messenger-crypto';
 import { useToast } from '@/providers/toast-provider';
+import type { MessengerConversation } from '@/types';
 
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
@@ -27,6 +28,50 @@ function formatRelativeTime(value: string): string {
     if (Math.abs(seconds) >= amount) return relativeTime.format(Math.round(seconds / amount), unit);
   }
   return 'Just now';
+}
+
+async function loadAllDashboardConversations(): Promise<MessengerConversation[]> {
+  const byId = new Map<string, MessengerConversation>();
+  let cursor: string | undefined;
+  do {
+    const page = await messengerApi.listConversations({ limit: 50, cursor });
+    page.items.forEach((conversation) => byId.set(conversation.id, conversation));
+    cursor = page.hasMore && page.nextCursor ? page.nextCursor : undefined;
+  } while (cursor);
+  return [...byId.values()];
+}
+
+async function countUnclaimedBounties(
+  conversations: MessengerConversation[],
+  viewerId: string,
+): Promise<number> {
+  const bountyIds = new Set<string>();
+  await Promise.all(
+    conversations.map(async (conversation) => {
+      let beforeSequence: number | undefined;
+      do {
+        const page = await messengerApi.messages(conversation.id, {
+          limit: 50,
+          beforeSequence,
+        });
+        page.items.forEach((message) => {
+          const bounty = message.bounty;
+          if (
+            bounty &&
+            message.manifest.recipientId === viewerId &&
+            (bounty.status === 'offered' || bounty.status === 'claimable')
+          ) {
+            bountyIds.add(bounty.id);
+          }
+        });
+        beforeSequence =
+          page.hasMore && page.nextBeforeSequence !== null
+            ? page.nextBeforeSequence
+            : undefined;
+      } while (beforeSequence !== undefined);
+    }),
+  );
+  return bountyIds.size;
 }
 
 type StatCardProps = {
@@ -58,6 +103,8 @@ export default function OverviewPage() {
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [earningsTotal, setEarningsTotal] = useState<string | null>(null);
   const [earningsLoading, setEarningsLoading] = useState(true);
+  const [unclaimedBountyCount, setUnclaimedBountyCount] = useState<number | null>(null);
+  const [bountiesLoading, setBountiesLoading] = useState(true);
   const refreshInFlight = useRef(false);
 
   const loadDashboard = useCallback(async (includeStats = false) => {
@@ -66,12 +113,13 @@ export default function OverviewPage() {
     if (includeStats) {
       setBroadcastsLoading(true);
       setEarningsLoading(true);
+      setBountiesLoading(true);
     }
     try {
       const [receivedResult, sentResult, conversationsResult] = await Promise.allSettled([
         loadCompleteBroadcastFeed('received'),
         loadCompleteBroadcastFeed('sent'),
-        messengerApi.listConversations({ limit: 50 }),
+        loadAllDashboardConversations(),
       ]);
       const hasBroadcastFeed = receivedResult.status === 'fulfilled' || sentResult.status === 'fulfilled';
       if (hasBroadcastFeed) {
@@ -95,7 +143,7 @@ export default function OverviewPage() {
       }
 
       if (conversationsResult.status === 'fulfilled') {
-        const conversations = conversationsResult.value.items;
+        const conversations = conversationsResult.value;
         setUnreadMessageCount(conversations.reduce((total, conversation) => total + conversation.unreadCount, 0));
         const recentConversations = conversations
           .filter((conversation) => conversation.lastMessage !== null)
@@ -132,13 +180,19 @@ export default function OverviewPage() {
       }
 
       if (includeStats) {
-        const [followerResult, earningsResult] = await Promise.allSettled([
+        const bountyCountRequest = conversationsResult.status === 'fulfilled'
+          ? countUnclaimedBounties(conversationsResult.value, user.id)
+          : Promise.reject(new Error('Conversations unavailable'));
+        const [followerResult, earningsResult, bountyCountResult] = await Promise.allSettled([
           profileApi.followCounts(user.username),
           earningsApi.list({ limit: 25 }),
+          bountyCountRequest,
         ]);
         setFollowerCount(followerResult.status === 'fulfilled' ? followerResult.value.followerCount : null);
         setEarningsTotal(earningsResult.status === 'fulfilled' ? earningsResult.value.totalAmount : null);
+        setUnclaimedBountyCount(bountyCountResult.status === 'fulfilled' ? bountyCountResult.value : null);
         setEarningsLoading(false);
+        setBountiesLoading(false);
       }
     } catch {
       if (includeStats) {
@@ -146,7 +200,9 @@ export default function OverviewPage() {
         setMessages([]);
         setUnreadMessageCount(0);
         setEarningsTotal(null);
+        setUnclaimedBountyCount(null);
         setEarningsLoading(false);
+        setBountiesLoading(false);
       }
     } finally {
       if (includeStats) {
@@ -193,8 +249,26 @@ export default function OverviewPage() {
             <span className="overview-bounty-icon grid size-14 shrink-0 place-items-center rounded-full bg-info-bg text-brand"><Gift size={27} strokeWidth={1.8} /></span>
             <div className="overview-bounty-content pt-2">
               <h2 className="text-[17px] font-semibold">Available bounties</h2>
-              <strong className="overview-bounty-value mt-2 block text-[62px] font-medium leading-[0.95] tracking-[-0.05em] text-brand">$0</strong>
-              <p className="overview-bounty-hint mt-4 text-sm text-secondary">No unanswered messages</p>
+              {bountiesLoading ? (
+                <span className="overview-bounty-value mt-2 block h-14 w-24 animate-pulse rounded-xl bg-info-bg" role="status">
+                  <span className="sr-only">Loading available bounties</span>
+                </span>
+              ) : (
+                <strong className="overview-bounty-value mt-2 block text-[62px] font-medium leading-[0.95] tabular-nums tracking-[-0.04em] text-brand">
+                  {unclaimedBountyCount === null ? '—' : unclaimedBountyCount.toLocaleString()}
+                </strong>
+              )}
+              <p className="overview-bounty-hint mt-4 text-sm text-secondary">
+                {bountiesLoading
+                  ? 'Checking your bounties…'
+                  : unclaimedBountyCount === null
+                  ? 'Bounties temporarily unavailable'
+                  : unclaimedBountyCount === 0
+                    ? 'No unclaimed bounties'
+                    : unclaimedBountyCount === 1
+                      ? '1 bounty waiting to be claimed'
+                      : `${unclaimedBountyCount?.toLocaleString()} bounties waiting to be claimed`}
+              </p>
               <Link className="overview-bounty-action mt-7 inline-flex min-h-12 items-center gap-7 rounded-xl bg-brand px-5 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]" href="/dashboard/messenger">Go to Messenger <ArrowRight size={19} /></Link>
             </div>
           </div>
