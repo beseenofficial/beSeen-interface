@@ -19,6 +19,11 @@ export type MessengerHistoryQuery = {
   beforeSequence?: number;
 };
 
+export type MessengerBountySummary = {
+  unclaimedCount: number;
+  updatedAt: string;
+};
+
 function queryString(values: Record<string, string | number | undefined>): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
@@ -130,6 +135,15 @@ export async function markMessengerConversationRead(
   );
 }
 
+export async function getMessengerBountySummary(
+  signal?: AbortSignal,
+): Promise<MessengerBountySummary> {
+  return apiRequest<MessengerBountySummary>('/v1/messenger/bounties/summary', {
+    auth: true,
+    signal,
+  });
+}
+
 export const messengerApi = {
   listConversations: listMessengerConversations,
   findConversationWithUser: findMessengerConversationWithUser,
@@ -138,4 +152,5 @@ export const messengerApi = {
   messages: getMessengerMessages,
   sendMessage: sendMessengerMessage,
   markRead: markMessengerConversationRead,
+  bountySummary: getMessengerBountySummary,
 };
