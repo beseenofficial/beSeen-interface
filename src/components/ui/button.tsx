@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "tertiary";
+  variant?: "primary" | "secondary" | "tertiary" | "inverted" | "invertedSecondary";
   loading?: boolean;
   icon?: ReactNode;
 };
@@ -22,6 +22,9 @@ export function Button({
     secondary:
       "border-border bg-white text-navy hover:border-[#a9c2ca] hover:bg-subtle",
     tertiary: "bg-transparent px-3 text-brand hover:bg-info-bg",
+    inverted: "bg-white text-navy hover:bg-aqua",
+    invertedSecondary:
+      "border-white/25 bg-white/10 text-white hover:border-white/40 hover:bg-white/15",
   };
   return (
     <button
