@@ -1,19 +1,41 @@
 import { apiRequest } from '@/lib/api/transport';
 
-export type EarningTransaction = {
+export type SignedDecimalString = string;
+
+type EarningTransactionBase = {
   id: string;
-  type: 'bounty_reply';
-  reason: 'Bounty reply reward';
-  contractBountyId: string;
   assetCode: 'USDC';
-  amount: string;
+  /** Signed USDC decimal string. Withdrawals are negative. */
+  amount: SignedDecimalString;
   transactionHash: string;
   earnedAt: string;
 };
 
+export type EarningTransaction = EarningTransactionBase & (
+  | {
+      type: 'bounty_reply';
+      reason: 'Bounty reply reward';
+      contractBountyId: string;
+      contractAuraTokenId: null;
+    }
+  | {
+      type: 'aura_purchase';
+      reason: 'Aura purchase earning';
+      contractBountyId: null;
+      contractAuraTokenId: string;
+    }
+  | {
+      type: 'withdrawal';
+      reason: 'Earnings withdrawal';
+      contractBountyId: null;
+      contractAuraTokenId: null;
+    }
+);
+
 export type EarningsPage = {
   assetCode: 'USDC';
-  totalAmount: string;
+  /** Signed net tracked balance in USDC. */
+  totalAmount: SignedDecimalString;
   items: EarningTransaction[];
   nextCursor: string | null;
   hasMore: boolean;

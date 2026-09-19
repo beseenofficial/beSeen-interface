@@ -5,13 +5,18 @@ export {
   findMessengerConversationWithUser,
   getMessengerConversation,
   getMessengerConversationContext,
+  getMessengerBountySummary,
   getMessengerMessages,
   listMessengerConversations,
   messengerApi,
   markMessengerConversationRead,
   sendMessengerMessage,
 } from './messenger';
-export type { MessengerConversationQuery, MessengerHistoryQuery } from './messenger';
+export type {
+  MessengerBountySummary,
+  MessengerConversationQuery,
+  MessengerHistoryQuery,
+} from './messenger';
 export { profileApi, profileUpdateErrorMessage } from './profiles';
 export type { ProfileUpdate } from './profiles';
 export { auraApi } from './aura';
@@ -24,6 +29,7 @@ export type {
   EarningTransaction,
   EarningsPage,
   EarningsQuery,
+  SignedDecimalString,
 } from './earnings';
 export { discoverUsers, usersApi } from './users';
 export {

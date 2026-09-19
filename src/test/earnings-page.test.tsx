@@ -37,10 +37,35 @@ const transaction = {
   type: 'bounty_reply' as const,
   reason: 'Bounty reply reward' as const,
   contractBountyId: '42',
+  contractAuraTokenId: null,
   assetCode: 'USDC' as const,
   amount: '9007199254740993.1234567',
   transactionHash: 'a'.repeat(64),
   earnedAt: '2026-09-16T12:00:00.000Z',
+};
+
+const auraTransaction = {
+  id: 'earning-2',
+  type: 'aura_purchase' as const,
+  reason: 'Aura purchase earning' as const,
+  contractBountyId: null,
+  contractAuraTokenId: '77',
+  assetCode: 'USDC' as const,
+  amount: '2.5',
+  transactionHash: 'b'.repeat(64),
+  earnedAt: '2026-09-16T11:00:00.000Z',
+};
+
+const withdrawalTransaction = {
+  id: 'earning-3',
+  type: 'withdrawal' as const,
+  reason: 'Earnings withdrawal' as const,
+  contractBountyId: null,
+  contractAuraTokenId: null,
+  assetCode: 'USDC' as const,
+  amount: '-1.25',
+  transactionHash: 'c'.repeat(64),
+  earnedAt: '2026-09-16T10:00:00.000Z',
 };
 
 describe('Earnings page', () => {
@@ -87,20 +112,27 @@ describe('Earnings page', () => {
   it('renders exact monetary strings and complete transaction evidence', async () => {
     mocks.list.mockResolvedValue({
       assetCode: 'USDC',
-      totalAmount: '9007199254740993.1234567',
-      items: [transaction],
+      totalAmount: '9007199254740994.3734567',
+      items: [transaction, auraTransaction, withdrawalTransaction],
       nextCursor: null,
       hasMore: false,
     });
     render(<EarningsPage />);
 
     expect(await screen.findByText('+9007199254740993.1234567 USDC')).toBeInTheDocument();
-    expect(screen.getByText('9007199254740993.1234567')).toBeInTheDocument();
+    expect(screen.getByText('9007199254740994.3734567')).toBeInTheDocument();
     expect(screen.getByText('Bounty reply reward')).toBeInTheDocument();
     expect(screen.getByText('Contract bounty #42')).toBeInTheDocument();
-    expect(screen.getByText(/Sep 16, 2026/i)).toBeInTheDocument();
+    expect(screen.getByText('+2.5 USDC')).toBeInTheDocument();
+    expect(screen.getByText('Aura purchase earning')).toBeInTheDocument();
+    expect(screen.getByText('Aura token #77')).toBeInTheDocument();
+    expect(screen.getByText('-1.25 USDC')).toBeInTheDocument();
+    expect(screen.getByText('Earnings withdrawal')).toBeInTheDocument();
+    expect(screen.queryByText('Contract bounty #null')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aura token #null')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Sep 16, 2026/i)).toHaveLength(3);
     expect(screen.getByText('aaaaaaaa…aaaaaaaa')).toBeInTheDocument();
-    expect(screen.getByRole('time')).toHaveAttribute('title', transaction.earnedAt);
+    expect(screen.getAllByRole('time')[0]).toHaveAttribute('title', transaction.earnedAt);
 
     await userEvent.click(screen.getByRole('button', { name: `Copy transaction hash ${transaction.transactionHash}` }));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(transaction.transactionHash);
@@ -114,7 +146,7 @@ describe('Earnings page', () => {
       .mockResolvedValueOnce({
         assetCode: 'USDC',
         totalAmount: '7',
-        items: [transaction, { ...transaction, id: 'earning-2', amount: '2', transactionHash: 'b'.repeat(64) }],
+        items: [transaction, { ...transaction, id: 'earning-4', amount: '2', transactionHash: 'd'.repeat(64) }],
         nextCursor: null,
         hasMore: false,
       });

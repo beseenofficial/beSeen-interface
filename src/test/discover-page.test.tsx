@@ -59,8 +59,8 @@ describe('Discover page', () => {
     expect(screen.queryByRole('heading', { name: 'Verified' })).toBeNull();
     // The exact Aura price renders from base units; a null price shows an explicit state.
     expect(screen.getAllByText('2.5').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('USDC / Aura').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Price unavailable').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('USDC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0);
 
     expect(await screen.findByText('@carol')).toBeInTheDocument();
     expect(screen.getAllByText('@bob')).toHaveLength(1);

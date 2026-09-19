@@ -8,6 +8,7 @@ export interface RecentMessageItem {
   avatar: string | null;
   content: string;
   timestamp: string;
+  occurredAt: string;
   unreadCount: number;
   isOwn: boolean;
 }
