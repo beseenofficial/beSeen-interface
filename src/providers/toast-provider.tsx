@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence, motion, useAnimationControls, useReducedMotion, type Variants } from "framer-motion";
-import { AlertTriangle, Check, Info, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
@@ -39,21 +39,29 @@ type ToastContextValue = {
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
-const TOAST_DURATION_MS = 4_200;
+const MIN_TOAST_DURATION_MS = 4_800;
+const MAX_TOAST_DURATION_MS = 8_000;
 const MAX_VISIBLE_TOASTS = 4;
 
+export function toastDurationForContent(title: string, message?: string): number {
+  const readingTime = 3_200 + `${title} ${message ?? ""}`.trim().length * 35;
+  return Math.min(MAX_TOAST_DURATION_MS, Math.max(MIN_TOAST_DURATION_MS, readingTime));
+}
+
 const toastVariants: Variants = {
-  initial: { opacity: 0, y: 24, scale: 0.97 },
+  initial: { opacity: 0, y: 18, scale: 0.985, filter: "blur(5px)" },
   animate: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: "spring", stiffness: 520, damping: 34, mass: 0.7 },
+    filter: "blur(0px)",
+    transition: { type: "spring", stiffness: 460, damping: 32, mass: 0.72 },
   },
   exit: {
     opacity: 0,
-    y: 12,
-    scale: 0.985,
+    y: 8,
+    scale: 0.99,
+    filter: "blur(3px)",
     transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
   },
 };
@@ -66,33 +74,38 @@ const reducedToastVariants: Variants = {
 
 const variantStyles = {
   success: {
-    icon: Check,
-    iconClass: "bg-success-bg text-success",
-    accentClass: "bg-success",
-    progressClass: "bg-success/55",
+    icon: CircleCheck,
+    surfaceClass: "bg-success-bg/55",
+    iconClass: "bg-white text-success shadow-[0_5px_14px_rgb(19_126_88/12%)]",
+    actionClass: "bg-white text-success hover:bg-success-bg focus-visible:outline-success/40",
+    progressClass: "bg-success/65",
   },
   error: {
-    icon: X,
-    iconClass: "bg-error-bg text-error",
-    accentClass: "bg-error",
-    progressClass: "bg-error/55",
+    icon: CircleAlert,
+    surfaceClass: "bg-error-bg/65",
+    iconClass: "bg-white text-error shadow-[0_5px_14px_rgb(201_62_80/12%)]",
+    actionClass: "bg-white text-error hover:bg-error-bg focus-visible:outline-error/40",
+    progressClass: "bg-error/65",
   },
   warning: {
-    icon: AlertTriangle,
-    iconClass: "bg-warning-bg text-warning",
-    accentClass: "bg-warning",
-    progressClass: "bg-warning/55",
+    icon: TriangleAlert,
+    surfaceClass: "bg-warning-bg/75",
+    iconClass: "bg-white text-warning shadow-[0_5px_14px_rgb(168_104_0/12%)]",
+    actionClass: "bg-white text-warning hover:bg-warning-bg focus-visible:outline-warning/40",
+    progressClass: "bg-warning/65",
   },
   info: {
     icon: Info,
-    iconClass: "bg-info-bg text-brand",
-    accentClass: "bg-brand",
-    progressClass: "bg-brand/45",
+    surfaceClass: "bg-info-bg/70",
+    iconClass: "bg-white text-brand shadow-[0_5px_14px_rgb(16_69_245/12%)]",
+    actionClass: "bg-white text-brand hover:bg-info-bg focus-visible:outline-brand/40",
+    progressClass: "bg-brand/60",
   },
 } satisfies Record<ToastVariant, {
-  icon: typeof Check;
+  icon: typeof CircleCheck;
+  surfaceClass: string;
   iconClass: string;
-  accentClass: string;
+  actionClass: string;
   progressClass: string;
 }>;
 
@@ -152,63 +165,55 @@ function ToastItem({ item, onDismiss }: { item: Toast; onDismiss: (id: string) =
       animate="animate"
       exit="exit"
       transition={{ layout: { duration: shouldReduceMotion ? 0 : 0.2, ease: "easeOut" } }}
-      className="pointer-events-auto relative grid w-full grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3 overflow-hidden rounded-2xl border border-border bg-white py-3 pr-2.5 pl-3.5 shadow-[0_14px_42px_rgb(11_11_63/10%),0_2px_8px_rgb(11_11_63/5%)] md:w-fit md:min-w-[320px] md:max-w-[460px]"
+      className={cn(
+        "pointer-events-auto relative grid w-full grid-cols-[40px_minmax(0,1fr)_40px] items-start gap-x-3 overflow-hidden rounded-2xl px-3.5 py-3.5 shadow-[0_18px_48px_rgb(11_11_63/13%),0_4px_14px_rgb(11_11_63/6%)] md:w-fit md:min-w-[340px] md:max-w-[480px]",
+        style.surfaceClass,
+      )}
       role={item.variant === "error" ? "alert" : "status"}
+      aria-atomic="true"
       onMouseEnter={pauseTimer}
       onMouseLeave={resumeTimer}
       onFocusCapture={pauseTimer}
       onBlurCapture={resumeTimer}
     >
-      <span className={cn("absolute inset-y-3 left-0 w-0.5 rounded-r-full", style.accentClass)} aria-hidden />
-
-      <motion.span
-        className="pointer-events-none absolute top-1.5 left-2 flex gap-0.5"
-        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 3 }}
-        animate={{ opacity: [0, 0.55, 0], y: 0 }}
-        transition={{ duration: shouldReduceMotion ? 0.01 : 0.42, ease: "easeOut" }}
-        aria-hidden
-      >
-        <span className="h-1 w-0.5 rotate-[-18deg] rounded-full bg-aqua" />
-        <span className="h-1 w-0.5 rotate-[-18deg] rounded-full bg-peach" />
-        <span className="h-1 w-0.5 rotate-[-18deg] rounded-full bg-lilac" />
-      </motion.span>
-
-      <span className={cn("inline-flex size-8 items-center justify-center rounded-full", style.iconClass)} aria-hidden>
-        <Icon size={16} strokeWidth={2.25} />
+      <span className={cn("inline-flex size-10 items-center justify-center rounded-xl", style.iconClass)} aria-hidden>
+        <Icon size={20} strokeWidth={2.15} />
       </span>
 
-      <span className="min-w-0 py-0.5">
-        <strong className="block text-sm leading-4.5 font-semibold tracking-[-0.01em] text-navy">{item.title}</strong>
-        {item.message && <span className="mt-0.5 block text-xs leading-4 text-secondary">{item.message}</span>}
-      </span>
-
-      <span className="flex items-center gap-0.5 pl-1">
+      <span className="min-w-0 pt-0.5">
+        <strong className="block text-sm font-semibold leading-5 tracking-[-0.01em] text-navy">{item.title}</strong>
+        {item.message && <span className="mt-1 block break-words text-[13px] leading-[1.45] text-secondary">{item.message}</span>}
         {item.action && (
           <button
-            className="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-info-bg focus-visible:outline-brand/35"
+            className={cn(
+              "mt-2.5 inline-flex min-h-10 cursor-pointer items-center rounded-xl px-3 text-xs font-semibold shadow-[0_3px_10px_rgb(11_11_63/6%)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2",
+              style.actionClass,
+            )}
             onClick={handleAction}
             type="button"
           >
             {item.action.label}
           </button>
         )}
-        <button
-          className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-muted transition-colors hover:bg-subtle hover:text-navy focus-visible:outline-brand/35"
-          onClick={() => onDismiss(item.id)}
-          aria-label="Dismiss notification"
-          type="button"
-        >
-          <X size={15} strokeWidth={2} />
-        </button>
       </span>
 
+      <button
+        className="inline-flex size-10 cursor-pointer items-center justify-center rounded-xl border-0 bg-transparent text-secondary transition-colors hover:bg-white/75 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/40"
+        onClick={() => onDismiss(item.id)}
+        aria-label="Dismiss notification"
+        type="button"
+      >
+        <X size={17} strokeWidth={2} />
+      </button>
+
       {item.duration !== null && (
-        <motion.span
-          className={cn("absolute inset-x-0 bottom-0 h-0.5 origin-left", style.progressClass)}
-          initial={{ scaleX: 1 }}
-          animate={progressControls}
-          aria-hidden
-        />
+        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-navy/5" aria-hidden>
+          <motion.span
+            className={cn("block h-full origin-left", style.progressClass)}
+            initial={{ scaleX: 1 }}
+            animate={progressControls}
+          />
+        </span>
       )}
     </motion.article>
   );
@@ -230,7 +235,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         title,
         message,
         variant: options.variant ?? "success",
-        duration: options.duration === undefined ? TOAST_DURATION_MS : options.duration,
+        duration:
+          options.duration === undefined
+            ? toastDurationForContent(title, message)
+            : options.duration,
         action: options.action,
       },
     ]);
@@ -242,10 +250,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={contextValue}>
       {children}
       <div
-        className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-[200] flex max-h-[calc(100svh-2rem)] flex-col items-center gap-2.5 md:right-auto md:bottom-6 md:left-1/2 md:w-[min(460px,calc(100vw-32px))] md:-translate-x-1/2"
+        className="fixed right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 z-[200] flex max-h-[calc(100svh-1.5rem)] flex-col items-center gap-2.5 overflow-y-auto overscroll-contain py-1 md:right-6 md:bottom-6 md:left-auto md:w-[min(480px,calc(100vw-48px))] md:items-end"
         role="region"
         aria-label="Notifications"
-        aria-live="polite"
       >
         <AnimatePresence initial={false}>
           {toasts.map((item) => <ToastItem item={item} onDismiss={remove} key={item.id} />)}
