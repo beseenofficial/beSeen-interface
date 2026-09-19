@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bountyDeadline,
   contractU64ToString,
+  expiredBountyClaimArgs,
   getBeSeenContractAddress,
   toBountyContractAmount,
 } from '@/lib/bounty-contract';
@@ -46,6 +47,15 @@ describe('bounty contract values', () => {
 
   it('creates a u64 Unix deadline from the selected duration', () => {
     expect(bountyDeadline(86_400, 1_700_000_000_400)).toBe(1_700_086_400);
+  });
+
+  it('builds claim_expired_bounty arguments without losing u64 precision', () => {
+    expect(expiredBountyClaimArgs('gabc', '9007199254740993')).toEqual([
+      'GABC',
+      '9007199254740993',
+    ]);
+    expect(() => expiredBountyClaimArgs('', '7')).toThrow(/connect your stellar wallet/i);
+    expect(() => expiredBountyClaimArgs('GABC', '0')).toThrow(/u64 range/i);
   });
 
   it.each([

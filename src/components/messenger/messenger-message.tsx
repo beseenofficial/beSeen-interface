@@ -9,7 +9,7 @@ import {
 } from '@/components/messenger/message-bubble';
 import { messengerTimeLabel } from '@/components/messenger/messenger-view-utils';
 import { cn } from '@/lib/utils';
-import type { DecryptedMessengerMessage } from '@/types';
+import type { DecryptedMessengerMessage, MessengerBounty as MessengerBountyData } from '@/types';
 
 export function MessengerMessage({
   message,
@@ -21,6 +21,9 @@ export function MessengerMessage({
   senderUsername,
   onReply,
   onToggleReplyAction,
+  onClaimExpiredBounty,
+  reclaimError,
+  reclaiming,
 }: {
   message: DecryptedMessengerMessage;
   reply: DecryptedMessengerMessage | null;
@@ -31,6 +34,9 @@ export function MessengerMessage({
   senderUsername: string;
   onReply: (message: DecryptedMessengerMessage) => void;
   onToggleReplyAction: (messageId: string) => void;
+  onClaimExpiredBounty: (bounty: MessengerBountyData) => Promise<void>;
+  reclaimError: string | null;
+  reclaiming: boolean;
 }) {
   return (
     <motion.article
@@ -139,7 +145,15 @@ export function MessengerMessage({
             </div>
           )}
         </div>
-        {message.bounty && <MessageBounty bounty={message.bounty} />}
+        {message.bounty && (
+          <MessageBounty
+            bounty={message.bounty}
+            canClaimExpired={outgoing}
+            reclaimError={reclaimError}
+            reclaiming={reclaiming}
+            onClaimExpired={() => onClaimExpiredBounty(message.bounty!)}
+          />
+        )}
         <div
           className={cn(
             'flex items-center justify-end gap-1.5 text-[11px] leading-none text-[#080B0D]',

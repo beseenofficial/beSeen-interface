@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createReadCursorBatcher, startMessengerPolling } from '@/lib/messenger-polling';
-import { applyUnlockedBounty, firstUnreadMessageId, mergeMessengerTimeline } from '@/lib/messenger-state';
+import { applyUnlockedBounty, firstUnreadMessageId, mergeMessengerMessages, mergeMessengerTimeline } from '@/lib/messenger-state';
 import type { DecryptedBroadcast, DecryptedMessengerMessage, MessengerBounty } from '@/types';
 
 afterEach(() => {
@@ -58,6 +58,35 @@ describe('Messenger lifecycle helpers', () => {
       id: 'message', bounty: { ...bounty, status: 'offered' },
     } as unknown as DecryptedMessengerMessage;
     expect(applyUnlockedBounty([message], bounty)[0].bounty?.status).toBe('claimable');
+  });
+
+  it('does not let a stale history poll erase a confirmed on-chain refund', () => {
+    const bounty = {
+      id: 'bounty',
+      contractBountyId: '9',
+      assetCode: 'USDC',
+      amount: '10',
+      durationSeconds: 3600,
+      status: 'expired',
+      settlementStatus: 'pending',
+      settlementTransactionHash: null,
+      expiresAt: '2026-08-11T12:00:00.000Z',
+      replyMessageId: null,
+      claimableAt: null,
+      claimedAt: null,
+    } satisfies MessengerBounty;
+    const message = (fundingStatus?: MessengerBounty['fundingStatus']) => ({
+      id: 'message',
+      sequence: 1,
+      bounty: { ...bounty, fundingStatus },
+    }) as DecryptedMessengerMessage;
+
+    expect(
+      mergeMessengerMessages(
+        [message('contract_refunded')],
+        [message(undefined)],
+      )[0].bounty?.fundingStatus,
+    ).toBe('contract_refunded');
   });
 
   it('places received broadcasts from the participant into the direct timeline by time', () => {

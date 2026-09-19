@@ -23,7 +23,26 @@ export function mergeMessengerMessages(
   incoming: DecryptedMessengerMessage[],
 ): DecryptedMessengerMessage[] {
   const byId = new Map(current.map((message) => [message.id, message]));
-  for (const message of incoming) byId.set(message.id, message);
+  for (const message of incoming) {
+    const previous = byId.get(message.id);
+    const previousBounty = previous?.bounty;
+    const incomingBounty = message.bounty;
+    const keepConfirmedRefund =
+      Boolean(previousBounty) &&
+      Boolean(incomingBounty) &&
+      previousBounty?.id === incomingBounty?.id &&
+      previousBounty?.fundingStatus === 'contract_refunded' &&
+      incomingBounty?.fundingStatus !== 'contract_refunded';
+    byId.set(
+      message.id,
+      keepConfirmedRefund
+        ? {
+            ...message,
+            bounty: { ...message.bounty!, fundingStatus: 'contract_refunded' },
+          }
+        : message,
+    );
+  }
   return [...byId.values()].sort((left, right) => right.sequence - left.sequence);
 }
 

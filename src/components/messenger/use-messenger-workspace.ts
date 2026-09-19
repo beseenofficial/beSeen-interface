@@ -30,6 +30,7 @@ import { useToast } from '@/providers/toast-provider';
 import {
   bountyDeadline,
   contractU64ToString,
+  expiredBountyClaimArgs,
   getBeSeenContractAddress,
   toBountyContractAmount,
 } from '@/lib/bounty-contract';
@@ -38,13 +39,18 @@ import type {
   DecryptedBroadcast,
   DecryptedMessengerMessage,
   DerivedKeys,
+  MessengerBounty,
   MessengerConversationContext,
   User,
 } from '@/types';
 
+function isWalletCancellation(cause: unknown): boolean {
+  return cause instanceof Error && /reject|cancel|declin|dismiss/i.test(cause.message);
+}
+
 export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   const { toast } = useToast();
-  const { address: senderAddress } = useAuth();
+  const { address: senderAddress, config } = useAuth();
   const { mutateAsync: writeContract } = useWriteContract<bigint>();
   const conversationList = useConversationList();
   const {
@@ -59,6 +65,12 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     null,
   );
   const [messages, setMessages] = useState<DecryptedMessengerMessage[]>([]);
+  const [reclaimingBountyIds, setReclaimingBountyIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [bountyReclaimErrors, setBountyReclaimErrors] = useState<
+    Record<string, string>
+  >({});
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [nextBeforeSequence, setNextBeforeSequence] = useState<number | null>(
@@ -78,6 +90,8 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     Record<string, BroadcastRecipientSummary[]>
   >({});
   const cache = useRef(new Map<string, DecryptedMessengerMessage>());
+  const bountyReclaimsInFlight = useRef(new Set<string>());
+  const activeConversationIdRef = useRef(activeConversationId);
   const broadcastRefreshInFlight = useRef(false);
   const messageEnd = useRef<HTMLDivElement>(null);
   const readBatcher = useRef<ReturnType<typeof createReadCursorBatcher> | null>(
@@ -85,6 +99,10 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   );
 
   const closeProfile = useCallback(() => setProfileUsername(null), []);
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
   const refreshReceivedBroadcasts = useCallback(async () => {
     if (broadcastRefreshInFlight.current) return;
@@ -197,6 +215,75 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
       senderAddress,
       writeContract,
     ],
+  );
+
+  const claimExpiredBounty = useCallback(
+    async (bounty: MessengerBounty) => {
+      if (bountyReclaimsInFlight.current.has(bounty.id)) return;
+
+      const conversationId = activeConversationIdRef.current;
+      if (!conversationId) return;
+
+      bountyReclaimsInFlight.current.add(bounty.id);
+      setReclaimingBountyIds((current) => new Set(current).add(bounty.id));
+      setBountyReclaimErrors((current) => {
+        const next = { ...current };
+        delete next[bounty.id];
+        return next;
+      });
+
+      try {
+        const transaction = await writeContract({
+          call: {
+            address: getBeSeenContractAddress(),
+            fn: 'claim_expired_bounty',
+            args: expiredBountyClaimArgs(senderAddress ?? '', bounty.contractBountyId),
+          },
+          options: { network: config.networkPassphrase },
+        });
+
+        if (activeConversationIdRef.current === conversationId) {
+          await refreshHistory(conversationId).catch(() => undefined);
+          setMessages((current) =>
+            current.map((message) =>
+              message.bounty?.id === bounty.id
+                ? {
+                    ...message,
+                    bounty: {
+                      ...message.bounty,
+                      fundingStatus: 'contract_refunded',
+                    },
+                  }
+                : message,
+            ),
+          );
+        }
+
+        toast(
+          'Bounty reclaimed',
+          `The expired ${bounty.amount} ${bounty.assetCode} bounty was returned on-chain. Hash: ${transaction.hash.slice(0, 8)}…${transaction.hash.slice(-8)}`,
+        );
+      } catch (cause) {
+        if (isWalletCancellation(cause)) return;
+        const message =
+          cause instanceof Error
+            ? cause.message
+            : 'The expired bounty could not be reclaimed.';
+        setBountyReclaimErrors((current) => ({
+          ...current,
+          [bounty.id]: message,
+        }));
+        toast('Bounty reclaim failed', message, { variant: 'error' });
+      } finally {
+        bountyReclaimsInFlight.current.delete(bounty.id);
+        setReclaimingBountyIds((current) => {
+          const next = new Set(current);
+          next.delete(bounty.id);
+          return next;
+        });
+      }
+    },
+    [config.networkPassphrase, refreshHistory, senderAddress, toast, writeContract],
   );
 
   const composer = useMessageComposer({
@@ -457,6 +544,8 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     keys,
     ...conversationList,
     messages,
+    reclaimingBountyIds,
+    bountyReclaimErrors,
     historyLoading,
     historyError,
     hasMoreMessages,
@@ -472,6 +561,7 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     setProfileUsername,
     setBroadcastRecipientDetails,
     closeProfile,
+    claimExpiredBounty,
     loadOlderMessages,
     retryHistory,
   };

@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { durationLabel, MessageBounty } from '@/components/messenger/message-bounty';
 import type { MessengerBounty } from '@/types';
 
@@ -76,12 +77,39 @@ describe('message bounty display', () => {
     expect(screen.getByText('Back to sender')).toBeInTheDocument();
   });
 
-  it('never renders a manual claim button in any state', () => {
+  it('does not render a reclaim action unless the viewer is the sender of an expired bounty', () => {
     for (const status of ['offered', 'claimable', 'claimed', 'expired'] as const) {
       const { unmount } = render(<MessageBounty bounty={{ ...baseBounty, status }} />);
-      expect(screen.queryByRole('button', { name: /claim/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /reclaim/i })).toBeNull();
       unmount();
     }
+  });
+
+  it('lets the sender reclaim an expired, unrefunded bounty', async () => {
+    const onClaimExpired = vi.fn();
+    render(
+      <MessageBounty
+        bounty={{ ...baseBounty, status: 'expired', fundingStatus: 'contract_locked' }}
+        canClaimExpired
+        onClaimExpired={onClaimExpired}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /reclaim expired bounty/i }));
+    expect(onClaimExpired).toHaveBeenCalledOnce();
+  });
+
+  it('disables the reclaim action while the wallet transaction is pending', () => {
+    render(
+      <MessageBounty
+        bounty={{ ...baseBounty, status: 'expired' }}
+        canClaimExpired
+        reclaiming
+        onClaimExpired={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /reclaim expired bounty/i })).toBeDisabled();
+    expect(screen.getByText('Reclaiming…')).toBeInTheDocument();
   });
 
   it('does not round short reply windows into the wrong unit', () => {
