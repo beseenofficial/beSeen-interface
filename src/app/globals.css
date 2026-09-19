@@ -222,136 +222,217 @@
   }
 }
 
-/* Let the overview use the complete desktop viewport without overflowing it. */
-@media (min-width: 1280px) {
-  .overview-page {
-    display: flex;
-    height: 100svh;
-    flex-direction: column;
-  }
-
-  .overview-page-header,
-  .overview-primary,
-  .overview-secondary {
-    flex: none;
-  }
-
-  .overview-recent {
-    min-height: 0;
-    flex: 1;
-    grid-auto-rows: minmax(0, 1fr);
-  }
-
-  .overview-recent-card {
-    display: flex;
-    min-height: 0;
-    height: 100%;
-    flex-direction: column;
-  }
-
-  .overview-recent-empty {
-    min-height: 0;
-    flex: 1;
-  }
+.overview-workspace {
+  display: grid;
+  gap: 16px;
 }
 
-/* Keep the dashboard overview visible in one frame on shorter laptops. */
-@media (min-width: 1280px) and (max-height: 900px) {
+/* The desktop overview is a fixed canvas. Mobile keeps the natural document flow. */
+@media (min-width: 901px) {
   .overview-page {
-    padding-block: 16px;
+    display: flex;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .overview-page-header {
-    margin-bottom: 12px;
+    flex: none;
+  }
+
+  .overview-workspace {
+    width: 100%;
+    max-width: 1320px;
+    min-height: 0;
+    margin-inline: auto;
+    flex: 1;
+    grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+    grid-template-rows: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  }
+
+  .overview-bounty,
+  .overview-earnings-card,
+  .overview-activity-card,
+  .overview-discover-card,
+  .overview-activity-list {
+    min-height: 0;
+  }
+
+  .overview-activity-list {
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1099px) {
+  .overview-page {
+    padding-inline: 18px;
+  }
+
+  .overview-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+    gap: 12px;
+  }
+
+  .overview-bounty,
+  .overview-earnings-card,
+  .overview-activity-card {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 799px) {
+  .overview-page {
+    padding-block: 14px;
+  }
+
+  .overview-page-header {
+    margin-bottom: 10px;
   }
 
   .overview-page-header h1 {
-    font-size: 30px;
+    font-size: 29px;
   }
 
-  .overview-primary {
-    grid-template-rows: 68px 140px;
-    gap: 14px;
+  .overview-workspace {
+    gap: 12px;
   }
 
-  .overview-bounty {
-    padding: 18px;
+  .overview-bounty,
+  .overview-earnings-card,
+  .overview-activity-card {
+    padding: 16px;
   }
 
   .overview-bounty-icon {
-    width: 44px;
-    height: 44px;
-  }
-
-  .overview-bounty-content {
-    padding-top: 0;
+    width: 40px;
+    height: 40px;
   }
 
   .overview-bounty-value {
-    margin-top: 4px;
-    font-size: 48px;
+    font-size: 44px;
   }
 
-  .overview-bounty-hint {
+  .overview-bounty-action,
+  .overview-earnings-action {
+    min-height: 40px;
+  }
+
+  .overview-earnings-body {
     margin-top: 8px;
   }
 
-  .overview-bounty-action {
-    min-height: 40px;
-    margin-top: 12px;
-  }
-
-  .overview-secondary,
-  .overview-recent {
-    margin-top: 14px;
-    gap: 14px;
-  }
-
-  .overview-stat-card {
-    min-height: 124px;
-    padding: 14px 16px;
-  }
-
-  .overview-stat-icon {
-    width: 36px;
-    height: 36px;
-  }
-
-  .overview-stat-label {
+  .overview-earnings-meta {
     margin-top: 10px;
+    padding-top: 8px;
   }
 
-  .overview-stat-value {
-    margin-top: 4px;
-    font-size: 22px;
+  .overview-activity-row {
+    min-height: 46px;
   }
 
-  .overview-stat-hint {
-    margin-top: 6px;
+}
+
+@media (min-width: 901px) and (max-height: 679px) {
+  .overview-page {
+    padding-block: 9px;
   }
 
-  .overview-recent-card {
-    min-height: 0;
-    max-height: none;
-    height: 100%;
-    overflow: hidden;
-    padding: 18px 20px;
+  .overview-page-header {
+    margin-bottom: 7px;
+    align-items: center;
   }
 
-  .overview-recent {
-    flex: 0 0 clamp(240px, 35svh, 310px);
+  .overview-page-header h1 {
+    font-size: 26px;
   }
 
-  .overview-recent-empty {
-    min-height: 0;
-  }
-
-  .overview-recent-list > li {
-    min-height: 54px;
-    padding-block: 6px;
-  }
-
-  .overview-recent-list > li:nth-child(n + 3) {
+  .overview-page-header p,
+  .overview-card-description {
     display: none;
+  }
+
+  .overview-workspace {
+    gap: 9px;
+  }
+
+  .overview-bounty,
+  .overview-earnings-card,
+  .overview-activity-card {
+    padding: 12px 14px;
+  }
+
+  .overview-bounty img {
+    opacity: 0.45;
+  }
+
+  .overview-bounty-value {
+    font-size: 38px;
+  }
+
+  .overview-bounty-hint {
+    font-size: 12px;
+  }
+
+  .overview-bounty-action,
+  .overview-earnings-action {
+    min-height: 38px;
+    margin-top: 7px;
+    padding-inline: 12px;
+    font-size: 12px;
+  }
+
+  .overview-earnings-card h2,
+  .overview-activity-card h2,
+  .overview-bounty h2 {
+    font-size: 15px;
+  }
+
+  .overview-earnings-value {
+    font-size: 27px;
+  }
+
+  .overview-earnings-meta {
+    margin-top: 7px;
+  }
+
+  .overview-activity-list {
+    margin-top: 4px;
+  }
+
+  .overview-activity-row {
+    min-height: 43px;
+  }
+
+}
+
+@media (min-width: 901px) and (max-height: 559px) {
+  .overview-page-header {
+    display: none;
+  }
+
+  .overview-page {
+    padding-block: 7px;
+  }
+
+  .overview-earnings-meta > span:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .overview-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-bounty,
+  .overview-earnings-card {
+    min-height: 250px;
+  }
+
+  .overview-activity-card,
+  .overview-discover-card {
+    min-height: 310px;
   }
 }
