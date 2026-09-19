@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Clock3, RotateCcw } from 'lucide-react';
+import { Check, Clock3, LoaderCircle, RotateCcw } from 'lucide-react';
 import { UsdcLogo } from '@/components/messenger/usdc-logo';
 import type { MessengerBounty } from '@/types';
 import { cn } from '@/lib/utils';
@@ -40,20 +40,28 @@ function settlementLabel(bounty: MessengerBounty): { small: string; strong: stri
   }
 }
 
-// TODO(contract-refund): expose an on-chain refund action for expired bounties
-// sponsored by the viewer, signing claim_expired_bounty(sender, bountyId) with
-// the connected wallet. Only offer it when the bounty is expired and not yet
-// refunded or settled — that distinction needs the server to serialize
-// fundingStatus on message bounties first. Refresh the conversation after the
-// transaction succeeds; never adjust any local balance.
 export function MessageBounty({
   bounty,
+  canClaimExpired = false,
+  reclaiming = false,
+  reclaimError = null,
+  onClaimExpired,
 }: {
   bounty: MessengerBounty;
+  canClaimExpired?: boolean;
+  reclaiming?: boolean;
+  reclaimError?: string | null;
+  onClaimExpired?: () => void;
 }) {
   const claimed = bounty.status === 'claimed';
   const expired = bounty.status === 'expired';
   const refunded = expired && bounty.fundingStatus === 'contract_refunded';
+  const reclaimable =
+    expired &&
+    canClaimExpired &&
+    !refunded &&
+    bounty.fundingStatus !== 'contract_settled' &&
+    Boolean(onClaimExpired);
   const settlement =
     bounty.status === 'claimable' || claimed ? settlementLabel(bounty) : null;
 
@@ -87,7 +95,7 @@ export function MessageBounty({
           <strong className={cn('block truncate text-[12px] font-semibold leading-4', claimed && 'text-[#13845C]', expired && !claimed && 'text-[#C56A2E]')}>
               {claimed ? 'Claimed' : refunded ? 'Refunded on-chain' : expired ? 'Bounty expired' : 'Reply reward'}
           </strong>
-          {!claimed && !expired && (
+          {!claimed && !refunded && (
             <span className="block truncate text-[11px] leading-4 text-secondary">
               {bounty.amount} {bounty.assetCode}
             </span>
@@ -98,7 +106,33 @@ export function MessageBounty({
       <span className="h-8 w-px bg-[#DDE2E3]" aria-hidden="true" />
 
       <div className="min-w-0">
-        {settlement ? (
+        {reclaimable ? (
+          <div className="min-w-0">
+            {reclaimError && (
+              <span
+                className="mb-0.5 block truncate text-[10px] font-medium leading-3 text-error"
+                role="alert"
+                title={reclaimError}
+              >
+                Reclaim failed
+              </span>
+            )}
+            <button
+              className="inline-flex min-h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#C56A2E] px-2.5 text-[11px] font-semibold text-white shadow-[0_5px_14px_rgba(197,106,46,0.2)] transition hover:bg-[#A95322] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C56A2E] disabled:cursor-wait disabled:opacity-70"
+              disabled={reclaiming}
+              onClick={onClaimExpired}
+              type="button"
+              aria-label={`Reclaim expired bounty of ${bounty.amount} ${bounty.assetCode}`}
+            >
+              {reclaiming ? (
+                <LoaderCircle className="animate-spin" size={13} aria-hidden="true" />
+              ) : (
+                <RotateCcw size={12} strokeWidth={2.3} aria-hidden="true" />
+              )}
+              {reclaiming ? 'Reclaiming…' : reclaimError ? 'Try again' : 'Reclaim funds'}
+            </button>
+          </div>
+        ) : settlement ? (
           <>
             <span className="flex items-center gap-1 text-[11px] leading-4 text-secondary">
               {settlement.small}

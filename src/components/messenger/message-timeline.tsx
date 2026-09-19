@@ -31,6 +31,8 @@ export function MessageTimeline({
     loadingOlder,
     messageEnd,
     messages,
+    reclaimingBountyIds,
+    bountyReclaimErrors,
     otherParticipant,
     timelineItems,
     unreadMarker,
@@ -38,6 +40,7 @@ export function MessageTimeline({
     user,
     loadOlderMessages,
     retryHistory,
+    claimExpiredBounty,
     setReplyTarget,
   } = workspace;
 
@@ -229,6 +232,9 @@ export function MessageTimeline({
                       current === messageId ? null : messageId,
                     )
                   }
+                  onClaimExpiredBounty={claimExpiredBounty}
+                  reclaimError={message.bounty ? bountyReclaimErrors[message.bounty.id] ?? null : null}
+                  reclaiming={message.bounty ? reclaimingBountyIds.has(message.bounty.id) : false}
                 />
               </div>
             );

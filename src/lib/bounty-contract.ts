@@ -38,6 +38,18 @@ export function contractU64ToString(value: unknown): string {
   return parsed.toString();
 }
 
+/** Builds the exact arguments for `claim_expired_bounty(env, sender, bounty_id)`. */
+export function expiredBountyClaimArgs(
+  sender: string,
+  bountyId: unknown,
+): [string, string] {
+  const normalizedSender = sender.trim().toUpperCase();
+  if (!normalizedSender) {
+    throw new Error('Connect your Stellar wallet before reclaiming a bounty.');
+  }
+  return [normalizedSender, contractU64ToString(bountyId)];
+}
+
 const MAX_I128 = (1n << 127n) - 1n;
 
 /**
