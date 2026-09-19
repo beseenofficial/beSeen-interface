@@ -34,11 +34,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "app-shell bg-ice pl-58 max-[900px]:pl-0 max-[900px]:pt-17",
+        "app-shell bg-ice pl-55 max-[900px]:pl-0 max-[900px]:pt-17",
         isMessenger ? "h-dvh overflow-hidden" : "min-h-screen",
       )}
     >
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-58 flex-col border-r border-border bg-white px-3 pb-3 pt-7 max-[900px]:hidden">
+      <aside className="fixed inset-y-0 left-0 z-20 flex w-55 flex-col border-r border-border bg-white px-3 pb-3 pt-6 max-[900px]:hidden">
         <Navigation onLogout={onLogout} />
       </aside>
       <header className="app-mobile-header fixed inset-x-0 top-0 z-30 hidden h-17 items-center justify-start gap-2 border-b border-border bg-white px-4 max-[900px]:flex">

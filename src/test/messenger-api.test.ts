@@ -7,6 +7,7 @@ vi.mock('@/lib/api/transport', () => ({
 }));
 
 import {
+  getMessengerBountySummary,
   getMessengerMessages,
   listMessengerConversations,
   markMessengerConversationRead,
@@ -46,6 +47,22 @@ describe('Messenger API contract paths', () => {
       '/v1/messenger/conversations/507f1f77bcf86cd799439011/read',
       { method: 'PUT', auth: true, body: { throughSequence: 9 } },
     );
+  });
+
+  it('loads the authenticated available bounty summary', async () => {
+    transport.request.mockResolvedValue({
+      unclaimedCount: 3,
+      updatedAt: '2026-09-19T12:00:00.000Z',
+    });
+
+    await expect(getMessengerBountySummary()).resolves.toEqual({
+      unclaimedCount: 3,
+      updatedAt: '2026-09-19T12:00:00.000Z',
+    });
+    expect(transport.request).toHaveBeenCalledWith('/v1/messenger/bounties/summary', {
+      auth: true,
+      signal: undefined,
+    });
   });
 
   it('no longer exposes the removed manual claim endpoint', () => {

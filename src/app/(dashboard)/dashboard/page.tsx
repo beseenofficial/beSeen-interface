@@ -1,23 +1,25 @@
 'use client';
 
-import { ArrowRight, CircleDollarSign, Copy, Gift, Link2, MessageCircleMore, Tag, UsersRound } from 'lucide-react';
+import { ArrowRight, Copy, Gift, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import { RecentBroadcasts, type BroadcastItem } from '@/components/dashboard/recent-broadcasts';
-import { RecentMessages, type RecentMessageItem } from '@/components/dashboard/recent-messages';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { EarningsSummary } from '@/components/dashboard/earnings-summary';
+import { RecentActivity } from '@/components/dashboard/recent-activity';
+import type { BroadcastItem } from '@/components/dashboard/recent-broadcasts';
+import type { RecentMessageItem } from '@/components/dashboard/recent-messages';
+import { DiscoverCard } from '@/components/discover/discover-card';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { LoadingState } from '@/components/ui/states';
-import { earningsApi, messengerApi, profileApi } from '@/lib/api';
+import { earningsApi, messengerApi, usersApi, type EarningTransaction } from '@/lib/api';
 import { BROADCAST_REFRESH_INTERVAL_MS, loadCompleteBroadcastFeed, mergeBroadcastFeeds } from '@/lib/broadcast-feed';
 import { decryptFeedItem } from '@/lib/broadcast-crypto';
 import { useAuth } from '@/lib/blux';
 import { APP_URL } from '@/lib/constants';
-import { formatAuraPrice, formatUsdc } from '@/lib/decimal';
 import { decryptMessengerMessage } from '@/lib/messenger-crypto';
 import { useToast } from '@/providers/toast-provider';
-import type { MessengerConversation } from '@/types';
+import type { DiscoverUser } from '@/types';
 
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
@@ -30,81 +32,23 @@ function formatRelativeTime(value: string): string {
   return 'Just now';
 }
 
-async function loadAllDashboardConversations(): Promise<MessengerConversation[]> {
-  const byId = new Map<string, MessengerConversation>();
-  let cursor: string | undefined;
-  do {
-    const page = await messengerApi.listConversations({ limit: 50, cursor });
-    page.items.forEach((conversation) => byId.set(conversation.id, conversation));
-    cursor = page.hasMore && page.nextCursor ? page.nextCursor : undefined;
-  } while (cursor);
-  return [...byId.values()];
-}
-
-async function countUnclaimedBounties(
-  conversations: MessengerConversation[],
-  viewerId: string,
-): Promise<number> {
-  const bountyIds = new Set<string>();
-  await Promise.all(
-    conversations.map(async (conversation) => {
-      let beforeSequence: number | undefined;
-      do {
-        const page = await messengerApi.messages(conversation.id, {
-          limit: 50,
-          beforeSequence,
-        });
-        page.items.forEach((message) => {
-          const bounty = message.bounty;
-          if (
-            bounty &&
-            message.manifest.recipientId === viewerId &&
-            (bounty.status === 'offered' || bounty.status === 'claimable')
-          ) {
-            bountyIds.add(bounty.id);
-          }
-        });
-        beforeSequence =
-          page.hasMore && page.nextBeforeSequence !== null
-            ? page.nextBeforeSequence
-            : undefined;
-      } while (beforeSequence !== undefined);
-    }),
-  );
-  return bountyIds.size;
-}
-
-type StatCardProps = {
-  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
-  iconClass: string;
-  label: string;
-  value: string;
-  hint: string;
-  onClick?: () => void;
-  href?: string;
-  loading?: boolean;
-};
-
-function StatCard({ icon: Icon, iconClass, label, value, hint, onClick, href, loading }: StatCardProps) {
-  const content = <><span className={`overview-stat-icon grid size-11 place-items-center rounded-full ${iconClass}`}><Icon size={21} strokeWidth={1.8} /></span><span className="overview-stat-label mt-5 block text-sm font-semibold">{label}</span>{loading ? <span className="mt-2 block h-7 w-28 animate-pulse rounded-lg bg-border" role="status"><span className="sr-only">Loading {label}</span></span> : <strong className="overview-stat-value mt-1.5 block text-[27px] font-medium leading-none tracking-[-0.03em]">{value}</strong>}<span className="overview-stat-hint mt-2.5 block text-xs text-muted">{hint}</span></>;
-  if (href) return <Link className="overview-stat-card min-h-46 rounded-2xl border border-border bg-white p-5 text-left transition hover:border-brand/25 hover:shadow-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={href}>{content}</Link>;
-  if (onClick) return <button className="overview-stat-card min-h-46 cursor-pointer rounded-2xl border border-border bg-white p-5 text-left transition hover:border-brand/25 hover:shadow-elevated" onClick={onClick} type="button">{content}</button>;
-  return <article className="overview-stat-card min-h-46 rounded-2xl border border-border bg-white p-5">{content}</article>;
-}
-
 export default function OverviewPage() {
-  const { user, keys, refreshUser } = useAuth();
+  const { user, keys } = useAuth();
   const { toast } = useToast();
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
   const [messages, setMessages] = useState<RecentMessageItem[]>([]);
   const [broadcastsLoading, setBroadcastsLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [followerCount, setFollowerCount] = useState<number | null>(null);
+  const [discoverUser, setDiscoverUser] = useState<DiscoverUser | null>(null);
+  const [discoverLoading, setDiscoverLoading] = useState(true);
+  const [discoverError, setDiscoverError] = useState(false);
   const [earningsTotal, setEarningsTotal] = useState<string | null>(null);
+  const [earnings, setEarnings] = useState<EarningTransaction[]>([]);
   const [earningsLoading, setEarningsLoading] = useState(true);
   const [unclaimedBountyCount, setUnclaimedBountyCount] = useState<number | null>(null);
   const [bountiesLoading, setBountiesLoading] = useState(true);
+  const [activityHasError, setActivityHasError] = useState(false);
   const refreshInFlight = useRef(false);
 
   const loadDashboard = useCallback(async (includeStats = false) => {
@@ -112,16 +56,20 @@ export default function OverviewPage() {
     refreshInFlight.current = true;
     if (includeStats) {
       setBroadcastsLoading(true);
+      setMessagesLoading(true);
       setEarningsLoading(true);
       setBountiesLoading(true);
+      setDiscoverLoading(true);
+      setDiscoverError(false);
     }
     try {
       const [receivedResult, sentResult, conversationsResult] = await Promise.allSettled([
         loadCompleteBroadcastFeed('received'),
         loadCompleteBroadcastFeed('sent'),
-        loadAllDashboardConversations(),
+        messengerApi.listConversations({ limit: 50 }),
       ]);
       const hasBroadcastFeed = receivedResult.status === 'fulfilled' || sentResult.status === 'fulfilled';
+      const broadcastFailed = receivedResult.status === 'rejected' && sentResult.status === 'rejected';
       if (hasBroadcastFeed) {
         const combinedFeed = mergeBroadcastFeeds(
           receivedResult.status === 'fulfilled' ? receivedResult.value : [],
@@ -143,7 +91,7 @@ export default function OverviewPage() {
       }
 
       if (conversationsResult.status === 'fulfilled') {
-        const conversations = conversationsResult.value;
+        const conversations = conversationsResult.value.items;
         setUnreadMessageCount(conversations.reduce((total, conversation) => total + conversation.unreadCount, 0));
         const recentConversations = conversations
           .filter((conversation) => conversation.lastMessage !== null)
@@ -169,6 +117,7 @@ export default function OverviewPage() {
             avatar: conversation.otherParticipant.avatar,
             content,
             timestamp: formatRelativeTime(conversation.lastMessageAt ?? conversation.createdAt),
+            occurredAt: conversation.lastMessageAt ?? conversation.createdAt,
             unreadCount: conversation.unreadCount,
             isOwn: conversation.lastMessage?.senderId === user.id,
           };
@@ -180,19 +129,34 @@ export default function OverviewPage() {
       }
 
       if (includeStats) {
-        const bountyCountRequest = conversationsResult.status === 'fulfilled'
-          ? countUnclaimedBounties(conversationsResult.value, user.id)
-          : Promise.reject(new Error('Conversations unavailable'));
-        const [followerResult, earningsResult, bountyCountResult] = await Promise.allSettled([
-          profileApi.followCounts(user.username),
-          earningsApi.list({ limit: 25 }),
-          bountyCountRequest,
+        const [earningsResult, bountyCountResult, discoverResult] = await Promise.allSettled([
+          earningsApi.list({ limit: 4 }),
+          messengerApi.bountySummary(),
+          usersApi.discover({ limit: 1 }),
         ]);
-        setFollowerCount(followerResult.status === 'fulfilled' ? followerResult.value.followerCount : null);
-        setEarningsTotal(earningsResult.status === 'fulfilled' ? earningsResult.value.totalAmount : null);
-        setUnclaimedBountyCount(bountyCountResult.status === 'fulfilled' ? bountyCountResult.value : null);
+        if (earningsResult.status === 'fulfilled') {
+          setEarningsTotal(earningsResult.value.totalAmount);
+          setEarnings(earningsResult.value.items.slice(0, 4));
+        } else {
+          setEarningsTotal(null);
+          setEarnings([]);
+        }
+        setUnclaimedBountyCount(
+          bountyCountResult.status === 'fulfilled' ? bountyCountResult.value.unclaimedCount : null,
+        );
+        if (discoverResult.status === 'fulfilled') {
+          setDiscoverUser(discoverResult.value.users[0] ?? null);
+          setDiscoverError(false);
+        } else {
+          setDiscoverUser(null);
+          setDiscoverError(true);
+        }
+        setDiscoverLoading(false);
         setEarningsLoading(false);
         setBountiesLoading(false);
+        setActivityHasError(broadcastFailed || conversationsResult.status === 'rejected' || earningsResult.status === 'rejected');
+      } else {
+        setActivityHasError(broadcastFailed || conversationsResult.status === 'rejected');
       }
     } catch {
       if (includeStats) {
@@ -200,9 +164,14 @@ export default function OverviewPage() {
         setMessages([]);
         setUnreadMessageCount(0);
         setEarningsTotal(null);
+        setEarnings([]);
         setUnclaimedBountyCount(null);
+        setDiscoverUser(null);
+        setDiscoverLoading(false);
+        setDiscoverError(true);
         setEarningsLoading(false);
         setBountiesLoading(false);
+        setActivityHasError(true);
       }
     } finally {
       if (includeStats) {
@@ -230,76 +199,106 @@ export default function OverviewPage() {
 
   const profileUrl = `${APP_URL}/u/${user.username}`;
   const copyProfile = async () => {
-    await navigator.clipboard.writeText(profileUrl);
-    toast('Profile link copied', 'It is ready to share.');
+    try {
+      await navigator.clipboard.writeText(profileUrl);
+      toast('Profile link copied', 'It is ready to share.');
+    } catch {
+      toast('Profile link not copied', 'Allow clipboard access and try again.', { variant: 'error' });
+    }
   };
 
   return (
     <DashboardPage className="overview-page">
       <PageHeader
         title="Overview"
-        description="Track your BeSeen activity, audience, and earnings at a glance."
+        description="See what needs attention and take your next best action."
         className="overview-page-header"
       />
 
-      <section className="overview-primary grid gap-4 xl:grid-cols-4 xl:grid-rows-[68px_184px]" aria-label="Bounty and earnings summary">
-        <article className="overview-bounty relative min-h-[268px] overflow-hidden rounded-2xl border border-border bg-[radial-gradient(circle_at_45%_42%,#ffffff_0%,#fbfcff_54%,#f1f5ff_100%)] p-6 xl:col-span-2 xl:row-span-2 xl:min-h-0">
-          <Image className="pointer-events-none absolute inset-y-0 right-0 h-full w-auto max-w-none select-none" src="/brand/beseen-available-bounty-ripple.svg" width={520} height={280} alt="" priority />
-          <div className="relative z-10 flex h-full items-start gap-5">
-            <span className="overview-bounty-icon grid size-14 shrink-0 place-items-center rounded-full bg-info-bg text-brand"><Gift size={27} strokeWidth={1.8} /></span>
-            <div className="overview-bounty-content pt-2">
-              <h2 className="text-[17px] font-semibold">Available bounties</h2>
-              {bountiesLoading ? (
-                <span className="overview-bounty-value mt-2 block h-14 w-24 animate-pulse rounded-xl bg-info-bg" role="status">
-                  <span className="sr-only">Loading available bounties</span>
-                </span>
-              ) : (
-                <strong className="overview-bounty-value mt-2 block text-[62px] font-medium leading-[0.95] tabular-nums tracking-[-0.04em] text-brand">
-                  {unclaimedBountyCount === null ? '—' : unclaimedBountyCount.toLocaleString()}
-                </strong>
-              )}
-              <p className="overview-bounty-hint mt-4 text-sm text-secondary">
+      <section className="overview-workspace" aria-label="Dashboard overview">
+        <article className="overview-bounty relative min-h-0 overflow-hidden rounded-2xl border border-border bg-[radial-gradient(circle_at_42%_36%,#ffffff_0%,#fbfcff_52%,#eef3ff_100%)] p-6">
+          <Image className="pointer-events-none absolute inset-y-0 right-0 h-full w-auto max-w-none select-none opacity-90" src="/brand/beseen-available-bounty-ripple.svg" width={520} height={280} alt="" priority />
+          <div className="relative z-10 flex h-full min-h-0 flex-col justify-between">
+            <div className="flex items-start gap-4">
+              <span className="overview-bounty-icon grid size-12 shrink-0 place-items-center rounded-full bg-info-bg text-brand"><Gift size={23} strokeWidth={1.8} /></span>
+              <div className="min-w-0">
+                <h2 className="text-[17px] font-semibold">Available bounties</h2>
+                {bountiesLoading ? (
+                  <span className="mt-2 block h-12 w-24 animate-pulse rounded-xl bg-info-bg" role="status"><span className="sr-only">Loading available bounties</span></span>
+                ) : (
+                  <strong className="overview-bounty-value mt-1 block text-[clamp(42px,5vw,64px)] font-medium leading-none tabular-nums tracking-[-0.04em] text-brand">
+                    {unclaimedBountyCount === null ? '—' : unclaimedBountyCount.toLocaleString()}
+                  </strong>
+                )}
+              </div>
+            </div>
+
+            <div className="overview-bounty-footer max-w-[29rem]">
+              <p className="overview-bounty-hint text-sm text-secondary">
                 {bountiesLoading
-                  ? 'Checking your bounties…'
+                  ? 'Checking what needs your attention…'
                   : unclaimedBountyCount === null
-                  ? 'Bounties temporarily unavailable'
-                  : unclaimedBountyCount === 0
-                    ? 'No unclaimed bounties'
-                    : unclaimedBountyCount === 1
-                      ? '1 bounty waiting to be claimed'
-                      : `${unclaimedBountyCount?.toLocaleString()} bounties waiting to be claimed`}
+                    ? 'We could not update your bounty status.'
+                    : unclaimedBountyCount > 0
+                      ? `${unclaimedBountyCount.toLocaleString()} ${unclaimedBountyCount === 1 ? 'bounty is' : 'bounties are'} waiting to be claimed.`
+                      : unreadMessageCount > 0
+                        ? `${unreadMessageCount.toLocaleString()} ${unreadMessageCount === 1 ? 'conversation needs' : 'conversations need'} your attention.`
+                        : 'Share your profile to attract your next opportunity.'}
               </p>
-              <Link className="overview-bounty-action mt-7 inline-flex min-h-12 items-center gap-7 rounded-xl bg-brand px-5 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]" href="/dashboard/messenger">Go to Messenger <ArrowRight size={19} /></Link>
+              {unclaimedBountyCount === null && !bountiesLoading ? (
+                <button className="overview-bounty-action mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]" onClick={() => void loadDashboard(true)} type="button">
+                  <RefreshCw size={17} /> Try again
+                </button>
+              ) : unclaimedBountyCount !== null && unclaimedBountyCount > 0 ? (
+                <Link className="overview-bounty-action mt-3 inline-flex min-h-11 items-center gap-3 rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]" href="/dashboard/messenger">Review bounties <ArrowRight size={17} /></Link>
+              ) : unreadMessageCount > 0 ? (
+                <Link className="overview-bounty-action mt-3 inline-flex min-h-11 items-center gap-3 rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]" href="/dashboard/messenger">Read messages <ArrowRight size={17} /></Link>
+              ) : (
+                <button className="overview-bounty-action mt-3 inline-flex min-h-11 items-center gap-3 rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-[#0c3bd6]" onClick={() => void copyProfile()} type="button">Copy profile link <Copy size={17} /></button>
+              )}
             </div>
           </div>
         </article>
-        <button className="flex min-h-17 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-white px-5 text-left transition hover:border-brand/25 hover:shadow-elevated xl:col-span-2" onClick={copyProfile} type="button">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-info-bg text-brand"><Link2 size={18} strokeWidth={1.9} /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">Public profile</span>
-            <strong className="mt-0.5 block truncate text-sm text-brand">beseen.fi/{user.username}</strong>
-          </span>
-          <Copy className="shrink-0 text-navy" size={19} />
-        </button>
-        <StatCard icon={MessageCircleMore} iconClass="bg-info-bg text-brand" label="Unread messages" value={unreadMessageCount.toLocaleString()} hint={unreadMessageCount > 0 ? `${unreadMessageCount} waiting to be read` : 'You are all caught up'} />
-        <StatCard icon={CircleDollarSign} iconClass="bg-success-bg text-emerald-600" label="Total earned" value={earningsTotal === null ? '—' : formatUsdc(earningsTotal)} hint={earningsTotal === null && !earningsLoading ? 'Earnings temporarily unavailable' : 'All-time net bounty earnings'} href="/dashboard/earnings" loading={earningsLoading} />
-      </section>
 
-      <section className="overview-secondary mt-4 grid gap-4 sm:grid-cols-2" aria-label="Aura summary">
-        <StatCard icon={UsersRound} iconClass="bg-info-bg text-brand" label="Aura holders" value={followerCount === null ? '—' : followerCount.toLocaleString()} hint="People holding your Aura" />
-        <StatCard
-          icon={Tag}
-          iconClass="bg-[#fff0ea] text-[#ff6b3d]"
-          label="Your Aura price"
-          value={formatAuraPrice(user.auraPrice ?? null) ?? '—'}
-          hint={user.auraPrice === null || user.auraPrice === undefined ? 'Price temporarily unavailable — select to refresh' : 'Current on-chain price of your Aura'}
-          onClick={user.auraPrice == null ? () => void refreshUser().catch(() => undefined) : undefined}
+        <EarningsSummary
+          totalAmount={earningsTotal}
+          latest={earnings[0] ?? null}
+          loading={earningsLoading}
+          onWithdrawConfirmed={() => void loadDashboard(true)}
         />
-      </section>
 
-      <section className="overview-recent mt-4 grid gap-4 lg:grid-cols-2">
-        <RecentMessages messages={messages} loading={messagesLoading} />
-        <RecentBroadcasts broadcasts={broadcasts} loading={broadcastsLoading} />
+        <RecentActivity
+          messages={messages}
+          broadcasts={broadcasts}
+          earnings={earnings}
+          loading={messagesLoading || broadcastsLoading || earningsLoading}
+          hasError={activityHasError}
+          retry={() => void loadDashboard(true)}
+        />
+
+        <div className="overview-discover-card min-h-0">
+          {discoverLoading ? (
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-white p-5" role="status" aria-label="Loading a person to discover">
+              <span className="h-7 w-28 animate-pulse rounded-md bg-border" />
+              <span className="mt-3 min-h-24 flex-1 animate-pulse rounded-2xl bg-info-bg" />
+              <span className="mt-2 h-10 animate-pulse rounded-xl bg-hairline" />
+              <span className="mt-3 h-16 animate-pulse rounded-2xl bg-subtle" />
+              <span className="mt-3 h-10 animate-pulse rounded-xl bg-hairline" />
+            </div>
+          ) : discoverUser ? (
+            <DiscoverCard user={discoverUser} compact />
+          ) : (
+            <div className="flex h-full min-h-0 flex-col items-start justify-between rounded-3xl border border-border bg-white p-5">
+              <div>
+                <h2 className="text-lg font-semibold">Discover someone new</h2>
+                <p className="mt-2 text-sm text-secondary">{discoverError ? 'Discover could not be updated.' : 'New profiles will appear here.'}</p>
+              </div>
+              <Link className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-brand px-4 text-xs font-semibold text-white hover:bg-[#0c3bd6]" href="/dashboard/discover">
+                Open Discover <ArrowRight size={16} />
+              </Link>
+            </div>
+          )}
+        </div>
       </section>
     </DashboardPage>
   );

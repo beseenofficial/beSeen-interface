@@ -20,6 +20,7 @@ describe('RecentMessages', () => {
           avatar: null,
           content: 'Your encrypted message was delivered.',
           timestamp: 'Just now',
+          occurredAt: '2026-09-19T12:00:00.000Z',
           unreadCount: 3,
           isOwn: false,
         }]}
