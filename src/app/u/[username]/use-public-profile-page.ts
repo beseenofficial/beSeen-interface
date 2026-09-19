@@ -251,6 +251,7 @@ export function usePublicProfilePage(username: string) {
       setFollowing(true);
       if (conversation) setConversationId(conversation.id);
       setPurchasePhase('confirmed');
+      setApprovalOpen(false);
       if (profile) {
         invalidateData({
           resource: 'public-profile',
@@ -337,7 +338,6 @@ export function usePublicProfilePage(username: string) {
     )
       return;
 
-    setApprovalOpen(false);
     setActionError(null);
     setPurchasePhase('preparing');
 
@@ -379,10 +379,6 @@ export function usePublicProfilePage(username: string) {
 
       // The contract mints the global Aura token ID; the client never invents it.
       const tokenId = contractU64ToString(await transaction.returnValue());
-      console.log(
-        `Aura purchase transaction confirmed on-chain: token ID ${tokenId}, hash ${transaction.hash}`,
-      );
-
       const purchase: PendingAuraPurchase = {
         subjectUsername: profile.username,
         payload: {
@@ -394,8 +390,6 @@ export function usePublicProfilePage(username: string) {
         createdAt: new Date().toISOString(),
       };
 
-      console.log('1');
-
       setPendingPurchase(purchase);
       setPurchasePhase('registering_with_server');
       await runRegistration(purchase);
@@ -403,6 +397,7 @@ export function usePublicProfilePage(username: string) {
       if (isWalletCancellation(cause)) {
         setPurchasePhase('canceled');
         setActionError(null);
+        setApprovalOpen(false);
         return;
       }
       setPurchasePhase((current) =>
@@ -455,10 +450,9 @@ export function usePublicProfilePage(username: string) {
 
   // A new purchase is blocked while a transaction is in flight, while the
   // registration loop runs, and while an unconfirmed registration is parked.
-  const followingBusy =
-    TRANSACTION_PHASES.has(purchasePhase) ||
-    registrationBusy ||
-    pendingPurchase !== null;
+  const purchaseInProgress =
+    TRANSACTION_PHASES.has(purchasePhase) || registrationBusy;
+  const followingBusy = purchaseInProgress || pendingPurchase !== null;
 
   // Values and actions consumed by the public profile page
   return {
@@ -467,6 +461,7 @@ export function usePublicProfilePage(username: string) {
     followCounts,
     following,
     followingBusy,
+    purchaseInProgress,
     purchasePhase,
     pendingPurchase,
     registrationBusy,

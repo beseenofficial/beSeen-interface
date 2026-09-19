@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   earnings: vi.fn(),
   followCounts: vi.fn(),
   conversations: vi.fn(),
+  messages: vi.fn(),
   auth: {
     user: { id: 'alice', username: 'alice', avatar: null, auraPrice: '10000000' },
     keys: { signingPublicKey: new Uint8Array() },
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/api', () => ({
   earningsApi: { list: mocks.earnings },
-  messengerApi: { listConversations: mocks.conversations },
+  messengerApi: { listConversations: mocks.conversations, messages: mocks.messages },
   profileApi: { followCounts: mocks.followCounts },
 }));
 vi.mock('@/lib/broadcast-feed', () => ({
@@ -38,6 +39,7 @@ describe('dashboard earnings summary', () => {
     vi.clearAllMocks();
     mocks.followCounts.mockResolvedValue({ followerCount: 4, followingCount: 2 });
     mocks.conversations.mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
+    mocks.messages.mockResolvedValue({ items: [], nextBeforeSequence: null, hasMore: false });
   });
 
   it('shows the API total exactly and links to earnings history', async () => {
@@ -63,5 +65,45 @@ describe('dashboard earnings summary', () => {
     await within(card).findByText('Earnings temporarily unavailable');
     expect(within(card).getByText('—')).toBeInTheDocument();
     expect(within(card).queryByText('0 USDC')).not.toBeInTheDocument();
+  });
+
+  it('shows the number of incoming bounties that are not claimed or expired', async () => {
+    mocks.earnings.mockResolvedValue({ totalAmount: '0', items: [], nextCursor: null, hasMore: false });
+    mocks.conversations.mockResolvedValue({
+      items: [{
+        id: 'conversation',
+        otherParticipant: { id: 'bob', username: 'bob', avatar: null },
+        unreadCount: 0,
+        readState: { viewerReadSequence: 0, otherParticipantReadSequence: 0 },
+        lastMessage: null,
+        lastMessageAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }],
+      nextCursor: null,
+      hasMore: false,
+    });
+    const message = (id: string, status: 'offered' | 'claimable' | 'claimed' | 'expired', recipientId = 'alice') => ({
+      id: `message-${id}`,
+      manifest: { recipientId },
+      bounty: { id, status },
+    });
+    mocks.messages.mockResolvedValue({
+      items: [
+        message('available', 'offered'),
+        message('settling', 'claimable'),
+        message('claimed', 'claimed'),
+        message('expired', 'expired'),
+        message('outgoing', 'offered', 'bob'),
+      ],
+      nextBeforeSequence: null,
+      hasMore: false,
+    });
+
+    render(<OverviewPage />);
+    const card = (await screen.findByRole('heading', { name: 'Available bounties' })).closest('article');
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText('2')).toBeInTheDocument();
+    expect(within(card!).getByText('2 bounties waiting to be claimed')).toBeInTheDocument();
+    expect(within(card!).queryByText('$0')).not.toBeInTheDocument();
   });
 });

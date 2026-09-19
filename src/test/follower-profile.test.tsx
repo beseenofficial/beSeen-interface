@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -137,6 +137,7 @@ describe('public profile social counts and statistics', () => {
     expect(mocks.writeContract).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(screen.getByText('5')).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(mocks.writeContract).toHaveBeenCalledWith({
       call: {
         address: CONTRACT_ADDRESS,
@@ -154,6 +155,35 @@ describe('public profile social counts and statistics', () => {
     expect(mocks.followCounts).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps purchase progress inside the modal until the transaction finishes', async () => {
+    let resolveTransaction!: (value: {
+      hash: string;
+      returnValue: () => Promise<bigint>;
+    }) => void;
+    mocks.writeContract.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveTransaction = resolve;
+        }),
+    );
+    render(<PublicProfilePage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /subscribe to broadcasts/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Purchasing Aura');
+    expect(dialog).toHaveTextContent('Approve the transaction in your wallet…');
+    expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+
+    resolveTransaction({
+      hash: 'A'.repeat(64),
+      returnValue: vi.fn().mockResolvedValue(7n),
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('surfaces a 202-parked registration with a manual retry that never re-submits the transaction', async () => {
     mocks.registerAndConfirm
       .mockResolvedValueOnce(pendingRegistration)
@@ -162,11 +192,10 @@ describe('public profile social counts and statistics', () => {
     await userEvent.click(await screen.findByRole('button', { name: /subscribe to broadcasts/i }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-    // The phase label appears in the status line and on the busy subscribe button.
-    expect(
-      (await screen.findAllByText(/Purchase confirmed on-chain\. Finalizing your access/)).length,
-    ).toBeGreaterThan(0);
-    const retry = screen.getByRole('button', { name: 'Retry confirmation' });
+    // A parked confirmation stays recoverable inside the purchase modal.
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Finalizing purchase')).toBeInTheDocument();
+    const retry = within(dialog).getByRole('button', { name: 'Retry' });
     await userEvent.click(retry);
     await waitFor(() => expect(mocks.registerAndConfirm).toHaveBeenCalledTimes(2));
     // Same payload both times; the wallet transaction ran exactly once.

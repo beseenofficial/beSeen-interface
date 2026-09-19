@@ -34,6 +34,7 @@ export default function PublicProfilePage() {
     followCounts,
     following,
     followingBusy,
+    purchaseInProgress,
     purchasePhase,
     pendingPurchase,
     registrationBusy,
@@ -223,7 +224,7 @@ export default function PublicProfilePage() {
                     </p>
                   )}
 
-                  {purchasePhaseLabel && !following && (
+                  {purchasePhaseLabel && !following && !approvalOpen && (
                     <p
                       className="mt-3 text-sm text-secondary"
                       role="status"
@@ -245,7 +246,7 @@ export default function PublicProfilePage() {
                     </p>
                   )}
 
-                  {actionError && (
+                  {actionError && !approvalOpen && (
                     <p className="mt-4 text-sm text-error" role="alert">
                       {actionError}
                     </p>
@@ -315,7 +316,7 @@ export default function PublicProfilePage() {
                           strokeWidth={1.9}
                           aria-hidden="true"
                         />
-                        {followingBusy
+                        {followingBusy && !approvalOpen
                           ? (purchasePhaseLabel ?? 'Buying Aura…')
                           : profile.auraPrice === null
                             ? 'Aura price unavailable'
@@ -337,7 +338,7 @@ export default function PublicProfilePage() {
                           strokeWidth={1.8}
                           aria-hidden="true"
                         />
-                        {followingBusy
+                        {followingBusy && !approvalOpen
                           ? (purchasePhaseLabel ?? 'Buying Aura…')
                           : followingLabel}
                       </button>
@@ -389,10 +390,14 @@ export default function PublicProfilePage() {
       <PurchaseConfirmationModal
         open={approvalOpen}
         username={profile.username}
-        followingBusy={followingBusy}
+        processing={purchaseInProgress}
+        phaseLabel={purchasePhaseLabel}
+        error={actionError}
+        pendingConfirmation={pendingPurchase !== null}
         priceLabel={auraPriceLabel}
         onClose={() => setApprovalOpen(false)}
         onConfirm={() => void confirmPurchase()}
+        onRetryConfirmation={retryPurchaseConfirmation}
       />
     </main>
   );
