@@ -26,10 +26,16 @@ export function messengerTimeLabel(value: string | null): string {
 }
 
 export function messengerError(cause: unknown): string {
+  const message = cause instanceof Error ? cause.message : '';
+  const isInsufficientBountyBalance =
+    /lock_bounty/i.test(message) &&
+    (/resulting balance is not within the allowed range/i.test(message) ||
+      /Error\(Contract,\s*#10\)/i.test(message));
+  if (isInsufficientBountyBalance) {
+    return 'Your wallet doesn\'t have enough USDC to fund this bounty. Add USDC or lower the bounty amount, then try again.';
+  }
   if (!(cause instanceof ApiError)) {
-    return cause instanceof Error
-      ? cause.message
-      : 'Messenger could not complete this request.';
+    return message || 'Messenger could not complete this request.';
   }
   if (cause.code === 'ACTIVE_KEYS_NOT_FOUND') {
     return 'Messaging is not ready for this account yet. Ask them to sign in once, then try again.';

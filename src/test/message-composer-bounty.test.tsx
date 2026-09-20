@@ -142,6 +142,23 @@ describe('message composer contract bounty', () => {
     expect(screen.getByLabelText('Draft')).toHaveValue('keep this message');
   });
 
+  it('shows a concise insufficient-USDC message instead of the raw contract diagnostic', async () => {
+    const lockBounty = vi.fn().mockRejectedValue(new Error(
+      'BLUX: Contract call failed (CCONTRACT.lock_bounty): HostError: Error(Contract, #10) Event log: ["resulting balance is not within the allowed range", 0, -75625000]',
+    ));
+    render(<Harness lockBounty={lockBounty} />);
+    await userEvent.type(screen.getByLabelText('Draft'), 'funded message');
+    await userEvent.click(screen.getByRole('button', { name: 'Add bounty' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(await screen.findByText(
+      'Your wallet doesn\'t have enough USDC to fund this bounty. Add USDC or lower the bounty amount, then try again.',
+    )).toBeInTheDocument();
+    expect(screen.queryByText(/Contract call failed/i)).not.toBeInTheDocument();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Draft')).toHaveValue('funded message');
+  });
+
   it('does not send the message when the lock returns no valid bounty ID', async () => {
     const lockBounty = vi.fn().mockRejectedValue(new Error('The contract did not return a valid u64 identifier.'));
     render(<Harness lockBounty={lockBounty} />);

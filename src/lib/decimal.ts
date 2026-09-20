@@ -65,7 +65,7 @@ export function baseUnitsToDecimalString(
  * retry state instead of a misleading zero. The raw string is never parsed
  * with `Number`.
  */
-export function formatAuraPrice(price: string | null): string | null {
-  if (price === null) return null;
+export function formatAuraPrice(price: string | null | undefined): string | null {
+  if (typeof price !== 'string' || !/^\d+$/.test(price)) return null;
   return baseUnitsToDecimalString(price);
 }

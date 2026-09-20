@@ -43,5 +43,7 @@ describe('decimal-safe USDC helpers', () => {
 
   it('returns null for an unavailable Aura price instead of a misleading zero', () => {
     expect(formatAuraPrice(null)).toBeNull();
+    expect(formatAuraPrice(undefined)).toBeNull();
+    expect(formatAuraPrice('1.5')).toBeNull();
   });
 });

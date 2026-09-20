@@ -12,7 +12,7 @@ import { DiscoverCard } from '@/components/discover/discover-card';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { PageHeader } from '@/components/layout/page-header';
 import { LoadingState } from '@/components/ui/states';
-import { earningsApi, messengerApi, usersApi, type EarningTransaction } from '@/lib/api';
+import { earningsApi, messengerApi, profileApi, type EarningTransaction } from '@/lib/api';
 import { BROADCAST_REFRESH_INTERVAL_MS, loadCompleteBroadcastFeed, mergeBroadcastFeeds } from '@/lib/broadcast-feed';
 import { decryptFeedItem } from '@/lib/broadcast-crypto';
 import { useAuth } from '@/lib/blux';
@@ -40,9 +40,9 @@ export default function OverviewPage() {
   const [broadcastsLoading, setBroadcastsLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [discoverUser, setDiscoverUser] = useState<DiscoverUser | null>(null);
-  const [discoverLoading, setDiscoverLoading] = useState(true);
-  const [discoverError, setDiscoverError] = useState(false);
+  const [profileCardUser, setProfileCardUser] = useState<DiscoverUser | null>(null);
+  const [profileCardLoading, setProfileCardLoading] = useState(true);
+  const [profileCardError, setProfileCardError] = useState(false);
   const [earningsTotal, setEarningsTotal] = useState<string | null>(null);
   const [earnings, setEarnings] = useState<EarningTransaction[]>([]);
   const [earningsLoading, setEarningsLoading] = useState(true);
@@ -59,8 +59,8 @@ export default function OverviewPage() {
       setMessagesLoading(true);
       setEarningsLoading(true);
       setBountiesLoading(true);
-      setDiscoverLoading(true);
-      setDiscoverError(false);
+      setProfileCardLoading(true);
+      setProfileCardError(false);
     }
     try {
       const [receivedResult, sentResult, conversationsResult] = await Promise.allSettled([
@@ -129,10 +129,11 @@ export default function OverviewPage() {
       }
 
       if (includeStats) {
-        const [earningsResult, bountyCountResult, discoverResult] = await Promise.allSettled([
+        const [earningsResult, bountyCountResult, currentProfileResult, followCountsResult] = await Promise.allSettled([
           earningsApi.list({ limit: 4 }),
           messengerApi.bountySummary(),
-          usersApi.discover({ limit: 1 }),
+          profileApi.me(),
+          profileApi.followCounts(user.username),
         ]);
         if (earningsResult.status === 'fulfilled') {
           setEarningsTotal(earningsResult.value.totalAmount);
@@ -144,14 +145,24 @@ export default function OverviewPage() {
         setUnclaimedBountyCount(
           bountyCountResult.status === 'fulfilled' ? bountyCountResult.value.unclaimedCount : null,
         );
-        if (discoverResult.status === 'fulfilled') {
-          setDiscoverUser(discoverResult.value.users[0] ?? null);
-          setDiscoverError(false);
+        if (currentProfileResult.status === 'fulfilled' && followCountsResult.status === 'fulfilled') {
+          const currentProfile = currentProfileResult.value;
+          setProfileCardUser({
+            id: currentProfile.id,
+            username: currentProfile.username,
+            avatar: currentProfile.avatar,
+            bio: currentProfile.bio,
+            auraPrice: currentProfile.auraPrice,
+            followerCount: followCountsResult.value.followerCount,
+            followingCount: followCountsResult.value.followingCount,
+            verification: currentProfile.verification,
+          });
+          setProfileCardError(false);
         } else {
-          setDiscoverUser(null);
-          setDiscoverError(true);
+          setProfileCardUser(null);
+          setProfileCardError(true);
         }
-        setDiscoverLoading(false);
+        setProfileCardLoading(false);
         setEarningsLoading(false);
         setBountiesLoading(false);
         setActivityHasError(broadcastFailed || conversationsResult.status === 'rejected' || earningsResult.status === 'rejected');
@@ -166,9 +177,9 @@ export default function OverviewPage() {
         setEarningsTotal(null);
         setEarnings([]);
         setUnclaimedBountyCount(null);
-        setDiscoverUser(null);
-        setDiscoverLoading(false);
-        setDiscoverError(true);
+        setProfileCardUser(null);
+        setProfileCardLoading(false);
+        setProfileCardError(true);
         setEarningsLoading(false);
         setBountiesLoading(false);
         setActivityHasError(true);
@@ -277,24 +288,24 @@ export default function OverviewPage() {
         />
 
         <div className="overview-discover-card min-h-0">
-          {discoverLoading ? (
-            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-white p-5" role="status" aria-label="Loading a person to discover">
+          {profileCardLoading ? (
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-white p-5" role="status" aria-label="Loading your profile card">
               <span className="h-7 w-28 animate-pulse rounded-md bg-border" />
               <span className="mt-3 min-h-24 flex-1 animate-pulse rounded-2xl bg-info-bg" />
               <span className="mt-2 h-10 animate-pulse rounded-xl bg-hairline" />
               <span className="mt-3 h-16 animate-pulse rounded-2xl bg-subtle" />
               <span className="mt-3 h-10 animate-pulse rounded-xl bg-hairline" />
             </div>
-          ) : discoverUser ? (
-            <DiscoverCard user={discoverUser} compact />
+          ) : profileCardUser ? (
+            <DiscoverCard user={profileCardUser} compact />
           ) : (
             <div className="flex h-full min-h-0 flex-col items-start justify-between rounded-3xl border border-border bg-white p-5">
               <div>
-                <h2 className="text-lg font-semibold">Discover someone new</h2>
-                <p className="mt-2 text-sm text-secondary">{discoverError ? 'Discover could not be updated.' : 'New profiles will appear here.'}</p>
+                <h2 className="text-lg font-semibold">Your profile</h2>
+                <p className="mt-2 text-sm text-secondary">{profileCardError ? 'Your profile stats could not be updated.' : 'Your public profile will appear here.'}</p>
               </div>
-              <Link className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-brand px-4 text-xs font-semibold text-white hover:bg-[#0c3bd6]" href="/dashboard/discover">
-                Open Discover <ArrowRight size={16} />
+              <Link className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-brand px-4 text-xs font-semibold text-white hover:bg-[#0c3bd6]" href="/dashboard/profile">
+                Edit profile <ArrowRight size={16} />
               </Link>
             </div>
           )}

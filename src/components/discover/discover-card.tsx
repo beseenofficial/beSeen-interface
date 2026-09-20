@@ -43,10 +43,10 @@ export function DiscoverCard({
       <article className="discover-person flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-white p-5 text-navy">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-[17px] font-semibold">Featured profile</h2>
-            <p className="overview-card-description mt-0.5 truncate text-xs text-secondary">Someone worth discovering</p>
+            <h2 className="text-[17px] font-semibold">Your profile</h2>
+            <p className="overview-card-description mt-0.5 truncate text-xs text-secondary">How people see you on BeSeen</p>
           </div>
-          <span className="shrink-0 rounded-full bg-info-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-brand">For you</span>
+          <span className="shrink-0 rounded-full bg-info-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-brand">Public</span>
         </div>
 
         <Link
