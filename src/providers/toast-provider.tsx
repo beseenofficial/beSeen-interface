@@ -49,7 +49,7 @@ export function toastDurationForContent(title: string, message?: string): number
 }
 
 const toastVariants: Variants = {
-  initial: { opacity: 0, y: 18, scale: 0.985, filter: "blur(5px)" },
+  initial: { opacity: 0, y: -12, scale: 0.985, filter: "blur(4px)" },
   animate: {
     opacity: 1,
     y: 0,
@@ -59,7 +59,7 @@ const toastVariants: Variants = {
   },
   exit: {
     opacity: 0,
-    y: 8,
+    y: -8,
     scale: 0.99,
     filter: "blur(3px)",
     transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
@@ -75,29 +75,29 @@ const reducedToastVariants: Variants = {
 const variantStyles = {
   success: {
     icon: CircleCheck,
-    surfaceClass: "bg-success-bg/55",
-    iconClass: "bg-white text-success shadow-[0_5px_14px_rgb(19_126_88/12%)]",
+    surfaceClass: "bg-success-bg",
+    iconClass: "text-success",
     actionClass: "bg-white text-success hover:bg-success-bg focus-visible:outline-success/40",
     progressClass: "bg-success/65",
   },
   error: {
     icon: CircleAlert,
-    surfaceClass: "bg-error-bg/65",
-    iconClass: "bg-white text-error shadow-[0_5px_14px_rgb(201_62_80/12%)]",
+    surfaceClass: "bg-error-bg",
+    iconClass: "text-error",
     actionClass: "bg-white text-error hover:bg-error-bg focus-visible:outline-error/40",
     progressClass: "bg-error/65",
   },
   warning: {
     icon: TriangleAlert,
-    surfaceClass: "bg-warning-bg/75",
-    iconClass: "bg-white text-warning shadow-[0_5px_14px_rgb(168_104_0/12%)]",
+    surfaceClass: "bg-warning-bg",
+    iconClass: "text-warning",
     actionClass: "bg-white text-warning hover:bg-warning-bg focus-visible:outline-warning/40",
     progressClass: "bg-warning/65",
   },
   info: {
     icon: Info,
-    surfaceClass: "bg-info-bg/70",
-    iconClass: "bg-white text-brand shadow-[0_5px_14px_rgb(16_69_245/12%)]",
+    surfaceClass: "bg-info-bg",
+    iconClass: "text-brand",
     actionClass: "bg-white text-brand hover:bg-info-bg focus-visible:outline-brand/40",
     progressClass: "bg-brand/60",
   },
@@ -166,7 +166,7 @@ function ToastItem({ item, onDismiss }: { item: Toast; onDismiss: (id: string) =
       exit="exit"
       transition={{ layout: { duration: shouldReduceMotion ? 0 : 0.2, ease: "easeOut" } }}
       className={cn(
-        "pointer-events-auto relative grid w-full grid-cols-[40px_minmax(0,1fr)_40px] items-start gap-x-3 overflow-hidden rounded-2xl px-3.5 py-3.5 shadow-[0_18px_48px_rgb(11_11_63/13%),0_4px_14px_rgb(11_11_63/6%)] md:w-fit md:min-w-[340px] md:max-w-[480px]",
+        "pointer-events-auto relative isolate grid w-[min(100%,360px)] grid-cols-[32px_minmax(0,1fr)_32px] items-start gap-x-2.5 overflow-hidden rounded-xl px-3 py-2.5 shadow-none md:w-fit md:min-w-[280px] md:max-w-[360px]",
         style.surfaceClass,
       )}
       role={item.variant === "error" ? "alert" : "status"}
@@ -176,17 +176,17 @@ function ToastItem({ item, onDismiss }: { item: Toast; onDismiss: (id: string) =
       onFocusCapture={pauseTimer}
       onBlurCapture={resumeTimer}
     >
-      <span className={cn("inline-flex size-10 items-center justify-center rounded-xl", style.iconClass)} aria-hidden>
-        <Icon size={20} strokeWidth={2.15} />
+      <span className={cn("inline-flex size-8 items-center justify-center rounded-[10px]", style.iconClass)} aria-hidden>
+        <Icon size={17} strokeWidth={2.15} />
       </span>
 
-      <span className="min-w-0 pt-0.5">
-        <strong className="block text-sm font-semibold leading-5 tracking-[-0.01em] text-navy">{item.title}</strong>
-        {item.message && <span className="mt-1 block break-words text-[13px] leading-[1.45] text-secondary">{item.message}</span>}
+      <span className="min-w-0">
+        <strong className="block text-[13px] font-semibold leading-[18px] tracking-[-0.01em] text-navy">{item.title}</strong>
+        {item.message && <span className="mt-0.5 block break-words text-xs leading-[1.4] text-secondary">{item.message}</span>}
         {item.action && (
           <button
             className={cn(
-              "mt-2.5 inline-flex min-h-10 cursor-pointer items-center rounded-xl px-3 text-xs font-semibold shadow-[0_3px_10px_rgb(11_11_63/6%)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2",
+              "mt-2 inline-flex min-h-8 cursor-pointer items-center rounded-lg px-2.5 text-[11px] font-semibold shadow-[0_2px_8px_rgb(11_11_63/5%)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2",
               style.actionClass,
             )}
             onClick={handleAction}
@@ -198,12 +198,12 @@ function ToastItem({ item, onDismiss }: { item: Toast; onDismiss: (id: string) =
       </span>
 
       <button
-        className="inline-flex size-10 cursor-pointer items-center justify-center rounded-xl border-0 bg-transparent text-secondary transition-colors hover:bg-white/75 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/40"
+        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent text-secondary transition-colors hover:bg-white/75 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/40"
         onClick={() => onDismiss(item.id)}
         aria-label="Dismiss notification"
         type="button"
       >
-        <X size={17} strokeWidth={2} />
+        <X size={15} strokeWidth={2} />
       </button>
 
       {item.duration !== null && (
@@ -250,7 +250,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={contextValue}>
       {children}
       <div
-        className="fixed right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 z-[200] flex max-h-[calc(100svh-1.5rem)] flex-col items-center gap-2.5 overflow-y-auto overscroll-contain py-1 md:right-6 md:bottom-6 md:left-auto md:w-[min(480px,calc(100vw-48px))] md:items-end"
+        className="pointer-events-none fixed top-[max(0.75rem,env(safe-area-inset-top))] right-3 left-3 z-[200] flex max-h-[calc(100svh-1.5rem)] flex-col items-center gap-2 overflow-y-auto overscroll-contain bg-transparent py-1 md:top-5 md:right-5 md:left-auto md:w-[360px] md:items-end"
         role="region"
         aria-label="Notifications"
       >
