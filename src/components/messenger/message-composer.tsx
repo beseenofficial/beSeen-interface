@@ -34,11 +34,11 @@ export function MessageComposer({
         <MessageReplyPreview workspace={workspace} />
       </div>
       <form
-        className="group/composer mx-auto grid w-[min(100%,820px)] grid-cols-[42px_minmax(0,1fr)_auto_46px] items-end gap-2 rounded-[22px] border border-white/80 bg-white/92 p-2 shadow-[0_14px_38px_rgba(11,11,63,0.14)] backdrop-blur-xl transition max-sm:w-full max-sm:grid-cols-[56px_minmax(0,1fr)] max-sm:items-center max-sm:gap-x-2 max-sm:gap-y-1.5 max-sm:rounded-2xl max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-none"
+        className="group/composer mx-auto grid w-[min(100%,820px)] grid-cols-[42px_minmax(0,1fr)_auto_46px] items-end gap-2 rounded-[22px] border border-[#DDE2E3] bg-white/92 p-2 shadow-[0_6px_20px_rgba(11,11,63,0.05)] backdrop-blur-xl transition focus-within:border-brand/30 max-sm:w-full max-sm:grid-cols-[56px_minmax(0,1fr)] max-sm:items-center max-sm:gap-x-2 max-sm:gap-y-1.5 max-sm:rounded-2xl max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-none"
         onSubmit={sendMessage}
       >
         <span
-          className="pointer-events-none hidden max-sm:col-start-2 max-sm:row-start-2 max-sm:block max-sm:min-h-12 max-sm:self-stretch max-sm:rounded-[26px] max-sm:bg-[#EFF3F4] max-sm:transition-colors max-sm:group-focus-within/composer:bg-[#E9EEF0]"
+          className="pointer-events-none hidden max-sm:col-start-2 max-sm:row-start-2 max-sm:block max-sm:min-h-12 max-sm:self-stretch max-sm:rounded-[26px] max-sm:border max-sm:border-[#DDE2E3] max-sm:bg-[#EFF3F4] max-sm:transition-colors max-sm:group-focus-within/composer:border-brand/25 max-sm:group-focus-within/composer:bg-[#E9EEF0]"
           aria-hidden="true"
         />
         <MessageEmojiPicker workspace={workspace} />

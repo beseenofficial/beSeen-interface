@@ -20,21 +20,30 @@ const baseBounty: MessengerBounty = {
 };
 
 describe('message bounty display', () => {
-  it('renders an offered bounty as waiting for a reply', () => {
+  it('hides an offered bounty amount from its recipient', () => {
     render(<MessageBounty bounty={baseBounty} />);
     expect(screen.getByText('Reply reward')).toBeInTheDocument();
-    expect(screen.getByText('25 USDC')).toBeInTheDocument();
+    expect(screen.getByText('Reply to reveal')).toBeInTheDocument();
+    expect(screen.queryByText('25 USDC')).not.toBeInTheDocument();
     expect(screen.getByText('1 day')).toBeInTheDocument();
     expect(screen.getByText(/By /)).toBeInTheDocument();
   });
 
+  it('shows an offered bounty amount to its sender', () => {
+    render(<MessageBounty bounty={baseBounty} outgoing />);
+    expect(screen.getByText('Reply reward')).toBeInTheDocument();
+    expect(screen.getByText('25 USDC')).toBeInTheDocument();
+    expect(screen.queryByText('Reply to reveal')).not.toBeInTheDocument();
+  });
+
   it.each([
-    ['pending', 'Settlement pending'],
-    ['processing', 'Settlement processing'],
+    ['pending', 'Pending'],
+    ['processing', 'Processing'],
   ] as const)('shows claimable + %s as an asynchronous settlement state', (settlementStatus, label) => {
     render(<MessageBounty bounty={{ ...baseBounty, status: 'claimable', settlementStatus }} />);
     expect(screen.getByText('Reply received')).toBeInTheDocument();
     expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText('25 USDC')).toBeInTheDocument();
   });
 
   it('shows claimed + confirmed as a confirmed on-chain settlement', () => {
@@ -51,12 +60,14 @@ describe('message bounty display', () => {
       />,
     );
     expect(screen.getByText('Claimed')).toBeInTheDocument();
-    expect(screen.getByText('Settlement confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Reward sent')).toBeInTheDocument();
+    expect(screen.getByText('25 USDC')).toBeInTheDocument();
   });
 
   it('shows a failed settlement without offering any manual action', () => {
     render(<MessageBounty bounty={{ ...baseBounty, status: 'claimable', settlementStatus: 'failed' }} />);
-    expect(screen.getByText('Settlement failed')).toBeInTheDocument();
+    expect(screen.getByText('Payment failed')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
   });
 

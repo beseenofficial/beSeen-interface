@@ -28,13 +28,13 @@ function settlementLabel(bounty: MessengerBounty): { small: string; strong: stri
   // client only renders its asynchronous progress.
   switch (bounty.settlementStatus) {
     case 'pending':
-      return { small: 'Reply received', strong: 'Settlement pending' };
+      return { small: 'Reply received', strong: 'Pending' };
     case 'processing':
-      return { small: 'Reply received', strong: 'Settlement processing' };
+      return { small: 'Reply received', strong: 'Processing' };
     case 'confirmed':
-      return { small: 'Settlement confirmed', strong: 'Thanks sent' };
+      return { small: 'Confirmed', strong: 'Reward sent' };
     case 'failed':
-      return { small: 'On-chain settlement', strong: 'Settlement failed' };
+      return { small: 'Reply received', strong: 'Payment failed' };
     default:
       return null;
   }
@@ -43,12 +43,14 @@ function settlementLabel(bounty: MessengerBounty): { small: string; strong: stri
 export function MessageBounty({
   bounty,
   canClaimExpired = false,
+  outgoing = false,
   reclaiming = false,
   reclaimError = null,
   onClaimExpired,
 }: {
   bounty: MessengerBounty;
   canClaimExpired?: boolean;
+  outgoing?: boolean;
   reclaiming?: boolean;
   reclaimError?: string | null;
   onClaimExpired?: () => void;
@@ -64,20 +66,21 @@ export function MessageBounty({
     Boolean(onClaimExpired);
   const settlement =
     bounty.status === 'claimable' || claimed ? settlementLabel(bounty) : null;
+  const rewardRevealed = outgoing || bounty.status === 'claimable' || claimed;
 
   return (
     <div
       className={cn(
-        'grid min-h-[60px] grid-cols-[minmax(0,1fr)_1px_minmax(104px,.68fr)] items-center gap-3 rounded-b-[18px] px-3.5 py-2.5 text-navy max-sm:min-h-[58px] max-sm:grid-cols-[minmax(0,1fr)_1px_minmax(92px,.68fr)] max-sm:gap-2.5 max-sm:px-3 max-sm:py-2',
+        'grid min-h-[52px] grid-cols-[minmax(0,.78fr)_1px_minmax(128px,1fr)] items-center gap-2.5 rounded-b-[18px] px-3.5 py-1.5 text-navy max-sm:min-h-[50px] max-sm:grid-cols-[minmax(0,.72fr)_1px_minmax(116px,1fr)] max-sm:gap-2 max-sm:px-3',
         claimed && 'bg-[#F1FBF6]',
         expired && !claimed && 'bg-[#FFF8EF]',
         !claimed && !expired && 'bg-[#FFFCF5]',
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
         <span
           className={cn(
-            'grid size-7 shrink-0 place-items-center rounded-full',
+            'grid size-6 shrink-0 place-items-center rounded-full',
             claimed && 'bg-[#D5F3E5] text-[#13845C]',
             expired && !claimed && 'bg-[#FFE9D4] text-[#C56A2E]',
             !claimed && !expired && 'bg-[#FFF0A8] text-[#8A6500]',
@@ -88,22 +91,28 @@ export function MessageBounty({
           ) : expired ? (
             <RotateCcw size={13} strokeWidth={2.2} aria-hidden="true" />
           ) : (
-            <UsdcLogo className="size-7" />
+            <UsdcLogo className="size-6" />
           )}
         </span>
         <span className="min-w-0">
           <strong className={cn('block truncate text-[12px] font-semibold leading-4', claimed && 'text-[#13845C]', expired && !claimed && 'text-[#C56A2E]')}>
               {claimed ? 'Claimed' : refunded ? 'Refunded on-chain' : expired ? 'Bounty expired' : 'Reply reward'}
           </strong>
-          {!claimed && !refunded && (
-            <span className="block truncate text-[11px] leading-4 text-secondary">
+          {rewardRevealed && (
+            <span className="flex items-center gap-1 truncate text-[11px] leading-4 text-secondary">
+              <UsdcLogo className="size-3.5 shrink-0" />
               {bounty.amount} {bounty.assetCode}
+            </span>
+          )}
+          {!rewardRevealed && (
+            <span className="block truncate text-[10px] leading-4 text-secondary">
+              Reply to reveal
             </span>
           )}
         </span>
       </div>
 
-      <span className="h-8 w-px bg-[#DDE2E3]" aria-hidden="true" />
+      <span className="h-7 w-px bg-[#DDE2E3]" aria-hidden="true" />
 
       <div className="min-w-0">
         {reclaimable ? (
@@ -122,7 +131,7 @@ export function MessageBounty({
               disabled={reclaiming}
               onClick={onClaimExpired}
               type="button"
-              aria-label={`Reclaim expired bounty of ${bounty.amount} ${bounty.assetCode}`}
+              aria-label="Reclaim expired bounty"
             >
               {reclaiming ? (
                 <LoaderCircle className="animate-spin" size={13} aria-hidden="true" />
@@ -148,7 +157,7 @@ export function MessageBounty({
           <>
             <span className="flex items-center gap-1 text-[11px] leading-4 text-secondary">
               {!claimed && !expired && <Clock3 size={12} aria-hidden="true" />}
-              {claimed ? 'Reward settled' : expired ? 'Reply window ended' : durationLabel(bounty.durationSeconds)}
+              {claimed ? 'Reward sent' : expired ? 'Reply window ended' : durationLabel(bounty.durationSeconds)}
             </span>
             <strong className="block truncate text-xs font-semibold leading-4">
               {claimed

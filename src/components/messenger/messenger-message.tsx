@@ -149,6 +149,7 @@ export function MessengerMessage({
           <MessageBounty
             bounty={message.bounty}
             canClaimExpired={outgoing}
+            outgoing={outgoing}
             reclaimError={reclaimError}
             reclaiming={reclaiming}
             onClaimExpired={() => onClaimExpiredBounty(message.bounty!)}
