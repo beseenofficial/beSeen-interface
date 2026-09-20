@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   earnings: vi.fn(),
-  discover: vi.fn(),
+  followCounts: vi.fn(),
+  currentProfile: vi.fn(),
   conversations: vi.fn(),
   messages: vi.fn(),
   bountySummary: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock('@/lib/api', () => ({
     messages: mocks.messages,
     bountySummary: mocks.bountySummary,
   },
-  usersApi: { discover: mocks.discover },
+  profileApi: { me: mocks.currentProfile, followCounts: mocks.followCounts },
 }));
 vi.mock('@/lib/broadcast-feed', () => ({
   BROADCAST_REFRESH_INTERVAL_MS: 60_000,
@@ -56,19 +57,19 @@ import OverviewPage from '@/app/(dashboard)/dashboard/page';
 describe('dashboard earnings summary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.discover.mockResolvedValue({
-      users: [{
-        id: 'nova',
-        username: 'nova',
-        avatar: null,
-        bio: 'Connecting curious minds.',
-        auraPrice: '25000000',
-        followerCount: 1_250,
-        followingCount: 0,
-        verification: { isVerified: false, grantedAt: null, expiresAt: null },
-      }],
-      nextCursor: null,
-      hasMore: false,
+    mocks.currentProfile.mockResolvedValue({
+      id: 'alice',
+      username: 'alice',
+      avatar: null,
+      bio: 'Building on BeSeen.',
+      auraPrice: '10000000',
+      verification: { isVerified: false, grantedAt: null, expiresAt: null },
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+    mocks.followCounts.mockResolvedValue({
+      user: { id: 'alice', username: 'alice' },
+      followerCount: 1_250,
+      followingCount: 12,
     });
     mocks.conversations.mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
     mocks.messages.mockResolvedValue({ items: [], nextBeforeSequence: null, hasMore: false });
@@ -92,9 +93,9 @@ describe('dashboard earnings summary', () => {
     expect(card).not.toBeNull();
     expect(within(card!).getByRole('link', { name: /View history/i })).toHaveAttribute('href', '/dashboard/earnings');
     expect(within(card!).getByText('9007199254740993.1234567 USDC')).toBeInTheDocument();
-    const profileLink = screen.getByRole('link', { name: "View @nova's profile" });
+    const profileLink = screen.getByRole('link', { name: "View @alice's profile" });
     const discoverCard = profileLink.closest('article');
-    expect(profileLink).toHaveAttribute('href', '/u/nova');
+    expect(profileLink).toHaveAttribute('href', '/u/alice');
     expect(discoverCard).not.toBeNull();
     expect(within(discoverCard!).getByText('Aura holders')).toBeInTheDocument();
     expect(within(discoverCard!).getByText('Aura price')).toBeInTheDocument();
