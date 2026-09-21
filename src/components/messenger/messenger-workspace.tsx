@@ -24,11 +24,9 @@ export function MessengerWorkspace({
   const {
     activeConversationId,
     broadcastOpen,
-    broadcastRecipientDetails,
     closeProfile,
     profileUsername,
     setBroadcastOpen,
-    setBroadcastRecipientDetails,
   } = workspace;
 
   return (
@@ -48,13 +46,6 @@ export function MessengerWorkspace({
           <BroadcastChat
             user={user}
             keys={keys}
-            recipientDetails={broadcastRecipientDetails}
-            onRecipientsLoaded={(broadcastId, recipients) => {
-              setBroadcastRecipientDetails((current) => ({
-                ...current,
-                [broadcastId]: recipients,
-              }));
-            }}
             onBack={() => setBroadcastOpen(false)}
           />
         ) : !activeConversationId ? (

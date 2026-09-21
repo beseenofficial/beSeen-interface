@@ -13,16 +13,20 @@ import {
 import type { BroadcastChatState } from '@/components/messenger/broadcast/use-broadcast-chat';
 import { conversationBackgroundClassName } from '@/components/messenger/conversation-surface';
 import { cn } from '@/lib/utils';
-import type { BroadcastRecipientSummary } from '@/types';
 
 export function BroadcastFeed({
   state,
-  recipientDetails,
 }: {
   state: BroadcastChatState;
-  recipientDetails: Record<string, BroadcastRecipientSummary[]>;
 }) {
-  const { chronologicalFeed, error, load, messageEnd, setOpenDetails } = state;
+  const {
+    chronologicalFeed,
+    error,
+    load,
+    messageEnd,
+    recipientDetails,
+    setOpenDetails,
+  } = state;
   const feed = useRef<HTMLElement>(null);
   const [showLatestButton, setShowLatestButton] = useState(false);
 

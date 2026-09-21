@@ -245,6 +245,21 @@ describe('public profile social counts and statistics', () => {
     expect(mocks.registerAndConfirm).not.toHaveBeenCalled();
   });
 
+  it('shows a concise USCC trustline error instead of the raw contract diagnostic', async () => {
+    mocks.writeContract.mockRejectedValueOnce(new Error(
+      'BLUX: Contract call failed (CCONTRACT.buy_aura): HostError: Error(Contract, #13) Event log: ["trustline entry is missing for account", "GBUYER"]',
+    ));
+    render(<PublicProfilePage />);
+    await userEvent.click(await screen.findByRole('button', { name: /subscribe to broadcasts/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByText(
+      'Your wallet is missing the USCC trustline. Add it, then try again.',
+    )).toBeInTheDocument();
+    expect(screen.queryByText(/Contract call failed/i)).not.toBeInTheDocument();
+    expect(mocks.registerAndConfirm).not.toHaveBeenCalled();
+  });
+
   it('blocks the purchase when the viewer wallet is the Aura subject', async () => {
     mocks.profile.mockResolvedValue({ ...publicProfile, walletAddress: BUYER_ADDRESS });
     render(<PublicProfilePage />);

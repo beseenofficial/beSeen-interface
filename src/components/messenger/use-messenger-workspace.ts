@@ -35,7 +35,6 @@ import {
   toBountyContractAmount,
 } from '@/lib/bounty-contract';
 import type {
-  BroadcastRecipientSummary,
   DecryptedBroadcast,
   DecryptedMessengerMessage,
   DerivedKeys,
@@ -86,9 +85,6 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
   const [receivedBroadcasts, setReceivedBroadcasts] = useState<
     DecryptedBroadcast[]
   >([]);
-  const [broadcastRecipientDetails, setBroadcastRecipientDetails] = useState<
-    Record<string, BroadcastRecipientSummary[]>
-  >({});
   const cache = useRef(new Map<string, DecryptedMessengerMessage>());
   const bountyReclaimsInFlight = useRef(new Set<string>());
   const activeConversationIdRef = useRef(activeConversationId);
@@ -553,13 +549,11 @@ export function useMessengerWorkspace(user: User, keys: DerivedKeys) {
     ...composer,
     profileUsername,
     unreadMarker,
-    broadcastRecipientDetails,
     messageEnd,
     otherParticipant,
     timelineItems,
     unreadMessageId,
     setProfileUsername,
-    setBroadcastRecipientDetails,
     closeProfile,
     claimExpiredBounty,
     loadOlderMessages,
