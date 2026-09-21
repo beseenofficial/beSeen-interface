@@ -107,6 +107,14 @@ function auraPurchaseErrorMessage(cause: ApiError): string {
   }
 }
 
+function auraTransactionErrorMessage(cause: unknown): string {
+  const message = cause instanceof Error ? cause.message : '';
+  if (/trustline entry is missing for account/i.test(message)) {
+    return 'Your wallet is missing the USCC trustline. Add it, then try again.';
+  }
+  return message || 'This Aura could not be purchased.';
+}
+
 export function usePublicProfilePage(username: string) {
   // Auth and on-chain write helpers
   const auth = useAuth();
@@ -403,11 +411,7 @@ export function usePublicProfilePage(username: string) {
       setPurchasePhase((current) =>
         current === 'price_unavailable' ? current : 'failed',
       );
-      setActionError(
-        cause instanceof Error
-          ? cause.message
-          : 'This Aura could not be purchased.',
-      );
+      setActionError(auraTransactionErrorMessage(cause));
     }
   }, [
     auth.address,
