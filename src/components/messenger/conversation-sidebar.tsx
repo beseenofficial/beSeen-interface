@@ -46,10 +46,10 @@ export function ConversationSidebar({
           <h1 className="text-2xl font-semibold">Messages</h1>
           {totalUnread > 0 && (
             <span
-              className="inline-flex min-w-6 items-center justify-center rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-white"
+              className="inline-grid size-6 shrink-0 place-items-center rounded-full bg-brand text-[9px] font-semibold leading-none tabular-nums text-white"
               aria-label={`${totalUnread} unread messages`}
             >
-              {totalUnread}
+              {totalUnread > 99 ? '99+' : totalUnread}
             </span>
           )}
         </div>
@@ -63,7 +63,7 @@ export function ConversationSidebar({
             placeholder="Search conversations"
           />
         </label>
-        <div
+        {/* <div
           className="mt-3 inline-flex rounded-xl border border-border bg-white p-1"
           aria-label="Conversation filters"
         >
@@ -82,7 +82,7 @@ export function ConversationSidebar({
               {value}
             </button>
           ))}
-        </div>
+        </div> */}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
@@ -149,10 +149,14 @@ export function ConversationSidebar({
             <div>
               <Inbox className="mx-auto text-brand" size={24} />
               <p className="mt-3 text-sm font-semibold text-navy">
-                {search || filter !== 'all' ? 'No matching conversations' : 'No direct messages yet'}
+                {search || filter !== 'all'
+                  ? 'No matching conversations'
+                  : 'No direct messages yet'}
               </p>
               <p className="mt-1 text-xs">
-                {search || filter !== 'all' ? 'Try another search or show all messages.' : 'Get a creator\'s token to start chatting.'}
+                {search || filter !== 'all'
+                  ? 'Try another search or show all messages.'
+                  : "Get a creator's token to start chatting."}
               </p>
               {(search || filter !== 'all') && (
                 <button
@@ -190,7 +194,9 @@ export function ConversationSidebar({
                       setBroadcastOpen(false);
                       setActiveConversationId(conversation.id);
                     }}
-                    aria-current={selected && !broadcastOpen ? 'page' : undefined}
+                    aria-current={
+                      selected && !broadcastOpen ? 'page' : undefined
+                    }
                     type="button"
                   >
                     <Avatar
@@ -220,8 +226,8 @@ export function ConversationSidebar({
                         )}
                       </time>
                       {conversation.unreadCount > 0 && (
-                        <span className="grid min-w-5 place-items-center rounded-full bg-brand px-1.5 py-0.5 font-semibold text-white">
-                          {conversation.unreadCount}
+                        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand text-[9px] font-semibold leading-none tabular-nums text-white">
+                          {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
                         </span>
                       )}
                     </span>
